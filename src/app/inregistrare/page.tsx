@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import Image from "next/image";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -60,62 +61,87 @@ const handleRegister = async (e: React.FormEvent) => {
   router.push("/login");
 };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
-        <h1 className="mb-6 text-center text-2xl font-bold">
-          Înregistrare
-        </h1>
+return (
+  <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+    <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Nume"
-            value={nume}
-            onChange={(e) => setNume(e.target.value)}
-            className="w-full rounded-lg border px-4 py-3"
-            required
-          />
+      {/* LOGO */}
+      <div className="flex flex-col items-center mb-6">
+        <Image
+          src="/logo.png"
+          alt="Logo"
+          width={120}
+          height={60}
+          className="object-contain"
+        />
+        <h2 className="mt-3 text-lg font-semibold">
+          Brenado Construct
+        </h2>
+      </div>
 
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border px-4 py-3"
-            required
-          />
+      <h1 className="mb-6 text-center text-2xl font-bold">
+        Înregistrare
+      </h1>
 
-          <input
-            type="password"
-            placeholder="Parolă"
-            value={parola}
-            onChange={(e) => setParola(e.target.value)}
-            className="w-full rounded-lg border px-4 py-3"
-            required
-          />
+      <form onSubmit={handleRegister} className="space-y-4">
 
-          <input
-            type="password"
-            placeholder="Repetă parola"
-            value={repetaParola}
-            onChange={(e) => setRepetaParola(e.target.value)}
-            className="w-full rounded-lg border px-4 py-3"
-            required
-          />
+        <input
+          type="text"
+          placeholder="Nume"
+          value={nume}
+          onChange={(e) => setNume(e.target.value)}
+          className="w-full rounded-lg border px-4 py-3"
+          required
+        />
 
-          {eroare && (
-            <p className="text-sm text-red-600">{eroare}</p>
-          )}
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full rounded-lg border px-4 py-3"
+          required
+        />
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-black px-4 py-3 text-white"
-          >
-            {loading ? "Se creează cont..." : "Înregistrare"}
-          </button>
-        </form>
+        <input
+          type="password"
+          placeholder="Parolă"
+          value={parola}
+          onChange={(e) => setParola(e.target.value)}
+          className="w-full rounded-lg border px-4 py-3"
+          required
+        />
+
+        <input
+          type="password"
+          placeholder="Repetă parola"
+          value={repetaParola}
+          onChange={(e) => setRepetaParola(e.target.value)}
+          className="w-full rounded-lg border px-4 py-3"
+          required
+        />
+
+        {eroare && (
+          <p className="text-sm text-red-600">{eroare}</p>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full rounded-lg bg-black px-4 py-3 text-white"
+        >
+          {loading ? "Se creează cont..." : "Înregistrare"}
+        </button>
+
+      </form>
+
+      {/* BACK TO LOGIN */}
+      <p className="text-sm text-center mt-4">
+        Ai deja cont?{" "}
+        <a href="/login" className="text-blue-600">
+          Înapoi la login
+        </a>
+      </p>
       </div>
     </div>
   );
