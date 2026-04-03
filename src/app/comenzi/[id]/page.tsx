@@ -294,7 +294,7 @@ export default function ComandaDetaliuPage() {
     {items.map((item, index) => (
       <div
         key={item.id}
-className="bg-gray-50 px-4 py-4 border-b border-gray-200 last:border-b-0"
+className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
