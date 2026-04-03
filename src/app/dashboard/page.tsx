@@ -181,19 +181,19 @@ const inCurs = projectsData.filter(
   )}
 
   <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-    <div className="rounded-2xl bg-white p-3 shadow">
-      <p className="text-sm text-gray-500">TOTAL PROIECTE</p>
-      <p className="mt-2 text-2xl font-bold">{stats.total}</p>
+    <div className="rounded-2xl bg-white p-5 shadow">
+      <p className="text-xs text-gray-500">TOTAL PROIECTE</p>
+      <p className="mt-1 text-xl font-bold">{stats.total}</p>
     </div>
 
-    <div className="rounded-2xl bg-white p-3 shadow">
-      <p className="text-sm text-gray-500">PROIECTE ÎN CURS</p>
-      <p className="mt-2 text-2xl font-bold">{stats.inCurs}</p>
+    <div className="rounded-2xl bg-white p-5 shadow">
+      <p className="text-xs text-gray-500">PROIECTE ÎN CURS</p>
+      <p className="mt-1 text-xl font-bold">{stats.inCurs}</p>
     </div>
 
-    <div className="rounded-2xl bg-white p-3 shadow">
-      <p className="text-sm text-gray-500">PROIECTE FINALIZATE</p>
-      <p className="mt-2 text-2xl font-bold">{stats.finalizate}</p>
+    <div className="rounded-2xl bg-white p-5 shadow">
+      <p className="text-xs text-gray-500">PROIECTE FINALIZATE</p>
+      <p className="mt-1 text-xl font-bold">{stats.finalizate}</p>
     </div>
   </div>
 </main>
