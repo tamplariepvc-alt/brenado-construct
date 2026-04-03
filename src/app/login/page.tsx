@@ -32,8 +32,6 @@ export default function LoginPage() {
     router.push("/dashboard");
   };
 
-import Image from "next/image";
-
 return (
   <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
     <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
@@ -101,7 +99,10 @@ return (
           Înregistrează-te
         </a>
       </p>
-
+		  
+		  
+        </form>
+      </div>
     </div>
-  </div>
-);
+  );
+}
