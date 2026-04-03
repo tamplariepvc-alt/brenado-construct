@@ -193,7 +193,7 @@ export default function EditareComandaPage() {
             article_name: item.article_name,
             unit: item.unit || "",
             unit_price: Number(item.unit_price || 0),
-            vat_percent: Number(item.vat_percent || 19),
+            vat_percent: Number(item.vat_percent || 21),
             quantity: Number(item.quantity || 1),
           }))
         );
@@ -229,7 +229,7 @@ export default function EditareComandaPage() {
         article_name: article.name,
         unit: article.unit || "",
         unit_price: Number(article.unit_price || 0),
-        vat_percent: Number(article.vat_percent || 19),
+        vat_percent: Number(article.vat_percent || 21),
         quantity: 1,
       },
     ]);
@@ -591,12 +591,12 @@ export default function EditareComandaPage() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Subtotal</p>
+                <p className="text-sm text-gray-500">Subtotal articole</p>
                 <p className="mt-1 text-xl font-bold">{subtotal.toFixed(2)} lei</p>
               </div>
 
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">TVA</p>
+                <p className="text-sm text-gray-500">TVA 21%</p>
                 <p className="mt-1 text-xl font-bold">{vatTotal.toFixed(2)} lei</p>
               </div>
 

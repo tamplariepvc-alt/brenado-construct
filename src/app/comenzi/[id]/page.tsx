@@ -333,10 +333,10 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
           </div>
 
           <div>
-            <p className="text-xs text-gray-500">V. Totală</p>
-            <p className="text-sm font-semibold">
-              {Number(item.line_total_with_vat).toFixed(2)}
-            </p>
+<p className="text-xs text-gray-500">V. Totală</p>
+<p className="text-sm font-semibold">
+  {Number(item.line_total).toFixed(2)}
+</p>
           </div>
         </div>
       </div>
@@ -350,14 +350,14 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Subtotal</p>
+                <p className="text-sm text-gray-500">Subtotal articole</p>
                 <p className="mt-1 text-lg font-semibold">
                   {Number(order.subtotal).toFixed(2)} lei
                 </p>
               </div>
 
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">TVA</p>
+                <p className="text-sm text-gray-500">TVA 21%</p>
                 <p className="mt-1 text-lg font-semibold">
                   {Number(order.vat_total).toFixed(2)} lei
                 </p>

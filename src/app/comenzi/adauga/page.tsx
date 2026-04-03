@@ -164,7 +164,7 @@ export default function AdaugaComandaPage() {
         article_name: article.name,
         unit: article.unit || "",
         unit_price: Number(article.unit_price || 0),
-        vat_percent: Number(article.vat_percent || 19),
+        vat_percent: Number(article.vat_percent || 21),
         quantity: 1,
       },
     ]);
