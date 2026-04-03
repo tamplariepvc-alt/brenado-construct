@@ -72,22 +72,22 @@ export default function ComenziPage() {
 
       setProfile(profileData as Profile);
 
-let query = supabase
-  .from("orders")
-  .select(`
-    id,
-    order_number,
-    project_id,
-    order_date,
-    status,
-    total_with_vat,
-    created_by,
-    created_at,
-    projects:project_id (
-      name
-    )
-  `)
-  .order("created_at", { ascending: false });
+      let query = supabase
+        .from("orders")
+        .select(`
+          id,
+          order_number,
+          project_id,
+          order_date,
+          status,
+          total_with_vat,
+          created_by,
+          created_at,
+          projects:project_id (
+            name
+          )
+        `)
+        .order("created_at", { ascending: false });
 
       if (profileData.role === "sef_echipa") {
         query = query.eq("created_by", user.id);
@@ -95,31 +95,31 @@ let query = supabase
 
       const { data: ordersData, error: ordersError } = await query;
 
-if (!ordersError && ordersData) {
-  const typedOrders = ordersData as OrderRow[];
-  setOrders(typedOrders);
+      if (!ordersError && ordersData) {
+        const typedOrders = ordersData as OrderRow[];
+        setOrders(typedOrders);
 
-  const userIds = Array.from(
-    new Set(typedOrders.map((order) => order.created_by))
-  );
+        const userIds = Array.from(
+          new Set(typedOrders.map((order) => order.created_by))
+        );
 
-  if (userIds.length > 0) {
-    const { data: profilesData, error: profilesError } = await supabase
-      .from("profiles")
-      .select("id, full_name")
-      .in("id", userIds);
+        if (userIds.length > 0) {
+          const { data: profilesData, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, full_name")
+            .in("id", userIds);
 
-    if (!profilesError && profilesData) {
-      const namesMap: ProfileNameMap = {};
+          if (!profilesError && profilesData) {
+            const namesMap: ProfileNameMap = {};
 
-      profilesData.forEach((profile) => {
-        namesMap[profile.id] = profile.full_name;
-      });
+            profilesData.forEach((profile) => {
+              namesMap[profile.id] = profile.full_name;
+            });
 
-      setProfileNames(namesMap);
-    }
-  }
-}
+            setProfileNames(namesMap);
+          }
+        }
+      }
 
       setLoading(false);
     };
@@ -137,8 +137,7 @@ if (!ordersError && ordersData) {
         .toLowerCase()
         .includes(searchSantier.toLowerCase());
 
-      const matchesDate =
-        !searchDate || order.order_date === searchDate;
+      const matchesDate = !searchDate || order.order_date === searchDate;
 
       return matchesStatus && matchesSantier && matchesDate;
     });
@@ -146,17 +145,25 @@ if (!ordersError && ordersData) {
 
   const getStatusLabel = (status: string) => {
     if (status === "draft") return "Draft";
-    if (status === "asteapta_confirmare") return "Așteaptă confirmare";
+    if (status === "asteapta_confirmare") return "Așteaptă";
     if (status === "aprobata") return "Aprobată";
     if (status === "refuzata") return "Refuzată";
     return status;
   };
 
   const getStatusColor = (status: string) => {
-    if (status === "asteapta_confirmare") return "bg-orange-100 text-orange-700";
-    if (status === "aprobata") return "bg-green-100 text-green-700";
-    if (status === "refuzata") return "bg-red-100 text-red-700";
-    if (status === "draft") return "bg-gray-100 text-gray-700";
+    if (status === "asteapta_confirmare") {
+      return "bg-yellow-100 text-yellow-700";
+    }
+    if (status === "aprobata") {
+      return "bg-green-100 text-green-700";
+    }
+    if (status === "refuzata") {
+      return "bg-red-100 text-red-700";
+    }
+    if (status === "draft") {
+      return "bg-gray-100 text-gray-700";
+    }
     return "bg-gray-100 text-gray-700";
   };
 
@@ -194,105 +201,107 @@ if (!ordersError && ordersData) {
           </div>
         </div>
 
-        {/* FILTRE */}
         <div className="mb-6 rounded-2xl bg-white p-4 shadow">
-<div className="mb-4 grid grid-cols-1 gap-3">
- <button
-  onClick={() => setStatusFilter("toate")}
-  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-    statusFilter === "toate"
-      ? "text-white"
-      : "bg-gray-100 text-gray-700"
-  }`}
-  style={{
-    backgroundColor: statusFilter === "toate" ? "#0196ff" : undefined,
-  }}
->
-  Toate comenzile
-</button>
+          <div className="mb-4 grid grid-cols-1 gap-3">
+            <button
+              onClick={() => setStatusFilter("toate")}
+              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+                statusFilter === "toate"
+                  ? "text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+              style={{
+                backgroundColor:
+                  statusFilter === "toate" ? "#0196ff" : undefined,
+              }}
+            >
+              Toate comenzile
+            </button>
 
-<button
-  onClick={() => setStatusFilter("asteapta_confirmare")}
-  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-    statusFilter === "asteapta_confirmare"
-      ? "text-white"
-      : "bg-gray-100 text-gray-700"
-  }`}
-  style={{
-    backgroundColor:
-      statusFilter === "asteapta_confirmare" ? "#f59e0b" : undefined,
-  }}
->
-  Comenzi în așteptare
-</button>
+            <button
+              onClick={() => setStatusFilter("asteapta_confirmare")}
+              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+                statusFilter === "asteapta_confirmare"
+                  ? "text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+              style={{
+                backgroundColor:
+                  statusFilter === "asteapta_confirmare"
+                    ? "#f59e0b"
+                    : undefined,
+              }}
+            >
+              Comenzi în așteptare
+            </button>
 
-<button
-  onClick={() => setStatusFilter("aprobata")}
-  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-    statusFilter === "aprobata"
-      ? "text-white"
-      : "bg-gray-100 text-gray-700"
-  }`}
-  style={{
-    backgroundColor:
-      statusFilter === "aprobata" ? "#16a34a" : undefined,
-  }}
->
-  Comenzi aprobate
-</button>
+            <button
+              onClick={() => setStatusFilter("aprobata")}
+              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+                statusFilter === "aprobata"
+                  ? "text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+              style={{
+                backgroundColor:
+                  statusFilter === "aprobata" ? "#16a34a" : undefined,
+              }}
+            >
+              Comenzi aprobate
+            </button>
 
-<button
-  onClick={() => setStatusFilter("refuzata")}
-  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-    statusFilter === "refuzata"
-      ? "text-white"
-      : "bg-gray-100 text-gray-700"
-  }`}
-  style={{
-    backgroundColor:
-      statusFilter === "refuzata" ? "#dc2626" : undefined,
-  }}
->
-  Comenzi refuzate
-</button>
+            <button
+              onClick={() => setStatusFilter("refuzata")}
+              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+                statusFilter === "refuzata"
+                  ? "text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+              style={{
+                backgroundColor:
+                  statusFilter === "refuzata" ? "#dc2626" : undefined,
+              }}
+            >
+              Comenzi refuzate
+            </button>
           </div>
 
-<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-<div className="flex flex-col gap-2">
-  <label className="text-sm font-medium text-gray-700">
-    Caută după șantier
-  </label>
-  <input
-    type="text"
-    placeholder="Introdu numele șantierului"
-    value={searchSantier}
-    onChange={(e) => setSearchSantier(e.target.value)}
-    className="rounded-lg border border-gray-300 px-4 py-3"
-  />
-</div>
-<div className="flex flex-col gap-2">
-  <label className="text-sm font-medium text-gray-700">
-    Caută după data
-  </label>
-  <input
-    type="date"
-    value={searchDate}
-    onChange={(e) => setSearchDate(e.target.value)}
-    className="rounded-lg border border-gray-300 px-4 py-3"
-  />
-</div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Caută după șantier
+              </label>
+              <input
+                type="text"
+                placeholder="Introdu numele șantierului"
+                value={searchSantier}
+                onChange={(e) => setSearchSantier(e.target.value)}
+                className="rounded-lg border border-gray-300 px-4 py-3"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-gray-700">
+                Caută după data
+              </label>
+              <input
+                type="date"
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+                className="rounded-lg border border-gray-300 px-4 py-3"
+              />
+            </div>
+          </div>
         </div>
 
-        {/* LISTA COMENZI */}
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-<div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-  <div className="col-span-2 md:col-span-2">Nr. comandă</div>
-  <div className="col-span-3 md:col-span-3">Șantier</div>
-  <div className="col-span-2 md:col-span-2">Data</div>
-  <div className="hidden md:block md:col-span-2">Creat de</div>
-  <div className="col-span-2 md:col-span-1">Valoare</div>
-  <div className="hidden md:block md:col-span-2">Status</div>
-</div>
+          <div className="grid grid-cols-5 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+            <div>Nr.</div>
+            <div>Șantier</div>
+            <div>Data</div>
+            <div>Valoare</div>
+            <div>Status</div>
+          </div>
 
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-6 text-sm text-gray-500">
@@ -300,37 +309,36 @@ if (!ordersError && ordersData) {
             </div>
           ) : (
             filteredOrders.map((order, index) => (
-<button
-  key={order.id}
-  onClick={() => router.push(`/comenzi/${order.id}`)}
-  className="grid w-full grid-cols-5 items-start border-b px-4 py-4 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
->
-  <div className="font-semibold break-words">
-    {order.order_number || `CMD-${String(index + 1).padStart(4, "0")}`}
-  </div>
+              <button
+                key={order.id}
+                onClick={() => router.push(`/comenzi/${order.id}`)}
+                className="grid w-full grid-cols-5 items-start border-b px-4 py-4 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+              >
+                <div className="font-semibold break-words">
+                  {order.order_number ||
+                    `CMD-${String(index + 1).padStart(4, "0")}`}
+                </div>
 
-  <div className="break-words">
-    {order.projects?.[0]?.name || "-"}
-  </div>
+                <div className="break-words">
+                  {order.projects?.[0]?.name || "-"}
+                </div>
 
-  <div>
-    {new Date(order.order_date).toLocaleDateString("ro-RO")}
-  </div>
+                <div>{new Date(order.order_date).toLocaleDateString("ro-RO")}</div>
 
-  <div className="font-semibold break-words">
-    {Number(order.total_with_vat || 0).toFixed(2)} lei
-  </div>
+                <div className="font-semibold break-words">
+                  {Number(order.total_with_vat || 0).toFixed(2)} lei
+                </div>
 
-  <div>
-    <span
-      className={`inline-block rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(
-        order.status
-      )}`}
-    >
-      {getStatusLabel(order.status)}
-    </span>
-  </div>
-</button>
+                <div>
+                  <span
+                    className={`inline-block rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(
+                      order.status
+                    )}`}
+                  >
+                    {getStatusLabel(order.status)}
+                  </span>
+                </div>
+              </button>
             ))
           )}
         </div>
