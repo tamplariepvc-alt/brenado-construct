@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ return (
   <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
     <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-lg">
 
-      {/* LOGO */}
+      {/* LOGO + TITLU */}
       <div className="flex flex-col items-center mb-6">
         <Image
           src="/logo.png"
@@ -62,7 +63,7 @@ return (
             placeholder="Introdu emailul"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
             required
           />
         </div>
@@ -74,7 +75,7 @@ return (
             placeholder="Introdu parola"
             value={parola}
             onChange={(e) => setParola(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-3"
+            className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
             required
           />
         </div>
@@ -86,7 +87,7 @@ return (
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-black px-4 py-3 text-white"
+          className="w-full rounded-lg bg-black px-4 py-3 text-white transition hover:opacity-90 disabled:opacity-60"
         >
           {loading ? "Se conectează..." : "Conectare"}
         </button>
@@ -99,10 +100,8 @@ return (
           Înregistrează-te
         </a>
       </p>
-		  
-		  
-        </form>
-      </div>
+
     </div>
-  );
-}
+  </div>
+);
+		  
