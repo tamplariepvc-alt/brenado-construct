@@ -88,22 +88,22 @@ export default function ComandaDetaliuPage() {
 
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-.select(`
-  id,
-  order_number,
-  project_id,
-  created_by,
-  order_date,
-  status,
-  subtotal,
-  vat_total,
-  total_with_vat,
-  notes,
-  created_at,
-  projects:project_id (
-    name
-  )
-`)
+        .select(`
+          id,
+          order_number,
+          project_id,
+          created_by,
+          order_date,
+          status,
+          subtotal,
+          vat_total,
+          total_with_vat,
+          notes,
+          created_at,
+          projects:project_id (
+            name
+          )
+        `)
         .eq("id", orderId)
         .single();
 
@@ -112,7 +112,6 @@ export default function ComandaDetaliuPage() {
         return;
       }
 
-      // sef de echipa vede doar comenzile lui
       if (
         profileData.role === "sef_echipa" &&
         orderData.created_by !== user.id
@@ -191,9 +190,7 @@ export default function ComandaDetaliuPage() {
       return;
     }
 
-    setOrder((prev) =>
-      prev ? { ...prev, status: newStatus } : prev
-    );
+    setOrder((prev) => (prev ? { ...prev, status: newStatus } : prev));
     setActionLoading(false);
   };
 
@@ -240,13 +237,15 @@ export default function ComandaDetaliuPage() {
               <div>
                 <p className="text-xs font-medium text-gray-500">Nr. comandă</p>
                 <p className="mt-1 text-sm font-semibold">
-  {order.order_number || "-"}
-</p>
+                  {order.order_number || "-"}
+                </p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Șantier</p>
-                <p className="mt-1 text-sm font-semibold">{order.projects?.[0]?.name || "-"}</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {order.projects?.[0]?.name || "-"}
+                </p>
               </div>
 
               <div>
@@ -276,7 +275,9 @@ export default function ComandaDetaliuPage() {
             <h2 className="mb-4 text-lg font-semibold">Articole comandă</h2>
 
             {items.length === 0 ? (
-              <p className="text-sm text-gray-500">Nu există articole în această comandă.</p>
+              <p className="text-sm text-gray-500">
+                Nu există articole în această comandă.
+              </p>
             ) : (
               <div className="overflow-hidden rounded-xl border border-gray-200">
                 <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
@@ -343,43 +344,39 @@ export default function ComandaDetaliuPage() {
           {profile?.role === "administrator" &&
             order.status === "asteapta_confirmare" && (
               <div className="flex flex-col gap-3 sm:flex-row">
-			  
-			  {order.status === "draft" &&
-{profile?.role === "administrator" &&
-  order.status === "asteapta_confirmare" && (
-    <div className="flex flex-col gap-3 sm:flex-row">
-      <button
-        type="button"
-        onClick={() => updateOrderStatus("refuzata")}
-        disabled={actionLoading}
-        className="rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {actionLoading ? "Se procesează..." : "Refuză comanda"}
-      </button>
+                <button
+                  type="button"
+                  onClick={() => updateOrderStatus("refuzata")}
+                  disabled={actionLoading}
+                  className="rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {actionLoading ? "Se procesează..." : "Refuză comanda"}
+                </button>
 
-      <button
-        type="button"
-        onClick={() => updateOrderStatus("aprobata")}
-        disabled={actionLoading}
-        className="rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {actionLoading ? "Se procesează..." : "Confirmă comanda"}
-      </button>
-    </div>
-  )}
+                <button
+                  type="button"
+                  onClick={() => updateOrderStatus("aprobata")}
+                  disabled={actionLoading}
+                  className="rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  {actionLoading ? "Se procesează..." : "Confirmă comanda"}
+                </button>
+              </div>
+            )}
 
-{order.status === "draft" &&
-  (profile?.role === "administrator" || profile?.role === "sef_echipa") && (
-    <div className="flex flex-col gap-3 sm:flex-row">
-      <button
-        type="button"
-        onClick={() => router.push(`/comenzi/${order.id}/editare`)}
-        className="rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white"
-      >
-        Editează comanda
-      </button>
-    </div>
-  )}
+          {order.status === "draft" &&
+            (profile?.role === "administrator" ||
+              profile?.role === "sef_echipa") && (
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/comenzi/${order.id}/editare`)}
+                  className="rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white"
+                >
+                  Editează comanda
+                </button>
+              </div>
+            )}
         </div>
       </div>
     </div>
