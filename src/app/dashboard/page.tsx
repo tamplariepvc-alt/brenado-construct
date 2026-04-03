@@ -118,79 +118,85 @@ const inCurs = projectsData.filter(
         </button>
       </header>
 
-      <main className="p-6">
-        <h1 className="mb-2 text-2xl font-bold">
-          Bun venit, {profile?.full_name}
-        </h1>
-        <p className="mb-6 text-gray-600">
-          Rol: <span className="font-semibold">{profile?.role}</span>
-        </p>
+<main className="p-6">
+  <h1 className="mb-2 text-2xl font-bold">
+    Bun venit, {profile?.full_name}
+  </h1>
+  <p className="mb-6 text-gray-600">
+    Rol: <span className="font-semibold">{profile?.role}</span>
+  </p>
 
-        <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <p className="text-sm text-gray-500">TOTAL PROIECTE</p>
-            <p className="mt-2 text-3xl font-bold">{stats.total}</p>
-          </div>
+  {profile?.role === "administrator" && (
+    <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <button
+        onClick={() => router.push("/proiecte/adauga")}
+        className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
+      >
+        ADAUGĂ PROIECT
+      </button>
 
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <p className="text-sm text-gray-500">PROIECTE ÎN CURS</p>
-            <p className="mt-2 text-3xl font-bold">{stats.inCurs}</p>
-          </div>
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        VEZI PROIECTE
+      </button>
 
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <p className="text-sm text-gray-500">PROIECTE FINALIZATE</p>
-            <p className="mt-2 text-3xl font-bold">{stats.finalizate}</p>
-          </div>
-        </div>
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        COMENZI
+      </button>
 
-        {profile?.role === "administrator" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-<button
-  onClick={() => router.push("/proiecte/adauga")}
-  className="rounded-2xl bg-white p-5 text-left shadow"
->
-  ADAUGĂ PROIECT
-</button>
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              VEZI PROIECTE
-            </button>
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              COMENZI
-            </button>
-            <button
-              onClick={() => router.push("/admin")}
-              className="rounded-2xl bg-black p-5 text-left text-white shadow"
-            >
-              PANOU ADMINISTRATOR
-            </button>
-          </div>
-        )}
+      <button
+        onClick={() => router.push("/admin")}
+        className="rounded-xl bg-black px-4 py-3 text-sm font-semibold text-left text-white shadow"
+      >
+        PANOU ADMINISTRATOR
+      </button>
+    </div>
+  )}
 
-        {profile?.role === "sef_echipa" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              PROIECTELE MELE
-            </button>
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              COMENZI
-            </button>
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              CERERE TRANSFER DE BANI
-            </button>
-          </div>
-        )}
+  {profile?.role === "sef_echipa" && (
+    <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        PROIECTELE MELE
+      </button>
 
-        {profile?.role === "user" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              DASHBOARD USER
-            </button>
-            <button className="rounded-2xl bg-white p-5 text-left shadow">
-              VEZI PROIECTE
-            </button>
-          </div>
-        )}
-      </main>
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        COMENZI
+      </button>
+
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        CERERE TRANSFER DE BANI
+      </button>
+    </div>
+  )}
+
+  {profile?.role === "user" && (
+    <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        DASHBOARD USER
+      </button>
+
+      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+        VEZI PROIECTE
+      </button>
+    </div>
+  )}
+
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <div className="rounded-2xl bg-white p-5 shadow">
+      <p className="text-sm text-gray-500">TOTAL PROIECTE</p>
+      <p className="mt-2 text-2xl font-bold">{stats.total}</p>
+    </div>
+
+    <div className="rounded-2xl bg-white p-5 shadow">
+      <p className="text-sm text-gray-500">PROIECTE ÎN CURS</p>
+      <p className="mt-2 text-2xl font-bold">{stats.inCurs}</p>
+    </div>
+
+    <div className="rounded-2xl bg-white p-5 shadow">
+      <p className="text-sm text-gray-500">PROIECTE FINALIZATE</p>
+      <p className="mt-2 text-2xl font-bold">{stats.finalizate}</p>
+    </div>
+  </div>
+</main>
     </div>
   );
 }
