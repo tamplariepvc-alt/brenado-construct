@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -60,6 +60,7 @@ export default function EditareComandaPage() {
   const router = useRouter();
   const params = useParams();
   const orderId = params.id as string;
+  const isSubmittingRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -263,15 +264,20 @@ export default function EditareComandaPage() {
   const totalWithVat = useMemo(() => subtotal + vatTotal, [subtotal, vatTotal]);
 
   const saveOrder = async (status: "draft" | "asteapta_confirmare") => {
-    if (!selectedProjectId) {
-      alert("Selectează un șantier.");
-      return;
+if (!selectedProjectId) {
+  alert("Selectează un șantier.");
+  isSubmittingRef.current = false;
+  return;
     }
+	
+	if (isSubmittingRef.current) return;
+isSubmittingRef.current = true;
 
-    if (items.length === 0) {
-      alert("Adaugă cel puțin un articol în comandă.");
-      return;
-    }
+if (items.length === 0) {
+  alert("Adaugă cel puțin un articol în comandă.");
+  isSubmittingRef.current = false;
+  return;
+}
 
     const { error: orderError } = await supabase
       .from("orders")
@@ -286,10 +292,11 @@ export default function EditareComandaPage() {
       })
       .eq("id", orderId);
 
-    if (orderError) {
-      alert("A apărut o eroare la actualizarea comenzii.");
-      return;
-    }
+if (orderError || !orderData) {
+  alert("A apărut o eroare la salvarea comenzii.");
+  isSubmittingRef.current = false;
+  return;
+}
 
     const { error: deleteItemsError } = await supabase
       .from("order_items")
@@ -324,10 +331,11 @@ export default function EditareComandaPage() {
       .from("order_items")
       .insert(orderItemsRows);
 
-    if (itemsError) {
-      alert("Comanda a fost actualizată, dar articolele nu au putut fi salvate.");
-      return;
-    }
+if (itemsError) {
+  alert("Comanda a fost actualizata, dar articolele nu au putut fi salvate.");
+  isSubmittingRef.current = false;
+  return;
+}
 
     alert(
       status === "draft"
@@ -335,6 +343,7 @@ export default function EditareComandaPage() {
         : "Comanda a fost trimisă cu succes."
     );
 
+isSubmittingRef.current = false;
     router.push("/comenzi");
   };
 
