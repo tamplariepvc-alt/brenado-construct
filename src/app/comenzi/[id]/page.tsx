@@ -24,6 +24,7 @@ type OrderDetails = {
   total_with_vat: number;
   notes: string | null;
   created_at: string;
+  creator_name?: string;
   projects?: {
     name: string;
   }[] | null;
@@ -111,6 +112,13 @@ export default function ComandaDetaliuPage() {
         router.push("/comenzi");
         return;
       }
+	  
+	  const { data: creatorProfile } = await supabase
+  .from("profiles")
+  .select("full_name")
+  .eq("id", orderData.created_by)
+  .single();
+	  
 
       if (
         profileData.role === "sef_echipa" &&
@@ -141,7 +149,10 @@ export default function ComandaDetaliuPage() {
         setItems(itemsData as OrderItem[]);
       }
 
-      setOrder(orderData as OrderDetails);
+      setOrder({
+  ...(orderData as OrderDetails),
+  creator_name: creatorProfile?.full_name || "-",
+});
       setLoading(false);
     };
 
@@ -233,35 +244,35 @@ export default function ComandaDetaliuPage() {
               </span>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div>
-                <p className="text-xs font-medium text-gray-500">Nr. comandă</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {order.order_number || "-"}
-                </p>
-              </div>
+<div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div>
+    <p className="text-xs font-medium text-gray-500">Nr. comandă</p>
+    <p className="mt-1 text-sm font-semibold">
+      {order.order_number || "-"}
+    </p>
+  </div>
 
-              <div>
-                <p className="text-xs font-medium text-gray-500">Șantier</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {order.projects?.[0]?.name || "-"}
-                </p>
-              </div>
+  <div>
+    <p className="text-xs font-medium text-gray-500">Șantier</p>
+    <p className="mt-1 text-sm font-semibold">
+      {order.projects?.[0]?.name || "-"}
+    </p>
+  </div>
 
-              <div>
-                <p className="text-xs font-medium text-gray-500">Data comenzii</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {new Date(order.order_date).toLocaleDateString("ro-RO")}
-                </p>
-              </div>
+  <div>
+    <p className="text-xs font-medium text-gray-500">Data comenzii</p>
+    <p className="mt-1 text-sm font-semibold">
+      {new Date(order.order_date).toLocaleDateString("ro-RO")}
+    </p>
+  </div>
 
-              <div>
-                <p className="text-xs font-medium text-gray-500">Creată la</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {new Date(order.created_at).toLocaleDateString("ro-RO")}
-                </p>
-              </div>
-            </div>
+  <div>
+    <p className="text-xs font-medium text-gray-500">Creată de</p>
+    <p className="mt-1 text-sm font-semibold">
+      {order.creator_name || "-"}
+    </p>
+  </div>
+</div>
 
             {order.notes && (
               <div className="mt-4 rounded-xl bg-gray-50 p-4">
