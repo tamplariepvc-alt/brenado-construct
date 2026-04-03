@@ -99,7 +99,9 @@ if (!ordersError && ordersData) {
   const typedOrders = ordersData as OrderRow[];
   setOrders(typedOrders);
 
-  const userIds = Array.from(new Set(typedOrders.map((order) => order.created_by)));
+  const userIds = Array.from(
+    new Set(typedOrders.map((order) => order.created_by))
+  );
 
   if (userIds.length > 0) {
     const { data: profilesData, error: profilesError } = await supabase
@@ -109,9 +111,11 @@ if (!ordersError && ordersData) {
 
     if (!profilesError && profilesData) {
       const namesMap: ProfileNameMap = {};
+
       profilesData.forEach((profile) => {
         namesMap[profile.id] = profile.full_name;
       });
+
       setProfileNames(namesMap);
     }
   }
@@ -273,7 +277,7 @@ if (!ordersError && ordersData) {
             </div>
           ) : (
             filteredOrders.map((order, index) => (
-             <button
+            <button
   key={order.id}
   onClick={() => router.push(`/comenzi/${order.id}`)}
   className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
