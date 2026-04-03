@@ -42,13 +42,10 @@ return (
         <Image
           src="/logo.png"
           alt="Logo"
-          width={120}
-          height={60}
+          width={240}
+          height={120}
           className="object-contain"
         />
-        <h2 className="mt-3 text-lg font-semibold">
-          Brenado Construct
-        </h2>
       </div>
 
       <h1 className="mb-6 text-center text-2xl font-bold">
