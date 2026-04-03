@@ -135,9 +135,12 @@ const inCurs = projectsData.filter(
         ADAUGĂ PROIECT
       </button>
 
-      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
-        VEZI PROIECTE
-      </button>
+<button
+  onClick={() => router.push("/proiecte")}
+  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
+>
+  VEZI PROIECTE
+</button>
 
 <button
   onClick={() => router.push("/proiecte")}
