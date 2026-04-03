@@ -345,6 +345,30 @@ export default function ComandaDetaliuPage() {
               <div className="flex flex-col gap-3 sm:flex-row">
 			  
 			  {order.status === "draft" &&
+{profile?.role === "administrator" &&
+  order.status === "asteapta_confirmare" && (
+    <div className="flex flex-col gap-3 sm:flex-row">
+      <button
+        type="button"
+        onClick={() => updateOrderStatus("refuzata")}
+        disabled={actionLoading}
+        className="rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {actionLoading ? "Se procesează..." : "Refuză comanda"}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => updateOrderStatus("aprobata")}
+        disabled={actionLoading}
+        className="rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {actionLoading ? "Se procesează..." : "Confirmă comanda"}
+      </button>
+    </div>
+  )}
+
+{order.status === "draft" &&
   (profile?.role === "administrator" || profile?.role === "sef_echipa") && (
     <div className="flex flex-col gap-3 sm:flex-row">
       <button
@@ -356,26 +380,6 @@ export default function ComandaDetaliuPage() {
       </button>
     </div>
   )}
-			  
-                <button
-                  type="button"
-                  onClick={() => updateOrderStatus("refuzata")}
-                  disabled={actionLoading}
-                  className="rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {actionLoading ? "Se procesează..." : "Refuză comanda"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => updateOrderStatus("aprobata")}
-                  disabled={actionLoading}
-                  className="rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  {actionLoading ? "Se procesează..." : "Confirmă comanda"}
-                </button>
-              </div>
-            )}
         </div>
       </div>
     </div>
