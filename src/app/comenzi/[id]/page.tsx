@@ -319,21 +319,21 @@ export default function ComandaDetaliuPage() {
 
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <p className="text-xs text-gray-500">Qty</p>
+            <p className="text-xs text-gray-500">Cantitate</p>
             <p className="text-sm font-medium">
               {Number(item.quantity).toFixed(0)}
             </p>
           </div>
 
           <div>
-            <p className="text-xs text-gray-500">PU</p>
+            <p className="text-xs text-gray-500">P. Unitar</p>
             <p className="text-sm font-medium">
               {Number(item.unit_price).toFixed(2)}
             </p>
           </div>
 
           <div>
-            <p className="text-xs text-gray-500">V. totală</p>
+            <p className="text-xs text-gray-500">V. Totală</p>
             <p className="text-sm font-semibold">
               {Number(item.line_total_with_vat).toFixed(2)}
             </p>
