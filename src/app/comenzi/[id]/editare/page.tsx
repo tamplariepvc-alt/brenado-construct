@@ -60,11 +60,12 @@ export default function EditareComandaPage() {
   const router = useRouter();
   const params = useParams();
   const orderId = params.id as string;
-  const isSubmittingRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sendingOrder, setSendingOrder] = useState(false);
+
+  const isSubmittingRef = useRef(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -110,7 +111,9 @@ export default function EditareComandaPage() {
 
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-        .select("id, project_id, created_by, order_date, status, subtotal, vat_total, total_with_vat, notes")
+        .select(
+          "id, project_id, created_by, order_date, status, subtotal, vat_total, total_with_vat, notes"
+        )
         .eq("id", orderId)
         .single();
 
@@ -175,7 +178,9 @@ export default function EditareComandaPage() {
 
       const { data: itemsData } = await supabase
         .from("order_items")
-        .select("id, article_id, article_number, article_code, article_name, unit, unit_price, vat_percent, quantity")
+        .select(
+          "id, article_id, article_number, article_code, article_name, unit, unit_price, vat_percent, quantity"
+        )
         .eq("order_id", orderId)
         .order("created_at", { ascending: true });
 
@@ -256,7 +261,8 @@ export default function EditareComandaPage() {
 
   const vatTotal = useMemo(() => {
     return items.reduce(
-      (sum, item) => sum + item.unit_price * item.quantity * (item.vat_percent / 100),
+      (sum, item) =>
+        sum + item.unit_price * item.quantity * (item.vat_percent / 100),
       0
     );
   }, [items]);
@@ -264,20 +270,20 @@ export default function EditareComandaPage() {
   const totalWithVat = useMemo(() => subtotal + vatTotal, [subtotal, vatTotal]);
 
   const saveOrder = async (status: "draft" | "asteapta_confirmare") => {
-if (!selectedProjectId) {
-  alert("Selectează un șantier.");
-  isSubmittingRef.current = false;
-  return;
-    }
-	
-	if (isSubmittingRef.current) return;
-isSubmittingRef.current = true;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
 
-if (items.length === 0) {
-  alert("Adaugă cel puțin un articol în comandă.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (!selectedProjectId) {
+      alert("Selectează un șantier.");
+      isSubmittingRef.current = false;
+      return;
+    }
+
+    if (items.length === 0) {
+      alert("Adaugă cel puțin un articol în comandă.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
     const { error: orderError } = await supabase
       .from("orders")
@@ -292,11 +298,11 @@ if (items.length === 0) {
       })
       .eq("id", orderId);
 
-if (orderError || !orderData) {
-  alert("A apărut o eroare la salvarea comenzii.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (orderError) {
+      alert("A apărut o eroare la actualizarea comenzii.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
     const { error: deleteItemsError } = await supabase
       .from("order_items")
@@ -305,12 +311,14 @@ if (orderError || !orderData) {
 
     if (deleteItemsError) {
       alert("Comanda a fost actualizată, dar liniile vechi nu au putut fi șterse.");
+      isSubmittingRef.current = false;
       return;
     }
 
     const orderItemsRows = items.map((item) => {
       const lineTotal = item.unit_price * item.quantity;
-      const lineTotalWithVat = lineTotal + lineTotal * (item.vat_percent / 100);
+      const lineTotalWithVat =
+        lineTotal + lineTotal * (item.vat_percent / 100);
 
       return {
         order_id: orderId,
@@ -331,11 +339,11 @@ if (orderError || !orderData) {
       .from("order_items")
       .insert(orderItemsRows);
 
-if (itemsError) {
-  alert("Comanda a fost actualizata, dar articolele nu au putut fi salvate.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (itemsError) {
+      alert("Comanda a fost actualizată, dar articolele nu au putut fi salvate.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
     alert(
       status === "draft"
@@ -343,17 +351,19 @@ if (itemsError) {
         : "Comanda a fost trimisă cu succes."
     );
 
-isSubmittingRef.current = false;
+    isSubmittingRef.current = false;
     router.push("/comenzi");
   };
 
   const handleSaveDraft = async () => {
+    if (savingDraft || sendingOrder) return;
     setSavingDraft(true);
     await saveOrder("draft");
     setSavingDraft(false);
   };
 
   const handleSendOrder = async () => {
+    if (savingDraft || sendingOrder) return;
     setSendingOrder(true);
     await saveOrder("asteapta_confirmare");
     setSendingOrder(false);
