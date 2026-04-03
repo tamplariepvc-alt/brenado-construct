@@ -290,11 +290,11 @@ export default function ComandaDetaliuPage() {
     Nu există articole în această comandă.
   </p>
 ) : (
-  <div className="space-y-3">
+<div>
     {items.map((item, index) => (
       <div
         key={item.id}
-        className="rounded-xl bg-gray-50 px-4 py-4"
+className="bg-gray-50 px-4 py-4 border-b border-gray-200 last:border-b-0"
       >
         <div className="mb-3 flex items-start justify-between gap-3">
           <div>
