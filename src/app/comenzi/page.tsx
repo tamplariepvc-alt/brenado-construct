@@ -196,68 +196,91 @@ if (!ordersError && ordersData) {
 
         {/* FILTRE */}
         <div className="mb-6 rounded-2xl bg-white p-4 shadow">
-          <div className="mb-4 flex flex-wrap gap-2">
-            <button
-              onClick={() => setStatusFilter("toate")}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                statusFilter === "toate"
-                  ? "bg-[#0196ff] text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Toate comenzile
-            </button>
+<div className="mb-4 grid grid-cols-1 gap-3">
+ <button
+  onClick={() => setStatusFilter("toate")}
+  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+    statusFilter === "toate"
+      ? "text-white"
+      : "bg-gray-100 text-gray-700"
+  }`}
+  style={{
+    backgroundColor: statusFilter === "toate" ? "#0196ff" : undefined,
+  }}
+>
+  Toate comenzile
+</button>
 
-            <button
-              onClick={() => setStatusFilter("asteapta_confirmare")}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                statusFilter === "asteapta_confirmare"
-                  ? "bg-[#0196ff] text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Comenzi în așteptare
-            </button>
+<button
+  onClick={() => setStatusFilter("asteapta_confirmare")}
+  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+    statusFilter === "asteapta_confirmare"
+      ? "text-white"
+      : "bg-gray-100 text-gray-700"
+  }`}
+  style={{
+    backgroundColor:
+      statusFilter === "asteapta_confirmare" ? "#f59e0b" : undefined,
+  }}
+>
+  Comenzi în așteptare
+</button>
 
-            <button
-              onClick={() => setStatusFilter("aprobata")}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                statusFilter === "aprobata"
-                  ? "bg-[#0196ff] text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Comenzi aprobate
-            </button>
+<button
+  onClick={() => setStatusFilter("aprobata")}
+  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+    statusFilter === "aprobata"
+      ? "text-white"
+      : "bg-gray-100 text-gray-700"
+  }`}
+  style={{
+    backgroundColor:
+      statusFilter === "aprobata" ? "#16a34a" : undefined,
+  }}
+>
+  Comenzi aprobate
+</button>
 
-            <button
-              onClick={() => setStatusFilter("refuzata")}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
-                statusFilter === "refuzata"
-                  ? "bg-[#0196ff] text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Comenzi refuzate
-            </button>
+<button
+  onClick={() => setStatusFilter("refuzata")}
+  className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
+    statusFilter === "refuzata"
+      ? "text-white"
+      : "bg-gray-100 text-gray-700"
+  }`}
+  style={{
+    backgroundColor:
+      statusFilter === "refuzata" ? "#dc2626" : undefined,
+  }}
+>
+  Comenzi refuzate
+</button>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <input
-              type="text"
-              placeholder="Caută după șantier"
-              value={searchSantier}
-              onChange={(e) => setSearchSantier(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-3"
-            />
-
-            <input
-              type="date"
-              value={searchDate}
-              onChange={(e) => setSearchDate(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-3"
-            />
-          </div>
+<div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+<div className="flex flex-col gap-2">
+  <label className="text-sm font-medium text-gray-700">
+    Caută după șantier
+  </label>
+  <input
+    type="text"
+    placeholder="Introdu numele șantierului"
+    value={searchSantier}
+    onChange={(e) => setSearchSantier(e.target.value)}
+    className="rounded-lg border border-gray-300 px-4 py-3"
+  />
+</div>
+<div className="flex flex-col gap-2">
+  <label className="text-sm font-medium text-gray-700">
+    Caută după data
+  </label>
+  <input
+    type="date"
+    value={searchDate}
+    onChange={(e) => setSearchDate(e.target.value)}
+    className="rounded-lg border border-gray-300 px-4 py-3"
+  />
+</div>
         </div>
 
         {/* LISTA COMENZI */}
@@ -277,34 +300,30 @@ if (!ordersError && ordersData) {
             </div>
           ) : (
             filteredOrders.map((order, index) => (
-            <button
+<button
   key={order.id}
   onClick={() => router.push(`/comenzi/${order.id}`)}
-  className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+  className="grid w-full grid-cols-5 items-start border-b px-4 py-4 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
 >
-  <div className="col-span-2 md:col-span-2 font-semibold">
+  <div className="font-semibold break-words">
     {order.order_number || `CMD-${String(index + 1).padStart(4, "0")}`}
   </div>
 
-  <div className="col-span-3 md:col-span-3">
+  <div className="break-words">
     {order.projects?.[0]?.name || "-"}
   </div>
 
-  <div className="col-span-2 md:col-span-2">
+  <div>
     {new Date(order.order_date).toLocaleDateString("ro-RO")}
   </div>
 
-  <div className="hidden md:block md:col-span-2">
-    {profileNames[order.created_by] || "-"}
-  </div>
-
-  <div className="col-span-2 md:col-span-1 font-semibold">
+  <div className="font-semibold break-words">
     {Number(order.total_with_vat || 0).toFixed(2)} lei
   </div>
 
-  <div className="hidden md:block md:col-span-2">
+  <div>
     <span
-      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(
+      className={`inline-block rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(
         order.status
       )}`}
     >
