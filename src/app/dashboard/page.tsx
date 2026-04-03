@@ -189,7 +189,7 @@ const inCurs = projectsData.filter(
   </div>
 
   {/* PROIECTE IN CURS */}
-  <div className="rounded-xl px-4 py-3 shadow text-white bg-orange-500">
+  <div className="rounded-xl px-4 py-3 shadow text-white bg-yellow-500">
     <p className="text-xs opacity-90">PROIECTE ÎN CURS</p>
     <p className="mt-1 text-xl font-bold">{stats.inCurs}</p>
   </div>
