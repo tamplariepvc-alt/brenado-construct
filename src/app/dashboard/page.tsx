@@ -199,8 +199,8 @@ const inCurs = projectsData.filter(
     <p className="text-xs opacity-90">PROIECTE FINALIZATE</p>
     <p className="mt-1 text-xl font-bold">{stats.finalizate}</p>
   </div>
-
-</div>
+  </div>
+</main>
     </div>
   );
 }
