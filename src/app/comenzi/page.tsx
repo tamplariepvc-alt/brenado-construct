@@ -24,10 +24,9 @@ type OrderRow = {
   projects?: {
     name: string;
   }[] | null;
-  profiles?: {
-    full_name: string;
-  }[] | null;
 };
+
+type ProfileNameMap = Record<string, string>;
 
 export default function ComenziPage() {
   const router = useRouter();
@@ -35,6 +34,7 @@ export default function ComenziPage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [profileNames, setProfileNames] = useState<ProfileNameMap>({});
 
   const [statusFilter, setStatusFilter] = useState("toate");
   const [searchSantier, setSearchSantier] = useState("");
@@ -72,25 +72,22 @@ export default function ComenziPage() {
 
       setProfile(profileData as Profile);
 
-      let query = supabase
-        .from("orders")
-.select(`
-  id,
-  order_number,
-  project_id,
-  order_date,
-  status,
-  total_with_vat,
-  created_by,
-  created_at,
-  projects:project_id (
-    name
-  ),
-  profiles:created_by (
-    full_name
-  )
-`)
-        .order("created_at", { ascending: false });
+let query = supabase
+  .from("orders")
+  .select(`
+    id,
+    order_number,
+    project_id,
+    order_date,
+    status,
+    total_with_vat,
+    created_by,
+    created_at,
+    projects:project_id (
+      name
+    )
+  `)
+  .order("created_at", { ascending: false });
 
       if (profileData.role === "sef_echipa") {
         query = query.eq("created_by", user.id);
@@ -98,9 +95,27 @@ export default function ComenziPage() {
 
       const { data: ordersData, error: ordersError } = await query;
 
-      if (!ordersError && ordersData) {
-        setOrders(ordersData as OrderRow[]);
-      }
+if (!ordersError && ordersData) {
+  const typedOrders = ordersData as OrderRow[];
+  setOrders(typedOrders);
+
+  const userIds = Array.from(new Set(typedOrders.map((order) => order.created_by)));
+
+  if (userIds.length > 0) {
+    const { data: profilesData, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", userIds);
+
+    if (!profilesError && profilesData) {
+      const namesMap: ProfileNameMap = {};
+      profilesData.forEach((profile) => {
+        namesMap[profile.id] = profile.full_name;
+      });
+      setProfileNames(namesMap);
+    }
+  }
+}
 
       setLoading(false);
     };
@@ -276,7 +291,7 @@ export default function ComenziPage() {
   </div>
 
   <div className="hidden md:block md:col-span-2">
-    {order.profiles?.[0]?.full_name || "-"}
+    {profileNames[order.created_by] || "-"}
   </div>
 
   <div className="col-span-2 md:col-span-1 font-semibold">
