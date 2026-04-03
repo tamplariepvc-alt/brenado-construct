@@ -152,9 +152,12 @@ const inCurs = projectsData.filter(
   PROIECTELE MELE
 </button>
 
-      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
-        COMENZI
-      </button>
+<button
+  onClick={() => router.push("/comenzi")}
+  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
+>
+  COMENZI
+</button>
 
       <button
         onClick={() => router.push("/admin")}
