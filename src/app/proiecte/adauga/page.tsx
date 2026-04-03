@@ -12,13 +12,14 @@ type TeamLead = {
 export default function AdaugaProiectPage() {
   const router = useRouter();
 
-  const [nume, setNume] = useState("");
-  const [beneficiar, setBeneficiar] = useState("");
-  const [locatie, setLocatie] = useState("");
-  const [tip, setTip] = useState("");
-  const [dataStart, setDataStart] = useState("");
-  const [termen, setTermen] = useState("");
-  const [status, setStatus] = useState("in_asteptare");
+const [nume, setNume] = useState("");
+const [beneficiar, setBeneficiar] = useState("");
+const [locatie, setLocatie] = useState("");
+const [tip, setTip] = useState("");
+const [grupa, setGrupa] = useState("");
+const [dataStart, setDataStart] = useState("");
+const [termen, setTermen] = useState("");
+const [status, setStatus] = useState("in_asteptare");
 
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
@@ -52,15 +53,16 @@ export default function AdaugaProiectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (
-      !nume.trim() ||
-      !beneficiar.trim() ||
-      !locatie.trim() ||
-      !tip.trim() ||
-      !dataStart ||
-      !termen ||
-      !status
-    ) {
+if (
+  !nume.trim() ||
+  !beneficiar.trim() ||
+  !locatie.trim() ||
+  !tip.trim() ||
+  !grupa ||
+  !dataStart ||
+  !termen ||
+  !status
+) {
       alert("Completează toate câmpurile obligatorii.");
       return;
     }
@@ -74,15 +76,16 @@ export default function AdaugaProiectPage() {
 
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
-      .insert({
-        name: nume,
-        beneficiary: beneficiar,
-        project_location: locatie,
-        project_type: tip,
-        start_date: dataStart,
-        execution_deadline: termen,
-        status,
-      })
+.insert({
+  name: nume,
+  beneficiary: beneficiar,
+  project_location: locatie,
+  project_type: tip,
+  project_group: grupa,
+  start_date: dataStart,
+  execution_deadline: termen,
+  status,
+})
       .select()
       .single();
 
@@ -188,6 +191,20 @@ export default function AdaugaProiectPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
                 />
               </div>
+			  <div>
+  <label className="mb-2 block text-sm font-medium text-gray-700">
+    Selectează grupa *
+  </label>
+  <select
+    value={grupa}
+    onChange={(e) => setGrupa(e.target.value)}
+    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+  >
+    <option value="">Selectează grupa</option>
+    <option value="brenado_construct">BRENADO CONSTRUCT</option>
+    <option value="brenado_mentenanta">BRENADO MENTENANȚĂ</option>
+  </select>
+</div>
             </div>
           </div>
 
