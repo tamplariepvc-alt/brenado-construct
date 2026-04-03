@@ -285,49 +285,64 @@ export default function ComandaDetaliuPage() {
           <div className="rounded-2xl bg-white p-5 shadow">
             <h2 className="mb-3 text-base font-semibold">Articole comandă</h2>
 
-            {items.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există articole în această comandă.
-              </p>
-            ) : (
-              <div className="overflow-hidden rounded-xl border border-gray-200">
-<div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
-  <div className="col-span-1">Nr.</div>
-  <div className="col-span-2">Cod</div>
-  <div className="col-span-4">Denumire</div>
-  <div className="col-span-1">Qty</div>
-  <div className="col-span-2">PU</div>
-  <div className="col-span-2">V. totală</div>
-</div>
+{items.length === 0 ? (
+  <p className="text-sm text-gray-500">
+    Nu există articole în această comandă.
+  </p>
+) : (
+  <div className="space-y-3">
+    {items.map((item, index) => (
+      <div
+        key={item.id}
+        className="rounded-xl bg-gray-50 px-4 py-4"
+      >
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs text-gray-500">Nr.</p>
+            <p className="text-sm font-semibold">{index + 1}</p>
+          </div>
 
-{items.map((item, index) => (
-  <div
-    key={item.id}
-    className="grid grid-cols-12 items-center border-b px-4 py-2 text-xs last:border-b-0"
-  >
-    <div className="col-span-1 font-semibold">{index + 1}</div>
+          <div className="flex-1">
+            <p className="text-xs text-gray-500">Cod</p>
+            <p className="text-sm font-medium break-words">
+              {item.article_code || "-"}
+            </p>
+          </div>
+        </div>
 
-    <div className="col-span-2">{item.article_code || "-"}</div>
+        <div className="mb-3">
+          <p className="text-xs text-gray-500">Denumire</p>
+          <p className="text-sm font-medium break-words leading-5">
+            {item.article_name}
+          </p>
+        </div>
 
-    <div className="col-span-4 break-words">
-      {item.article_name}
-    </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <p className="text-xs text-gray-500">Qty</p>
+            <p className="text-sm font-medium">
+              {Number(item.quantity).toFixed(0)}
+            </p>
+          </div>
 
-    <div className="col-span-1">
-      {Number(item.quantity).toFixed(0)}
-    </div>
+          <div>
+            <p className="text-xs text-gray-500">PU</p>
+            <p className="text-sm font-medium">
+              {Number(item.unit_price).toFixed(2)}
+            </p>
+          </div>
 
-    <div className="col-span-2">
-      {Number(item.unit_price).toFixed(2)}
-    </div>
-
-    <div className="col-span-2 font-semibold">
-      {Number(item.line_total_with_vat).toFixed(2)}
-    </div>
+          <div>
+            <p className="text-xs text-gray-500">V. totală</p>
+            <p className="text-sm font-semibold">
+              {Number(item.line_total_with_vat).toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+    ))}
   </div>
-))}
-              </div>
-            )}
+)}
           </div>
 
           <div className="rounded-2xl bg-white p-5 shadow">
