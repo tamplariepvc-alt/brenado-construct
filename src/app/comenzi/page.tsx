@@ -21,9 +21,12 @@ type OrderRow = {
   total_with_vat: number;
   created_by: string;
   created_at: string;
-projects?: {
-  name: string;
-}[] | null;
+  projects?: {
+    name: string;
+  }[] | null;
+  profiles?: {
+    full_name: string;
+  }[] | null;
 };
 
 export default function ComenziPage() {
@@ -82,6 +85,9 @@ export default function ComenziPage() {
   created_at,
   projects:project_id (
     name
+  ),
+  profiles:created_by (
+    full_name
   )
 `)
         .order("created_at", { ascending: false });
@@ -237,13 +243,14 @@ export default function ComenziPage() {
 
         {/* LISTA COMENZI */}
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-          <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-            <div className="col-span-1">Nr. comandă</div>
-<div className="col-span-4 md:col-span-3">Șantier</div>
-<div className="col-span-3 md:col-span-2">Data</div>
-<div className="col-span-3 md:col-span-2">Valoare totală</div>
-<div className="hidden md:block md:col-span-3">Status</div>
-          </div>
+<div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+  <div className="col-span-2 md:col-span-2">Nr. comandă</div>
+  <div className="col-span-3 md:col-span-3">Șantier</div>
+  <div className="col-span-2 md:col-span-2">Data</div>
+  <div className="hidden md:block md:col-span-2">Creat de</div>
+  <div className="col-span-2 md:col-span-1">Valoare</div>
+  <div className="hidden md:block md:col-span-2">Status</div>
+</div>
 
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-6 text-sm text-gray-500">
@@ -251,11 +258,41 @@ export default function ComenziPage() {
             </div>
           ) : (
             filteredOrders.map((order, index) => (
-              <button
-                key={order.id}
-                onClick={() => router.push(`/comenzi/${order.id}`)}
-                className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
-              >
+<button
+  key={order.id}
+  onClick={() => router.push(`/comenzi/${order.id}`)}
+  className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+>
+  <div className="col-span-2 md:col-span-2 font-semibold">
+    {order.order_number || `CMD-${String(index + 1).padStart(4, "0")}`}
+  </div>
+
+  <div className="col-span-3 md:col-span-3">
+    {order.projects?.[0]?.name || "-"}
+  </div>
+
+  <div className="col-span-2 md:col-span-2">
+    {new Date(order.order_date).toLocaleDateString("ro-RO")}
+  </div>
+
+  <div className="hidden md:block md:col-span-2">
+    {order.profiles?.[0]?.full_name || "-"}
+  </div>
+
+  <div className="col-span-2 md:col-span-1 font-semibold">
+    {Number(order.total_with_vat || 0).toFixed(2)} lei
+  </div>
+
+  <div className="hidden md:block md:col-span-2">
+    <span
+      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(
+        order.status
+      )}`}
+    >
+      {getStatusLabel(order.status)}
+    </span>
+  </div>
+</button>
                <div className="col-span-2 md:col-span-2 font-semibold">
   {order.order_number || `CMD-${String(index + 1).padStart(4, "0")}`}
 </div>
