@@ -14,6 +14,7 @@ type Profile = {
 
 type OrderDetails = {
   id: string;
+  order_number: string | null;
   project_id: string;
   created_by: string;
   order_date: string;
@@ -87,21 +88,22 @@ export default function ComandaDetaliuPage() {
 
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
-        .select(`
-          id,
-          project_id,
-          created_by,
-          order_date,
-          status,
-          subtotal,
-          vat_total,
-          total_with_vat,
-          notes,
-          created_at,
-          projects:project_id (
-            name
-          )
-        `)
+.select(`
+  id,
+  order_number,
+  project_id,
+  created_by,
+  order_date,
+  status,
+  subtotal,
+  vat_total,
+  total_with_vat,
+  notes,
+  created_at,
+  projects:project_id (
+    name
+  )
+`)
         .eq("id", orderId)
         .single();
 
@@ -237,7 +239,9 @@ export default function ComandaDetaliuPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="text-xs font-medium text-gray-500">Nr. comandă</p>
-                <p className="mt-1 text-sm font-semibold">{order.id.slice(0, 8).toUpperCase()}</p>
+                <p className="mt-1 text-sm font-semibold">
+  {order.order_number || "-"}
+</p>
               </div>
 
               <div>
@@ -339,6 +343,20 @@ export default function ComandaDetaliuPage() {
           {profile?.role === "administrator" &&
             order.status === "asteapta_confirmare" && (
               <div className="flex flex-col gap-3 sm:flex-row">
+			  
+			  {order.status === "draft" &&
+  (profile?.role === "administrator" || profile?.role === "sef_echipa") && (
+    <div className="flex flex-col gap-3 sm:flex-row">
+      <button
+        type="button"
+        onClick={() => router.push(`/comenzi/${order.id}/editare`)}
+        className="rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white"
+      >
+        Editează comanda
+      </button>
+    </div>
+  )}
+			  
                 <button
                   type="button"
                   onClick={() => updateOrderStatus("refuzata")}

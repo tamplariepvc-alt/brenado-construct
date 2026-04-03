@@ -217,20 +217,27 @@ export default function AdaugaComandaPage() {
       return;
     }
 
-    const { data: orderData, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        created_by: user.id,
-        project_id: selectedProjectId,
-        order_date: orderDate,
-        status,
-        subtotal: Number(subtotal.toFixed(2)),
-        vat_total: Number(vatTotal.toFixed(2)),
-        total_with_vat: Number(totalWithVat.toFixed(2)),
-        notes,
-      })
-      .select()
-      .single();
+const { count } = await supabase
+  .from("orders")
+  .select("*", { count: "exact", head: true });
+
+const nextOrderNumber = `CMD-${String((count || 0) + 1).padStart(4, "0")}`;
+
+const { data: orderData, error: orderError } = await supabase
+  .from("orders")
+  .insert({
+    order_number: nextOrderNumber,
+    created_by: user.id,
+    project_id: selectedProjectId,
+    order_date: orderDate,
+    status,
+    subtotal: Number(subtotal.toFixed(2)),
+    vat_total: Number(vatTotal.toFixed(2)),
+    total_with_vat: Number(totalWithVat.toFixed(2)),
+    notes,
+  })
+  .select()
+  .single();
 
     if (orderError || !orderData) {
       alert("A apărut o eroare la salvarea comenzii.");

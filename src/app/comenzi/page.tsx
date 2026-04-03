@@ -14,6 +14,7 @@ type Profile = {
 
 type OrderRow = {
   id: string;
+  order_number: string | null;
   project_id: string;
   order_date: string;
   status: string;
@@ -70,18 +71,19 @@ export default function ComenziPage() {
 
       let query = supabase
         .from("orders")
-        .select(`
-          id,
-          project_id,
-          order_date,
-          status,
-          total_with_vat,
-          created_by,
-          created_at,
-          projects:project_id (
-            name
-          )
-        `)
+.select(`
+  id,
+  order_number,
+  project_id,
+  order_date,
+  status,
+  total_with_vat,
+  created_by,
+  created_at,
+  projects:project_id (
+    name
+  )
+`)
         .order("created_at", { ascending: false });
 
       if (profileData.role === "sef_echipa") {
@@ -236,11 +238,11 @@ export default function ComenziPage() {
         {/* LISTA COMENZI */}
         <div className="overflow-hidden rounded-2xl bg-white shadow">
           <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-            <div className="col-span-1">Nr.</div>
-            <div className="col-span-4 md:col-span-3">Șantier</div>
-            <div className="col-span-3 md:col-span-2">Data</div>
-            <div className="col-span-4 md:col-span-3">Valoare totală</div>
-            <div className="hidden md:block md:col-span-3">Status</div>
+            <div className="col-span-1">Nr. comandă</div>
+<div className="col-span-4 md:col-span-3">Șantier</div>
+<div className="col-span-3 md:col-span-2">Data</div>
+<div className="col-span-3 md:col-span-2">Valoare totală</div>
+<div className="hidden md:block md:col-span-3">Status</div>
           </div>
 
           {filteredOrders.length === 0 ? (
@@ -254,21 +256,23 @@ export default function ComenziPage() {
                 onClick={() => router.push(`/comenzi/${order.id}`)}
                 className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
               >
-                <div className="col-span-1 font-semibold">{index + 1}</div>
+               <div className="col-span-2 md:col-span-2 font-semibold">
+  {order.order_number || `CMD-${String(index + 1).padStart(4, "0")}`}
+</div>
 
-                <div className="col-span-4 md:col-span-3">
-                  {order.projects?.name || "-"}
-                </div>
+<div className="col-span-4 md:col-span-3">
+  {order.projects?.name || "-"}
+</div>
 
-                <div className="col-span-3 md:col-span-2">
-                  {new Date(order.order_date).toLocaleDateString("ro-RO")}
-                </div>
+<div className="col-span-3 md:col-span-2">
+  {new Date(order.order_date).toLocaleDateString("ro-RO")}
+</div>
 
-                <div className="col-span-4 md:col-span-3 font-semibold">
-                  {Number(order.total_with_vat || 0).toFixed(2)} lei
-                </div>
+<div className="col-span-3 md:col-span-2 font-semibold">
+  {Number(order.total_with_vat || 0).toFixed(2)} lei
+</div>
 
-                <div className="hidden md:block md:col-span-3">
+<div className="hidden md:block md:col-span-3">
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(
                       order.status
