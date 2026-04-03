@@ -295,13 +295,12 @@ export default function ComenziPage() {
         </div>
 
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-          <div className="grid grid-cols-5 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-            <div>Nr.</div>
-            <div>Șantier</div>
-            <div>Data</div>
-            <div>Valoare</div>
-            <div>Status</div>
-          </div>
+<div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
+  <div>Nr.</div>
+  <div>Data</div>
+  <div>Valoare</div>
+  <div>Status</div>
+</div>
 
           {filteredOrders.length === 0 ? (
             <div className="px-4 py-6 text-sm text-gray-500">
@@ -309,36 +308,35 @@ export default function ComenziPage() {
             </div>
           ) : (
             filteredOrders.map((order, index) => (
-              <button
-                key={order.id}
-                onClick={() => router.push(`/comenzi/${order.id}`)}
-                className="grid w-full grid-cols-5 items-start border-b px-4 py-4 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
-              >
-                <div className="font-semibold break-words">
-                  {order.order_number ||
-                    `CMD-${String(index + 1).padStart(4, "0")}`}
-                </div>
+<button
+  key={order.id}
+  onClick={() => router.push(`/comenzi/${order.id}`)}
+  className="grid w-full grid-cols-4 items-center border-b px-4 py-3 text-left text-xs transition hover:bg-gray-50 last:border-b-0"
+>
+  <div className="font-semibold">
+    {order.order_number
+      ? order.order_number.replace("CMD-", "")
+      : String(index + 1).padStart(4, "0")}
+  </div>
 
-                <div className="break-words">
-                  {order.projects?.[0]?.name || "-"}
-                </div>
+  <div>
+    {new Date(order.order_date).toLocaleDateString("ro-RO")}
+  </div>
 
-                <div>{new Date(order.order_date).toLocaleDateString("ro-RO")}</div>
+  <div className="font-semibold">
+    {Number(order.total_with_vat || 0).toFixed(2)} lei
+  </div>
 
-                <div className="font-semibold break-words">
-                  {Number(order.total_with_vat || 0).toFixed(2)} lei
-                </div>
-
-                <div>
-                  <span
-                    className={`inline-block rounded-full px-2 py-1 text-xs font-semibold ${getStatusColor(
-                      order.status
-                    )}`}
-                  >
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
-              </button>
+  <div>
+    <span
+      className={`inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${getStatusColor(
+        order.status
+      )}`}
+    >
+      {getStatusLabel(order.status)}
+    </span>
+  </div>
+</button>
             ))
           )}
         </div>
