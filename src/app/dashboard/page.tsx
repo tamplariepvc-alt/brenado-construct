@@ -114,7 +114,10 @@ const inCurs = projectsData.filter(
 
         <button className="relative rounded-full border px-3 py-2 text-xl">
           🔔
-          <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-red-500"></span>
+<span
+  className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white"
+  style={{ backgroundColor: "#0196ff" }}
+></span>
         </button>
       </header>
 
