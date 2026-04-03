@@ -26,33 +26,18 @@ const handleRegister = async (e: React.FormEvent) => {
 
   setLoading(true);
 
-  const { data, error } = await supabase.auth.signUp({
+  const { error } = await supabase.auth.signUp({
     email,
     password: parola,
+    options: {
+      data: {
+        full_name: nume,
+      },
+    },
   });
 
   if (error) {
     setEroare(error.message);
-    setLoading(false);
-    return;
-  }
-
-  const user = data.user;
-
-  if (!user) {
-    setEroare("Userul nu a fost returnat după înregistrare.");
-    setLoading(false);
-    return;
-  }
-
-  const { error: profileError } = await supabase.from("profiles").insert({
-    id: user.id,
-    full_name: nume,
-    role: "user",
-  });
-
-  if (profileError) {
-    setEroare("Profilul nu s-a salvat: " + profileError.message);
     setLoading(false);
     return;
   }
