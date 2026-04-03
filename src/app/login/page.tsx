@@ -99,9 +99,8 @@ return (
         <a href="/inregistrare" className="text-blue-600">
           Înregistrează-te
         </a>
-      </p>
-
+      </p>		  
+      </div>
     </div>
-  </div>
-);
-		  
+  );
+}
