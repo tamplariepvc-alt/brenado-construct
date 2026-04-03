@@ -380,7 +380,6 @@ export default function ComandaDetaliuPage() {
       </button>
     </div>
   )}
-            )}
         </div>
       </div>
     </div>
