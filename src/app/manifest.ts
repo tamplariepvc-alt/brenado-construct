@@ -1,4 +1,9 @@
-short_name: "Brenado Construct",
+import type { MetadataRoute } from "next";
+
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "Brenado Construct",
+    short_name: "Brenado",
     description: "Aplicatie interna Brenado Construct pentru proiecte si administrare",
     start_url: "/",
     display: "standalone",
