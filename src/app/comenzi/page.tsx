@@ -258,7 +258,7 @@ export default function ComenziPage() {
             </div>
           ) : (
             filteredOrders.map((order, index) => (
-<button
+             <button
   key={order.id}
   onClick={() => router.push(`/comenzi/${order.id}`)}
   className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
@@ -293,32 +293,6 @@ export default function ComenziPage() {
     </span>
   </div>
 </button>
-               <div className="col-span-2 md:col-span-2 font-semibold">
-  {order.order_number || `CMD-${String(index + 1).padStart(4, "0")}`}
-</div>
-
-<div className="col-span-4 md:col-span-3">
-  {order.projects?.[0]?.name || "-"}
-</div>
-
-<div className="col-span-3 md:col-span-2">
-  {new Date(order.order_date).toLocaleDateString("ro-RO")}
-</div>
-
-<div className="col-span-3 md:col-span-2 font-semibold">
-  {Number(order.total_with_vat || 0).toFixed(2)} lei
-</div>
-
-<div className="hidden md:block md:col-span-3">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(
-                      order.status
-                    )}`}
-                  >
-                    {getStatusLabel(order.status)}
-                  </span>
-                </div>
-              </button>
             ))
           )}
         </div>
