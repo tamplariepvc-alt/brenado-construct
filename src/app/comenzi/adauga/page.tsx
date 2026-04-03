@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -46,6 +46,7 @@ function generateLocalId() {
 export default function AdaugaComandaPage() {
   const router = useRouter();
 
+  const isSubmittingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sendingOrder, setSendingOrder] = useState(false);
@@ -201,21 +202,26 @@ export default function AdaugaComandaPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+	
+	if (isSubmittingRef.current) return;
+isSubmittingRef.current = true;
 
     if (!user) {
       router.push("/login");
       return;
     }
 
-    if (!selectedProjectId) {
-      alert("Selectează un șantier.");
-      return;
-    }
+if (!selectedProjectId) {
+  alert("Selectează un șantier.");
+  isSubmittingRef.current = false;
+  return;
+}
 
-    if (items.length === 0) {
-      alert("Adaugă cel puțin un articol în comandă.");
-      return;
-    }
+if (items.length === 0) {
+  alert("Adaugă cel puțin un articol în comandă.");
+  isSubmittingRef.current = false;
+  return;
+}
 
 const { count } = await supabase
   .from("orders")
@@ -239,10 +245,11 @@ const { data: orderData, error: orderError } = await supabase
   .select()
   .single();
 
-    if (orderError || !orderData) {
-      alert("A apărut o eroare la salvarea comenzii.");
-      return;
-    }
+if (orderError || !orderData) {
+  alert("A apărut o eroare la salvarea comenzii.");
+  isSubmittingRef.current = false;
+  return;
+}
 
     const orderItemsRows = items.map((item) => {
       const lineTotal = item.unit_price * item.quantity;
@@ -267,10 +274,11 @@ const { data: orderData, error: orderError } = await supabase
       .from("order_items")
       .insert(orderItemsRows);
 
-    if (itemsError) {
-      alert("Comanda a fost creată, dar articolele nu au putut fi salvate.");
-      return;
-    }
+if (itemsError) {
+  alert("Comanda a fost creată, dar articolele nu au putut fi salvate.");
+  isSubmittingRef.current = false;
+  return;
+}
 
     alert(
       status === "draft"
@@ -278,7 +286,8 @@ const { data: orderData, error: orderError } = await supabase
         : "Comanda a fost trimisă cu succes."
     );
 
-    router.push("/comenzi");
+isSubmittingRef.current = false;
+router.push("/comenzi");
   };
 
   const handleSaveDraft = async () => {
