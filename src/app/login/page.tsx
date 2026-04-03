@@ -32,7 +32,7 @@ export default function LoginPage() {
     router.push("/dashboard");
   };
 
- import Image from "next/image";
+import Image from "next/image";
 
 return (
   <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
@@ -105,10 +105,3 @@ return (
     </div>
   </div>
 );
-		  
-		  
-        </form>
-      </div>
-    </div>
-  );
-}
