@@ -26,7 +26,7 @@ type OrderDetails = {
   created_at: string;
   projects?: {
     name: string;
-  } | null;
+  }[] | null;
 };
 
 type OrderItem = {
@@ -246,7 +246,7 @@ export default function ComandaDetaliuPage() {
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Șantier</p>
-                <p className="mt-1 text-sm font-semibold">{order.projects?.name || "-"}</p>
+                <p className="mt-1 text-sm font-semibold">{order.projects?.[0]?.name || "-"}</p>
               </div>
 
               <div>

@@ -21,9 +21,9 @@ type OrderRow = {
   total_with_vat: number;
   created_by: string;
   created_at: string;
-  projects?: {
-    name: string;
-  } | null;
+projects?: {
+  name: string;
+}[] | null;
 };
 
 export default function ComenziPage() {
@@ -107,7 +107,7 @@ export default function ComenziPage() {
       const matchesStatus =
         statusFilter === "toate" || order.status === statusFilter;
 
-      const projectName = order.projects?.name || "";
+      const projectName = order.projects?.[0]?.name || "";
       const matchesSantier = projectName
         .toLowerCase()
         .includes(searchSantier.toLowerCase());
@@ -261,7 +261,7 @@ export default function ComenziPage() {
 </div>
 
 <div className="col-span-4 md:col-span-3">
-  {order.projects?.name || "-"}
+  {order.projects?.[0]?.name || "-"}
 </div>
 
 <div className="col-span-3 md:col-span-2">
