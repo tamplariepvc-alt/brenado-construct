@@ -191,7 +191,7 @@ autoTable(doc, {
   startY: infoY + infoH + 6,
   margin: { left: margin, right: margin },
   tableWidth: pageWidth - margin * 2,
-  head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
+  head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U. (lei)", "T. Valoare (lei)"]],
   body: data.items.map((item, index) => [
     index + 1,
     item.article_code || "-",
