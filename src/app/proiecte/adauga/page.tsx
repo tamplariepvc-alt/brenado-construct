@@ -51,6 +51,13 @@ const [showTeamLeadsDropdown, setShowTeamLeadsDropdown] = useState(false);
     );
   };
   
+  const toggleTeamLead = (userId: string) => {
+  setSelectedTeamLeads((prev) =>
+    prev.includes(userId)
+      ? prev.filter((id) => id !== userId)
+      : [...prev, userId]
+  );
+};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
