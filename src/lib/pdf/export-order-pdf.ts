@@ -145,28 +145,44 @@ if (logo) {
   doc.addImage(logo, "PNG", margin, 10, 65, 24);
 }
 
+let statusLabel = data.status;
+let statusFill: [number, number, number] = [243, 244, 246];
+let statusText: [number, number, number] = [75, 85, 99];
+
+if (data.status === "draft") {
+  statusLabel = "Draft";
+  statusFill = [243, 244, 246];
+  statusText = [75, 85, 99];
+} else if (data.status === "asteapta_confirmare") {
+  statusLabel = "Asteapta confirmare";
+  statusFill = [255, 237, 213];
+  statusText = [194, 65, 12];
+} else if (data.status === "aprobata") {
+  statusLabel = "Aprobata";
+  statusFill = [220, 252, 231];
+  statusText = [22, 101, 52];
+} else if (data.status === "refuzata") {
+  statusLabel = "Refuzata";
+  statusFill = [254, 226, 226];
+  statusText = [185, 28, 28];
+}
+
 doc.setFont("helvetica", "bold");
 doc.setFontSize(10);
 
-let statusLabel = data.status;
-let statusColor: [number, number, number] = [90, 90, 90];
+const badgeW = 56;
+const badgeH = 8;
+const badgeX = pageWidth - margin - badgeW;
+const badgeY = 38;
 
-if (data.status === "draft") {
-  statusLabel = "DRAFT";
-  statusColor = [100, 100, 100];
-} else if (data.status === "asteapta_confirmare") {
-  statusLabel = "IN ASTEPTARE";
-  statusColor = [245, 158, 11];
-} else if (data.status === "aprobata") {
-  statusLabel = "APROBATA";
-  statusColor = [22, 163, 74];
-} else if (data.status === "refuzata") {
-  statusLabel = "REFUZATA";
-  statusColor = [220, 38, 38];
-}
+doc.setFillColor(...statusFill);
+doc.setDrawColor(...statusFill);
+doc.roundedRect(badgeX, badgeY, badgeW, badgeH, 3, 3, "FD");
 
-doc.setTextColor(...statusColor);
-doc.text(`STATUS: ${statusLabel}`, margin, 38);
+doc.setTextColor(...statusText);
+doc.text(statusLabel, badgeX + badgeW / 2, badgeY + 5.3, {
+  align: "center",
+});
 
 doc.setFont("helvetica", "bold");
 doc.setFontSize(18);
