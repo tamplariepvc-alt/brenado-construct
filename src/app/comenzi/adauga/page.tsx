@@ -473,7 +473,7 @@ export default function AdaugaComandaPage() {
     <div className="col-span-2">Cod</div>
     <div className="col-span-4">Denumire</div>
     <div className="col-span-2">Qty</div>
-    <div className="col-span-2">Val.</div>
+    <div className="col-span-2 text-right">Val.(lei)</div>
     <div className="col-span-1 text-center"> </div>
   </div>
 
@@ -487,7 +487,7 @@ export default function AdaugaComandaPage() {
         className="grid grid-cols-12 items-center border-b px-3 py-2 text-[11px] last:border-b-0"
       >
         <div className="col-span-1 font-medium">
-          {item.article_number || index + 1}
+          {index + 1}
         </div>
 
         <div className="col-span-2 break-words">
@@ -498,7 +498,7 @@ export default function AdaugaComandaPage() {
           {item.article_name}
         </div>
 
-        <div className="col-span-2">
+        <div className="col-span-2 flex justify-center">
           <input
             type="number"
             min="1"
@@ -512,12 +512,12 @@ export default function AdaugaComandaPage() {
                 updateItemQuantity(item.localId, "1");
               }
             }}
-            className="w-12 rounded border border-gray-300 px-2 py-1 text-[11px]"
+className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
           />
         </div>
 
-        <div className="col-span-2 font-semibold leading-4">
-          {lineTotal.toFixed(2)} lei
+        <div className="col-span-2 font-semibold text-right leading-4">
+          {lineTotal.toFixed(2)}
         </div>
 
         <div className="col-span-1 text-center">
