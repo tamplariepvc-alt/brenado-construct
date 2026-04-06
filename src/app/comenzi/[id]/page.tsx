@@ -88,26 +88,26 @@ export default function ComandaDetaliuPage() {
 
       setProfile(profileData as Profile);
 
-      const { data: orderData, error: orderError } = await supabase
-        .from("orders")
-        .select(`
-          id,
-          order_number,
-          project_id,
-          created_by,
-          order_date,
-          status,
-          subtotal,
-          vat_total,
-          total_with_vat,
-          notes,
-          created_at,
-          projects:project_id (
-            name
-          )
-        `)
-        .eq("id", orderId)
-        .single();
+const { data: orderData, error: orderError } = await supabase
+  .from("orders")
+  .select(`
+    id,
+    order_number,
+    project_id,
+    created_by,
+    order_date,
+    status,
+    subtotal,
+    vat_total,
+    total_with_vat,
+    notes,
+    created_at,
+    projects:project_id (
+      name
+    )
+  `)
+  .eq("id", orderId)
+  .single();
 
       if (orderError || !orderData) {
         router.push("/comenzi");
