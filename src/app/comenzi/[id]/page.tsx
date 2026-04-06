@@ -317,31 +317,31 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
           </p>
         </div>
 
-<div className="flex flex-col gap-2">
+<div className="flex flex-col gap-1">
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">Qty</span>
-    <span className="text-sm font-medium">
+    <span className="text-xs font-medium">
       {Number(item.quantity).toFixed(0)}
     </span>
   </div>
 
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">U.M.</span>
-    <span className="text-sm font-medium">
+    <span className="text-xs font-medium">
       {item.unit || "-"}
     </span>
   </div>
 
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">P.U</span>
-    <span className="text-sm font-medium">
+    <span className="text-xs font-medium">
       {Number(item.unit_price).toFixed(2)}
     </span>
   </div>
 
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">V. Totală</span>
-    <span className="text-sm font-semibold">
+    <span className="text-xs font-semibold">
       {Number(item.line_total).toFixed(2)}
     </span>
   </div>
