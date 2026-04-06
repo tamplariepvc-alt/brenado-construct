@@ -26,9 +26,9 @@ type OrderDetails = {
   notes: string | null;
   created_at: string;
   creator_name?: string;
-projects?: {
-  name: string;
-} | null;
+  projects?: {
+    name: string;
+  }[] | null;
 };
 
 type OrderItem = {
@@ -280,7 +280,7 @@ await exportOrderPdf({
   <div>
     <p className="text-xs font-medium text-gray-500">Șantier</p>
     <p className="mt-1 text-sm font-semibold">
-      {order.projects?.name || "-"}
+      {order.projects?.[0]?.name || "-"}
     </p>
   </div>
 

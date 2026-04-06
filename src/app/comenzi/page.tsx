@@ -21,9 +21,9 @@ type OrderRow = {
   total_with_vat: number;
   created_by: string;
   created_at: string;
-projects?: {
-  name: string;
-} | null
+  projects?: {
+    name: string;
+  }[] | null;
 };
 
 type ProfileNameMap = Record<string, string>;
@@ -132,7 +132,7 @@ export default function ComenziPage() {
       const matchesStatus =
         statusFilter === "toate" || order.status === statusFilter;
 
-     const projectName = order.projects?.name || "";
+      const projectName = order.projects?.[0]?.name || "";
       const matchesSantier = projectName
         .toLowerCase()
         .includes(searchSantier.toLowerCase());
