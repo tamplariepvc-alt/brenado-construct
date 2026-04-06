@@ -46,10 +46,11 @@ function generateLocalId() {
 export default function AdaugaComandaPage() {
   const router = useRouter();
 
-  const isSubmittingRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [savingDraft, setSavingDraft] = useState(false);
   const [sendingOrder, setSendingOrder] = useState(false);
+
+  const isSubmittingRef = useRef(false);
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -61,6 +62,10 @@ export default function AdaugaComandaPage() {
 
   const [articleSearch, setArticleSearch] = useState("");
   const [items, setItems] = useState<OrderItemForm[]>([]);
+
+  const [selectedArticleForPopup, setSelectedArticleForPopup] =
+    useState<Article | null>(null);
+  const [popupQuantity, setPopupQuantity] = useState("1");
 
   useEffect(() => {
     const loadData = async () => {
@@ -154,108 +159,130 @@ export default function AdaugaComandaPage() {
     });
   }, [articles, articleSearch]);
 
-  const addArticleToOrder = (article: Article) => {
+  const openAddArticlePopup = (article: Article) => {
+    setSelectedArticleForPopup(article);
+    setPopupQuantity("1");
+  };
+
+  const closeAddArticlePopup = () => {
+    setSelectedArticleForPopup(null);
+    setPopupQuantity("1");
+  };
+
+  const confirmAddArticle = () => {
+    if (!selectedArticleForPopup) return;
+
+    const qty = Number(popupQuantity);
+    if (!popupQuantity || Number.isNaN(qty) || qty < 1) {
+      alert("Introdu o cantitate validă.");
+      return;
+    }
+
     setItems((prev) => [
       ...prev,
       {
         localId: generateLocalId(),
-        article_id: article.id,
-        article_number: article.article_number || "",
-        article_code: article.article_code || "",
-        article_name: article.name,
-        unit: article.unit || "",
-        unit_price: Number(article.unit_price || 0),
-        vat_percent: Number(article.vat_percent || 21),
-        quantity: "1",
+        article_id: selectedArticleForPopup.id,
+        article_number: selectedArticleForPopup.article_number || "",
+        article_code: selectedArticleForPopup.article_code || "",
+        article_name: selectedArticleForPopup.name,
+        unit: selectedArticleForPopup.unit || "",
+        unit_price: Number(selectedArticleForPopup.unit_price || 0),
+        vat_percent: Number(selectedArticleForPopup.vat_percent || 21),
+        quantity: String(qty),
       },
     ]);
+
+    closeAddArticlePopup();
   };
 
-const updateItemQuantity = (localId: string, quantity: string) => {
-  setItems((prev) =>
-    prev.map((item) =>
-      item.localId === localId ? { ...item, quantity } : item
-    )
-  );
-};
+  const updateItemQuantity = (localId: string, quantity: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.localId === localId ? { ...item, quantity } : item
+      )
+    );
+  };
 
   const removeItem = (localId: string) => {
     setItems((prev) => prev.filter((item) => item.localId !== localId));
   };
 
-const subtotal = useMemo(() => {
-  return items.reduce((sum, item) => {
-    const qty = Number(item.quantity) || 0;
-    return sum + item.unit_price * qty;
-  }, 0);
-}, [items]);
+  const subtotal = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const qty = Number(item.quantity) || 0;
+      return sum + item.unit_price * qty;
+    }, 0);
+  }, [items]);
 
-const vatTotal = useMemo(() => {
-  return items.reduce((sum, item) => {
-    const qty = Number(item.quantity) || 0;
-    return sum + item.unit_price * qty * (item.vat_percent / 100);
-  }, 0);
-}, [items]);
+  const vatTotal = useMemo(() => {
+    return items.reduce((sum, item) => {
+      const qty = Number(item.quantity) || 0;
+      return sum + item.unit_price * qty * (item.vat_percent / 100);
+    }, 0);
+  }, [items]);
 
   const totalWithVat = useMemo(() => subtotal + vatTotal, [subtotal, vatTotal]);
 
   const saveOrder = async (status: "draft" | "asteapta_confirmare") => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
-	
-	if (isSubmittingRef.current) return;
-isSubmittingRef.current = true;
 
     if (!user) {
+      isSubmittingRef.current = false;
       router.push("/login");
       return;
     }
 
-if (!selectedProjectId) {
-  alert("Selectează un șantier.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (!selectedProjectId) {
+      alert("Selectează un șantier.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
-if (items.length === 0) {
-  alert("Adaugă cel puțin un articol în comandă.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (items.length === 0) {
+      alert("Adaugă cel puțin un articol în comandă.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
-const { count } = await supabase
-  .from("orders")
-  .select("*", { count: "exact", head: true });
+    const { count } = await supabase
+      .from("orders")
+      .select("*", { count: "exact", head: true });
 
-const nextOrderNumber = `CMD-${String((count || 0) + 1).padStart(4, "0")}`;
+    const nextOrderNumber = String((count || 0) + 1).padStart(4, "0");
 
-const { data: orderData, error: orderError } = await supabase
-  .from("orders")
-  .insert({
-    order_number: nextOrderNumber,
-    created_by: user.id,
-    project_id: selectedProjectId,
-    order_date: orderDate,
-    status,
-    subtotal: Number(subtotal.toFixed(2)),
-    vat_total: Number(vatTotal.toFixed(2)),
-    total_with_vat: Number(totalWithVat.toFixed(2)),
-    notes,
-  })
-  .select()
-  .single();
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .insert({
+        order_number: nextOrderNumber,
+        created_by: user.id,
+        project_id: selectedProjectId,
+        order_date: orderDate,
+        status,
+        subtotal: Number(subtotal.toFixed(2)),
+        vat_total: Number(vatTotal.toFixed(2)),
+        total_with_vat: Number(totalWithVat.toFixed(2)),
+        notes,
+      })
+      .select()
+      .single();
 
-if (orderError || !orderData) {
-  alert("A apărut o eroare la salvarea comenzii.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (orderError || !orderData) {
+      alert("A apărut o eroare la salvarea comenzii.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
     const orderItemsRows = items.map((item) => {
-const qty = Number(item.quantity) || 1;
-const lineTotal = item.unit_price * qty;
-const lineTotalWithVat = lineTotal + lineTotal * (item.vat_percent / 100);
+      const qty = Number(item.quantity) || 1;
+      const lineTotal = item.unit_price * qty;
+      const lineTotalWithVat =
+        lineTotal + lineTotal * (item.vat_percent / 100);
 
       return {
         order_id: orderData.id,
@@ -276,11 +303,11 @@ const lineTotalWithVat = lineTotal + lineTotal * (item.vat_percent / 100);
       .from("order_items")
       .insert(orderItemsRows);
 
-if (itemsError) {
-  alert("Comanda a fost creată, dar articolele nu au putut fi salvate.");
-  isSubmittingRef.current = false;
-  return;
-}
+    if (itemsError) {
+      alert("Comanda a fost creată, dar articolele nu au putut fi salvate.");
+      isSubmittingRef.current = false;
+      return;
+    }
 
     alert(
       status === "draft"
@@ -288,17 +315,19 @@ if (itemsError) {
         : "Comanda a fost trimisă cu succes."
     );
 
-isSubmittingRef.current = false;
-router.push("/comenzi");
+    isSubmittingRef.current = false;
+    router.push("/comenzi");
   };
 
   const handleSaveDraft = async () => {
+    if (savingDraft || sendingOrder) return;
     setSavingDraft(true);
     await saveOrder("draft");
     setSavingDraft(false);
   };
 
   const handleSendOrder = async () => {
+    if (savingDraft || sendingOrder) return;
     setSendingOrder(true);
     await saveOrder("asteapta_confirmare");
     setSendingOrder(false);
@@ -390,13 +419,11 @@ router.push("/comenzi");
               />
             </div>
 
-            <div className="max-h-80 overflow-auto rounded-xl border border-gray-200">
-              <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                <div className="col-span-2">Nr.</div>
-                <div className="col-span-2">Cod</div>
-                <div className="col-span-4">Denumire</div>
-                <div className="col-span-2">Preț unitar</div>
-                <div className="col-span-2 text-right">Acțiune</div>
+            <div className="overflow-hidden rounded-xl border border-gray-200">
+              <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
+                <div className="col-span-3">Cod</div>
+                <div className="col-span-6">Denumire</div>
+                <div className="col-span-3 text-right">Acțiune</div>
               </div>
 
               {filteredArticles.length === 0 ? (
@@ -407,18 +434,20 @@ router.push("/comenzi");
                 filteredArticles.map((article) => (
                   <div
                     key={article.id}
-                    className="grid grid-cols-12 items-center border-b px-4 py-3 text-sm last:border-b-0"
+                    className="grid grid-cols-12 items-center border-b px-4 py-2 text-xs last:border-b-0"
                   >
-                    <div className="col-span-2">{article.article_number || "-"}</div>
-                    <div className="col-span-2">{article.article_code || "-"}</div>
-                    <div className="col-span-4">{article.name}</div>
-                    <div className="col-span-2">
-                      {Number(article.unit_price).toFixed(2)} lei
+                    <div className="col-span-3 break-words">
+                      {article.article_code || "-"}
                     </div>
-                    <div className="col-span-2 text-right">
+
+                    <div className="col-span-6 break-words text-[#0196ff] font-medium">
+                      {article.name}
+                    </div>
+
+                    <div className="col-span-3 text-right">
                       <button
                         type="button"
-                        onClick={() => addArticleToOrder(article)}
+                        onClick={() => openAddArticlePopup(article)}
                         className="rounded-lg bg-[#0196ff] px-3 py-2 text-xs font-semibold text-white"
                       >
                         Adaugă
@@ -438,106 +467,57 @@ router.push("/comenzi");
                 Nu ai adăugat încă niciun articol în comandă.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="overflow-hidden rounded-xl border border-gray-200">
+                <div className="grid grid-cols-5 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
+                  <div>Nr.</div>
+                  <div>Cod</div>
+                  <div>Denumire</div>
+                  <div>Cantitate</div>
+                  <div>Valoare</div>
+                </div>
+
                 {items.map((item, index) => {
-const qty = Number(item.quantity) || 0;
-const lineTotal = item.unit_price * qty;
-const lineTotalWithVat =
-  lineTotal + lineTotal * (item.vat_percent / 100);
+                  const qty = Number(item.quantity) || 0;
+                  const lineTotal = item.unit_price * qty;
 
                   return (
                     <div
                       key={item.localId}
-                      className="rounded-xl border border-gray-200 p-4"
+                      className="grid grid-cols-5 items-center border-b px-4 py-2 text-xs last:border-b-0"
                     >
-                      <div className="mb-3 flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold">
-                            {index + 1}. {item.article_name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            Nr.: {item.article_number || "-"} | Cod: {item.article_code || "-"}
-                          </p>
-                        </div>
+                      <div>{item.article_number || index + 1}</div>
+                      <div className="break-words">{item.article_code || "-"}</div>
+                      <div className="break-words text-[#0196ff] font-medium">
+                        {item.article_name}
+                      </div>
 
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            updateItemQuantity(item.localId, e.target.value)
+                          }
+                          onBlur={() => {
+                            if (!item.quantity || Number(item.quantity) < 1) {
+                              updateItemQuantity(item.localId, "1");
+                            }
+                          }}
+                          className="w-16 rounded border border-gray-300 px-2 py-1 text-xs"
+                        />
                         <button
                           type="button"
                           onClick={() => removeItem(item.localId)}
-                          className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600"
+                          className="text-red-600 text-xs font-semibold"
                         >
                           Șterge
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-600">
-                            Preț unitar
-                          </label>
-                          <input
-                            type="number"
-                            value={item.unit_price}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-600">
-                            Cantitate
-                          </label>
-<input
-  type="number"
-  min="1"
-  step="1"
-  value={item.quantity}
-  onChange={(e) =>
-    updateItemQuantity(item.localId, e.target.value)
-  }
-  onBlur={() => {
-    if (!item.quantity || Number(item.quantity) < 1) {
-      updateItemQuantity(item.localId, "1");
-    }
-  }}
-                            className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-600">
-                            U.M.
-                          </label>
-                          <input
-                            type="text"
-                            value={item.unit}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-600">
-                            Valoare
-                          </label>
-                          <input
-                            type="text"
-                            value={`${lineTotal.toFixed(2)} lei`}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-2 block text-xs font-medium text-gray-600">
-                            Valoare cu TVA
-                          </label>
-                          <input
-                            type="text"
-                            value={`${lineTotalWithVat.toFixed(2)} lei`}
-                            disabled
-                            className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-sm"
-                          />
-                        </div>
+                      <div className="font-semibold">
+                        {lineTotal.toFixed(2)} lei
                       </div>
                     </div>
                   );
@@ -551,12 +531,12 @@ const lineTotalWithVat =
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">Subtotal</p>
+                <p className="text-sm text-gray-500">Subtotal articole</p>
                 <p className="mt-1 text-xl font-bold">{subtotal.toFixed(2)} lei</p>
               </div>
 
               <div className="rounded-xl bg-gray-50 p-4">
-                <p className="text-sm text-gray-500">TVA</p>
+                <p className="text-sm text-gray-500">TVA 21%</p>
                 <p className="mt-1 text-xl font-bold">{vatTotal.toFixed(2)} lei</p>
               </div>
 
@@ -594,6 +574,62 @@ const lineTotalWithVat =
             </button>
           </div>
         </div>
+
+        {selectedArticleForPopup && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
+              <h3 className="text-lg font-semibold">Adaugă articol</h3>
+
+              <div className="mt-4 space-y-3">
+                <div>
+                  <p className="text-xs text-gray-500">Cod</p>
+                  <p className="text-sm font-medium break-words">
+                    {selectedArticleForPopup.article_code || "-"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500">Denumire</p>
+                  <p className="text-sm font-medium text-[#0196ff] break-words">
+                    {selectedArticleForPopup.name}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Cantitate
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={popupQuantity}
+                    onChange={(e) => setPopupQuantity(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 flex gap-3">
+                <button
+                  type="button"
+                  onClick={closeAddArticlePopup}
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700"
+                >
+                  Renunță
+                </button>
+
+                <button
+                  type="button"
+                  onClick={confirmAddArticle}
+                  className="flex-1 rounded-lg bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white"
+                >
+                  Confirmă
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

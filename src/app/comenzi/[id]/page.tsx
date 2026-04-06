@@ -333,7 +333,7 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
   </div>
 
   <div className="flex justify-between">
-    <span className="text-xs text-gray-500">P.U</span>
+    <span className="text-xs text-gray-500">P.U.</span>
     <span className="text-sm font-medium">
       {Number(item.unit_price).toFixed(2)}
     </span>
