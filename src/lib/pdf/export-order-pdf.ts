@@ -187,44 +187,44 @@ export async function exportOrderPdf(data: OrderPdfData) {
     align: "right",
   });
 
-  autoTable(doc, {
-    startY: infoY + infoH + 6,
-    margin: { left: margin, right: margin },
-    tableWidth: pageWidth - margin * 2,
-    head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
-    body: data.items.map((item, index) => [
-      index + 1,
-      item.article_code || "-",
-      item.article_name,
-      item.unit || "-",
-      item.quantity,
-      item.unit_price.toFixed(2),
-      item.line_total.toFixed(2),
-    ]),
-    styles: {
-      font: "helvetica",
-      fontSize: 9,
-      cellPadding: 2.5,
-      textColor: [40, 40, 40],
-      lineColor: [230, 230, 230],
-      lineWidth: 0.2,
-      valign: "middle",
-    },
-    headStyles: {
-      fillColor: [1, 150, 255],
-      textColor: [255, 255, 255],
-      fontStyle: "bold",
-    },
-columnStyles: {
-  0: { cellWidth: 9, halign: "center" },
-  1: { cellWidth: 22 },
-  2: { cellWidth: 86 },
-  3: { cellWidth: 10, halign: "center" },
-  4: { cellWidth: 10, halign: "center" },
-  5: { cellWidth: 18, halign: "right" },
-  6: { cellWidth: 18, halign: "right" },
-},
-  });
+autoTable(doc, {
+  startY: infoY + infoH + 6,
+  margin: { left: margin, right: margin },
+  tableWidth: pageWidth - margin * 2,
+  head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
+  body: data.items.map((item, index) => [
+    index + 1,
+    item.article_code || "-",
+    item.article_name,
+    item.unit || "-",
+    item.quantity,
+    item.unit_price.toFixed(2),
+    item.line_total.toFixed(2),
+  ]),
+  styles: {
+    font: "helvetica",
+    fontSize: 9,
+    cellPadding: 2.5,
+    textColor: [40, 40, 40],
+    lineColor: [230, 230, 230],
+    lineWidth: 0.2,
+    valign: "middle",
+  },
+  headStyles: {
+    fillColor: [1, 150, 255],
+    textColor: [255, 255, 255],
+    fontStyle: "bold",
+  },
+  columnStyles: {
+    0: { cellWidth: 9, halign: "center" },
+    1: { cellWidth: 22 },
+    2: { cellWidth: 86 },
+    3: { cellWidth: 10, halign: "center" },
+    4: { cellWidth: 10, halign: "center" },
+    5: { cellWidth: 18, halign: "right" },
+    6: { cellWidth: 18, halign: "right" },
+  },
+});
 
   const finalY =
     (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
