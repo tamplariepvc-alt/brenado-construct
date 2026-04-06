@@ -191,7 +191,6 @@ export async function exportOrderPdf(data: OrderPdfData) {
     startY: infoY + infoH + 6,
     margin: { left: margin, right: margin },
     tableWidth: pageWidth - margin * 2,
-    tableWidth: pageWidth - margin * 2,
     head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
     body: data.items.map((item, index) => [
       index + 1,
