@@ -219,10 +219,7 @@ export default function EditareComandaPage() {
 
 const filteredArticles = useMemo(() => {
   const q = articleSearch.trim().toLowerCase();
-
-  if (!q) {
-    return articles.slice(0, 3);
-  }
+  if (!q) return articles;
 
   return articles.filter((article) => {
     return (
@@ -489,12 +486,12 @@ const filteredArticles = useMemo(() => {
               />
 			  
 			  <p className="mt-2 text-xs text-gray-500">
-  Sunt afișate primele 3 articole. Scrie în căutare pentru a vedea mai multe.
+  Derulează în listă pentru a vedea mai multe articole sau caută după nume sau cod.
 </p>
 			  
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-gray-200">
+            <div className="max-h-75 overflow-y-auto rounded-xl border border-gray-200">
               <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
                 <div className="col-span-3">Cod</div>
                 <div className="col-span-6">Denumire</div>
