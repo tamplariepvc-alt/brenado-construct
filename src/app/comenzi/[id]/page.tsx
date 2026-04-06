@@ -317,33 +317,33 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
           </p>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-  <div>
-    <p className="text-xs text-gray-500">Qty</p>
-    <p className="text-sm font-medium">
+<div className="flex flex-col gap-2">
+  <div className="flex justify-between">
+    <span className="text-xs text-gray-500">Qty</span>
+    <span className="text-sm font-medium">
       {Number(item.quantity).toFixed(0)}
-    </p>
+    </span>
   </div>
 
-  <div>
-    <p className="text-xs text-gray-500">U.M.</p>
-    <p className="text-sm font-medium">
+  <div className="flex justify-between">
+    <span className="text-xs text-gray-500">U.M.</span>
+    <span className="text-sm font-medium">
       {item.unit || "-"}
-    </p>
+    </span>
   </div>
 
-  <div>
-    <p className="text-xs text-gray-500">P.U</p>
-    <p className="text-sm font-medium">
+  <div className="flex justify-between">
+    <span className="text-xs text-gray-500">P.U</span>
+    <span className="text-sm font-medium">
       {Number(item.unit_price).toFixed(2)}
-    </p>
+    </span>
   </div>
 
-  <div>
-    <p className="text-xs text-gray-500">V. Totală</p>
-    <p className="text-sm font-semibold">
+  <div className="flex justify-between">
+    <span className="text-xs text-gray-500">V. Totală</span>
+    <span className="text-sm font-semibold">
       {Number(item.line_total).toFixed(2)}
-    </p>
+    </span>
   </div>
 </div>
       </div>
