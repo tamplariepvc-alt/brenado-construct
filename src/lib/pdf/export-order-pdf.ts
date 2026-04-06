@@ -215,15 +215,28 @@ autoTable(doc, {
     textColor: [255, 255, 255],
     fontStyle: "bold",
   },
-  columnStyles: {
-    0: { cellWidth: 9, halign: "center" },
-    1: { cellWidth: 22 },
-    2: { cellWidth: 86 },
-    3: { cellWidth: 10, halign: "center" },
-    4: { cellWidth: 10, halign: "center" },
-    5: { cellWidth: 18, halign: "right" },
-    6: { cellWidth: 18, halign: "right" },
-  },
+styles: {
+  font: "helvetica",
+  fontSize: 9,
+  cellPadding: 2.5,
+  textColor: [40, 40, 40],
+  lineColor: [230, 230, 230],
+  lineWidth: 0.2,
+  valign: "middle",
+  overflow: "linebreak",
+},
+
+headStyles: {
+  fillColor: [1, 150, 255],
+  textColor: [255, 255, 255],
+  fontStyle: "bold",
+},
+
+didParseCell: function (data) {
+  if (data.column.index === 2) {
+    data.cell.styles.cellWidth = "auto";
+  }
+},
 });
 
   const finalY =
