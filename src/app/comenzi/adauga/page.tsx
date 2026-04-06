@@ -467,62 +467,74 @@ export default function AdaugaComandaPage() {
                 Nu ai adăugat încă niciun articol în comandă.
               </p>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-gray-200">
-                <div className="grid grid-cols-5 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
-                  <div>Nr.</div>
-                  <div>Cod</div>
-                  <div>Denumire</div>
-                  <div>Cantitate</div>
-                  <div>Valoare</div>
-                </div>
+<div className="overflow-hidden rounded-xl border border-gray-200">
+  <div className="grid grid-cols-12 border-b bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-600">
+    <div className="col-span-1">Nr.</div>
+    <div className="col-span-2">Cod</div>
+    <div className="col-span-4">Denumire</div>
+    <div className="col-span-2">Qty</div>
+    <div className="col-span-2">Val.</div>
+    <div className="col-span-1 text-center"> </div>
+  </div>
 
-                {items.map((item, index) => {
-                  const qty = Number(item.quantity) || 0;
-                  const lineTotal = item.unit_price * qty;
+  {items.map((item, index) => {
+    const qty = Number(item.quantity) || 0;
+    const lineTotal = item.unit_price * qty;
 
-                  return (
-                    <div
-                      key={item.localId}
-                      className="grid grid-cols-5 items-center border-b px-4 py-2 text-xs last:border-b-0"
-                    >
-                      <div>{item.article_number || index + 1}</div>
-                      <div className="break-words">{item.article_code || "-"}</div>
-                      <div className="break-words text-[#0196ff] font-medium">
-                        {item.article_name}
-                      </div>
+    return (
+      <div
+        key={item.localId}
+        className="grid grid-cols-12 items-center border-b px-3 py-2 text-[11px] last:border-b-0"
+      >
+        <div className="col-span-1 font-medium">
+          {item.article_number || index + 1}
+        </div>
 
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateItemQuantity(item.localId, e.target.value)
-                          }
-                          onBlur={() => {
-                            if (!item.quantity || Number(item.quantity) < 1) {
-                              updateItemQuantity(item.localId, "1");
-                            }
-                          }}
-                          className="w-16 rounded border border-gray-300 px-2 py-1 text-xs"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.localId)}
-                          className="text-red-600 text-xs font-semibold"
-                        >
-                          Șterge
-                        </button>
-                      </div>
+        <div className="col-span-2 break-words">
+          {item.article_code || "-"}
+        </div>
 
-                      <div className="font-semibold">
-                        {lineTotal.toFixed(2)} lei
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+        <div className="col-span-4 break-words font-medium text-[#0196ff] leading-4">
+          {item.article_name}
+        </div>
+
+        <div className="col-span-2">
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={item.quantity}
+            onChange={(e) =>
+              updateItemQuantity(item.localId, e.target.value)
+            }
+            onBlur={() => {
+              if (!item.quantity || Number(item.quantity) < 1) {
+                updateItemQuantity(item.localId, "1");
+              }
+            }}
+            className="w-12 rounded border border-gray-300 px-2 py-1 text-[11px]"
+          />
+        </div>
+
+        <div className="col-span-2 font-semibold leading-4">
+          {lineTotal.toFixed(2)} lei
+        </div>
+
+        <div className="col-span-1 text-center">
+          <button
+            type="button"
+            onClick={() => removeItem(item.localId)}
+            className="text-red-600 text-sm font-bold leading-none"
+            aria-label="Șterge articol"
+            title="Șterge articol"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+    );
+  })}
+</div>
             )}
           </div>
 
