@@ -26,7 +26,6 @@ const SELLER = {
   name: "BRENADO FOR HOUSE SRL",
   regNo: "J2020000393160",
   fiscalCode: "42311924",
-  phone: "-",
   address: "str. Craiovei, nr. 28 A, Galicea Mare, Dolj",
   email: "for-house@brenado.ro",
 };
@@ -36,7 +35,6 @@ const BUYER = {
   name: "BRENADO SRL",
   regNo: "J2017000063160",
   fiscalCode: "36931450",
-  phone: "-".
   address: "str. Teilor, nr. 8, Galicea Mare, Dolj",
   email: "office@brenado.ro",
 };
@@ -84,7 +82,6 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.text(`Reg. Com.: ${SELLER.regNo}`, margin, y); y += 4;
   doc.text(`CUI: ${SELLER.fiscalCode}`, margin, y); y += 4;
   doc.text(`Adresă: ${SELLER.address}`, margin, y); y += 4;
-  doc.text(`Tel: ${SELLER.phone}`, margin, y); y += 4;
   doc.text(`Email: ${SELLER.email}`, margin, y);
 
   // 🔵 CUMPARATOR (dreapta)
@@ -104,7 +101,6 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.text(`Reg. Com.: ${BUYER.regNo}`, rightX, rightY, { align: "right" }); rightY += 4;
   doc.text(`CUI: ${BUYER.fiscalCode}`, rightX, rightY, { align: "right" }); rightY += 4;
   doc.text(`Adresă: ${BUYER.address}`, rightX, rightY, { align: "right" }); rightY += 4;
-  doc.text(`Tel: ${BUYER.phone}`, rightX, rightY, { align: "right" }); rightY += 4;
   doc.text(`Email: ${BUYER.email}`, rightX, rightY, { align: "right" });
 
   // 🔵 TABEL
