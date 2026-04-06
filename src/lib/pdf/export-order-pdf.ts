@@ -141,7 +141,7 @@ export async function exportOrderPdf(data: OrderPdfData) {
   const logo = await loadImage("/logo.png");
 
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 10, 58, 24);
+    doc.addImage(logo, "PNG", margin, 10, 65, 24);
   }
 
   doc.setFont("helvetica", "bold");

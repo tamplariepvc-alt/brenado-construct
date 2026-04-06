@@ -56,6 +56,38 @@ function generateLocalId() {
   return Math.random().toString(36).slice(2);
 }
 
+async function fetchAllArticles() {
+  const pageSize = 1000;
+  let from = 0;
+  let allArticles: Article[] = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("inventory_articles")
+      .select("id, article_number, article_code, name, unit, unit_price, vat_percent")
+      .order("name", { ascending: true })
+      .range(from, from + pageSize - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    allArticles = [...allArticles, ...(data as Article[])];
+
+    if (data.length < pageSize) {
+      break;
+    }
+
+    from += pageSize;
+  }
+
+  return allArticles;
+}
+
 export default function EditareComandaPage() {
   const router = useRouter();
   const params = useParams();
@@ -171,16 +203,11 @@ export default function EditareComandaPage() {
         }
       }
 
-      const { data: articlesData } = await supabase
-        .from("inventory_articles")
-        .select(
-          "id, article_number, article_code, name, unit, unit_price, vat_percent"
-        )
-        .order("name", { ascending: true });
+const articlesData = await fetchAllArticles();
 
-      if (articlesData) {
-        setArticles(articlesData as Article[]);
-      }
+if (articlesData) {
+  setArticles(articlesData);
+}
 
       const { data: itemsData } = await supabase
         .from("order_items")
