@@ -21,7 +21,6 @@ type OrderPdfData = {
   items: OrderPdfItem[];
 };
 
-// 🔵 DATE FIRMA (MODIFICĂ CU ALE TALE)
 const SELLER = {
   name: "BRENADO FOR HOUSE SRL",
   regNo: "J2020000393160",
@@ -30,7 +29,6 @@ const SELLER = {
   email: "for-house@brenado.ro",
 };
 
-// 🔵 CUMPĂRĂTOR (momentan fix)
 const BUYER = {
   name: "BRENADO SRL",
   regNo: "J2017000063160",
@@ -39,73 +37,129 @@ const BUYER = {
   email: "office@brenado.ro",
 };
 
-export async function exportOrderPdf(data: OrderPdfData) {
-  const doc = new jsPDF();
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const margin = 14;
-
-  // 🟦 LOGO
+async function loadImage(url: string): Promise<string | null> {
   try {
-    const res = await fetch("/logo.png");
+    const res = await fetch(url);
     const blob = await res.blob();
-    const reader = new FileReader();
 
-    const logoData = await new Promise<string>((resolve) => {
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string);
       reader.readAsDataURL(blob);
     });
+  } catch {
+    return null;
+  }
+}
 
-    doc.addImage(logoData, "PNG", margin, 10, 30, 15);
-  } catch {}
+function drawPartyBlock(
+  doc: jsPDF,
+  title: string,
+  party: {
+    name: string;
+    regNo: string;
+    fiscalCode: string;
+    address: string;
+    email: string;
+  },
+  x: number,
+  y: number,
+  width: number,
+  align: "left" | "right"
+) {
+  const textX = align === "left" ? x : x + width;
+  const normalAlign = { align } as { align: "left" | "right" };
 
-  // 🔵 TITLU CENTRAL
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  doc.text(title, textX, y, normalAlign);
+
+  let cursorY = y + 5;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(party.name, textX, cursorY, normalAlign);
+  cursorY += 4.5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+
+  doc.text(`Reg. Com.: ${party.regNo}`, textX, cursorY, normalAlign);
+  cursorY += 4;
+  doc.text(`CUI: ${party.fiscalCode}`, textX, cursorY, normalAlign);
+  cursorY += 4;
+
+  const addressLines = doc.splitTextToSize(`Adresă: ${party.address}`, width);
+  doc.text(addressLines, textX, cursorY, normalAlign);
+  cursorY += addressLines.length * 3.8;
+
+  const emailLines = doc.splitTextToSize(`Email: ${party.email}`, width);
+  doc.text(emailLines, textX, cursorY, normalAlign);
+  cursorY += emailLines.length * 3.8;
+
+  return cursorY;
+}
+
+export async function exportOrderPdf(data: OrderPdfData) {
+  const doc = new jsPDF("p", "mm", "a4");
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 14;
+
+  const logo = await loadImage("/logo.png");
+
+  const leftColX = margin;
+  const rightColX = 120;
+  const blockWidth = 76;
+
+  if (logo) {
+    doc.addImage(logo, "PNG", margin, 10, 32, 18);
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDA FURNIZOR", pageWidth / 2, 18, {
-    align: "center",
-  });
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 22, { align: "center" });
 
-  let y = 32;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(margin, 32, pageWidth - margin, 32);
 
-  // 🔵 VANZATOR (stanga)
-  doc.setFontSize(11);
-  doc.setTextColor(0, 0, 0);
-  doc.text("VANZATOR", margin, y);
+  const leftY = 42;
+  const rightY = 42;
 
-  y += 5;
+  const sellerEndY = drawPartyBlock(
+    doc,
+    "VANZATOR",
+    SELLER,
+    leftColX,
+    leftY,
+    blockWidth,
+    "left"
+  );
 
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
+  const buyerEndY = drawPartyBlock(
+    doc,
+    "CUMPARATOR",
+    BUYER,
+    rightColX,
+    rightY,
+    blockWidth,
+    "right"
+  );
 
-  doc.text(SELLER.name, margin, y); y += 4;
-  doc.text(`Reg. Com.: ${SELLER.regNo}`, margin, y); y += 4;
-  doc.text(`CUI: ${SELLER.fiscalCode}`, margin, y); y += 4;
-  doc.text(`Adresă: ${SELLER.address}`, margin, y); y += 4;
-  doc.text(`Email: ${SELLER.email}`, margin, y);
-
-  // 🔵 CUMPARATOR (dreapta)
-  let rightY = 32;
-  const rightX = pageWidth - margin;
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("CUMPARATOR", rightX, rightY, { align: "right" });
-
-  rightY += 5;
+  const detailsY = Math.max(sellerEndY, buyerEndY) + 8;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
+  doc.setTextColor(60, 60, 60);
 
-  doc.text(BUYER.name, rightX, rightY, { align: "right" }); rightY += 4;
-  doc.text(`Reg. Com.: ${BUYER.regNo}`, rightX, rightY, { align: "right" }); rightY += 4;
-  doc.text(`CUI: ${BUYER.fiscalCode}`, rightX, rightY, { align: "right" }); rightY += 4;
-  doc.text(`Adresă: ${BUYER.address}`, rightX, rightY, { align: "right" }); rightY += 4;
-  doc.text(`Email: ${BUYER.email}`, rightX, rightY, { align: "right" });
+  doc.text(`Nr. comandă: ${data.orderNumber}`, margin, detailsY);
+  doc.text(`Șantier: ${data.projectName}`, 70, detailsY);
+  doc.text(`Data: ${data.orderDate}`, 145, detailsY);
+  doc.text(`Creată de: ${data.creatorName}`, margin, detailsY + 5);
 
-  // 🔵 TABEL
   autoTable(doc, {
-    startY: Math.max(y + 10, rightY + 10),
+    startY: detailsY + 10,
     margin: { left: margin, right: margin },
     head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
     body: data.items.map((item, index) => [
@@ -118,26 +172,61 @@ export async function exportOrderPdf(data: OrderPdfData) {
       item.line_total.toFixed(2),
     ]),
     styles: {
+      font: "helvetica",
       fontSize: 9,
+      cellPadding: 2.4,
+      textColor: [40, 40, 40],
+      lineColor: [225, 225, 225],
+      lineWidth: 0.2,
+      valign: "middle",
     },
     headStyles: {
       fillColor: [1, 150, 255],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    columnStyles: {
+      0: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 26 },
+      2: { cellWidth: 68 },
+      3: { cellWidth: 14, halign: "center" },
+      4: { cellWidth: 14, halign: "center" },
+      5: { cellWidth: 22, halign: "right" },
+      6: { cellWidth: 22, halign: "right" },
     },
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY + 10;
+  const finalY = (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY || detailsY + 40;
 
-  // 🔵 TOTALURI
+  const totalsX = pageWidth - 74;
+  const totalsY = finalY + 8;
+  const totalsW = 60;
+  const rowH = 7;
+
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(220, 220, 220);
+  doc.roundedRect(totalsX, totalsY, totalsW, 26, 2, 2, "FD");
+
+  doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.text(`Subtotal: ${data.subtotal.toFixed(2)} lei`, margin, finalY);
-  doc.text(`TVA 21%: ${data.vatTotal.toFixed(2)} lei`, margin, finalY + 6);
+  doc.setTextColor(70, 70, 70);
+
+  doc.text("Subtotal", totalsX + 3, totalsY + 6);
+  doc.text(`${data.subtotal.toFixed(2)} lei`, totalsX + totalsW - 3, totalsY + 6, {
+    align: "right",
+  });
+
+  doc.text("TVA 21%", totalsX + 3, totalsY + 6 + rowH);
+  doc.text(`${data.vatTotal.toFixed(2)} lei`, totalsX + totalsW - 3, totalsY + 6 + rowH, {
+    align: "right",
+  });
 
   doc.setFont("helvetica", "bold");
-  doc.text(
-    `Total: ${data.totalWithVat.toFixed(2)} lei`,
-    margin,
-    finalY + 12
-  );
+  doc.setTextColor(1, 150, 255);
+  doc.text("Total", totalsX + 3, totalsY + 6 + rowH * 2);
+  doc.text(`${data.totalWithVat.toFixed(2)} lei`, totalsX + totalsW - 3, totalsY + 6 + rowH * 2, {
+    align: "right",
+  });
 
   doc.save(`comanda-${data.orderNumber}.pdf`);
 }
