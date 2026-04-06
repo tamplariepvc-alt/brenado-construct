@@ -26,6 +26,7 @@ const SELLER = {
   name: "BRENADO FOR HOUSE SRL",
   regNo: "J2020000393160",
   fiscalCode: "42311924",
+  phone: "-",
   address: "str. Craiovei, nr. 28 A, Galicea Mare, Dolj",
   email: "for-house@brenado.ro",
 };
@@ -35,6 +36,7 @@ const BUYER = {
   name: "BRENADO SRL",
   regNo: "J2017000063160",
   fiscalCode: "36931450",
+  phone: "-".
   address: "str. Teilor, nr. 8, Galicea Mare, Dolj",
   email: "office@brenado.ro",
 };
