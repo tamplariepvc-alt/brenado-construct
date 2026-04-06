@@ -237,6 +237,7 @@ didParseCell: function (data) {
     data.cell.styles.cellWidth = "auto";
   }
 },
+});
 
   const finalY =
     (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
