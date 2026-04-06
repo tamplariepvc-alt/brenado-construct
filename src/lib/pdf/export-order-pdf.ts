@@ -115,7 +115,7 @@ function drawPartyBox(
 
   cursorY = drawWrappedLines(
     doc,
-    `Adresă: ${party.address}`,
+    `Adresa: ${party.address}`,
     x + 3,
     cursorY,
     width - 6,
@@ -148,7 +148,7 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDĂ FURNIZOR", pageWidth / 2, 24, { align: "center" });
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 24, { align: "center" });
 
   doc.setDrawColor(230, 230, 230);
   doc.line(margin, 40, pageWidth - margin, 40);
@@ -157,10 +157,10 @@ export async function exportOrderPdf(data: OrderPdfData) {
   const boxWidth = 86;
   const gap = 8;
 
-  drawPartyBox(doc, "VÂNZĂTOR", SELLER, margin, boxY, boxWidth);
+  drawPartyBox(doc, "VANZATOR", SELLER, margin, boxY, boxWidth);
   drawPartyBox(
     doc,
-    "CUMPĂRĂTOR",
+    "CUMPARATOR",
     BUYER,
     margin + boxWidth + gap,
     boxY,
@@ -176,13 +176,13 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.setFontSize(9);
   doc.setTextColor(50, 50, 50);
 
-  doc.text(`Nr. comandă: ${data.orderNumber}`, margin + 4, infoY + 6);
+  doc.text(`Nr.comanda: ${data.orderNumber}`, margin + 4, infoY + 6);
   doc.text(`Data: ${data.orderDate}`, pageWidth - margin - 4, infoY + 6, {
     align: "right",
   });
 
-  doc.text(`Șantier: ${data.projectName || "-"}`, margin + 4, infoY + 12);
-  doc.text(`Creată de: ${data.creatorName}`, pageWidth - margin - 4, infoY + 12, {
+  doc.text(`Santier: ${data.projectName || "-"}`, margin + 4, infoY + 12);
+  doc.text(`Creat de: ${data.creatorName}`, pageWidth - margin - 4, infoY + 12, {
     align: "right",
   });
 
