@@ -12,18 +12,18 @@ type TeamLead = {
 export default function AdaugaProiectPage() {
   const router = useRouter();
 
-const [nume, setNume] = useState("");
-const [beneficiar, setBeneficiar] = useState("");
-const [locatie, setLocatie] = useState("");
-const [tip, setTip] = useState("");
-const [grupa, setGrupa] = useState("");
-const [dataStart, setDataStart] = useState("");
-const [termen, setTermen] = useState("");
-const [status, setStatus] = useState("in_asteptare");
-const [showTeamLeadsDropdown, setShowTeamLeadsDropdown] = useState(false);
+  const [nume, setNume] = useState("");
+  const [beneficiar, setBeneficiar] = useState("");
+  const [locatie, setLocatie] = useState("");
+  const [tip, setTip] = useState("");
+  const [grupa, setGrupa] = useState("");
+  const [dataStart, setDataStart] = useState("");
+  const [termen, setTermen] = useState("");
+  const [status, setStatus] = useState("in_asteptare");
 
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  const [showTeamLeadsDropdown, setShowTeamLeadsDropdown] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -50,28 +50,20 @@ const [showTeamLeadsDropdown, setShowTeamLeadsDropdown] = useState(false);
         : [...prev, id]
     );
   };
-  
-  const toggleTeamLead = (userId: string) => {
-  setSelectedTeamLeads((prev) =>
-    prev.includes(userId)
-      ? prev.filter((id) => id !== userId)
-      : [...prev, userId]
-  );
-};
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-if (
-  !nume.trim() ||
-  !beneficiar.trim() ||
-  !locatie.trim() ||
-  !tip.trim() ||
-  !grupa ||
-  !dataStart ||
-  !termen ||
-  !status
-) {
+    if (
+      !nume.trim() ||
+      !beneficiar.trim() ||
+      !locatie.trim() ||
+      !tip.trim() ||
+      !grupa ||
+      !dataStart ||
+      !termen ||
+      !status
+    ) {
       alert("Completează toate câmpurile obligatorii.");
       return;
     }
@@ -85,16 +77,16 @@ if (
 
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
-.insert({
-  name: nume,
-  beneficiary: beneficiar,
-  project_location: locatie,
-  project_type: tip,
-  project_group: grupa,
-  start_date: dataStart,
-  execution_deadline: termen,
-  status,
-})
+      .insert({
+        name: nume,
+        beneficiary: beneficiar,
+        project_location: locatie,
+        project_type: tip,
+        project_group: grupa,
+        start_date: dataStart,
+        execution_deadline: termen,
+        status,
+      })
       .select()
       .single();
 
@@ -131,7 +123,7 @@ if (
           <div>
             <h1 className="text-2xl font-bold">Adaugă proiect</h1>
             <p className="text-sm text-gray-600">
-              Completează datele proiectului și selectează șeful de echipă.
+              Completează datele proiectului și selectează șefii de echipă.
             </p>
           </div>
 
@@ -200,20 +192,21 @@ if (
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
                 />
               </div>
-			  <div>
-  <label className="mb-2 block text-sm font-medium text-gray-700">
-    Selectează grupa *
-  </label>
-  <select
-    value={grupa}
-    onChange={(e) => setGrupa(e.target.value)}
-    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-  >
-    <option value="">Selectează grupa</option>
-    <option value="brenado_construct">BRENADO CONSTRUCT</option>
-    <option value="brenado_mentenanta">BRENADO MENTENANȚĂ</option>
-  </select>
-</div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Selectează grupa *
+                </label>
+                <select
+                  value={grupa}
+                  onChange={(e) => setGrupa(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                >
+                  <option value="">Selectează grupa</option>
+                  <option value="brenado_construct">BRENADO CONSTRUCT</option>
+                  <option value="brenado_mentenanta">BRENADO MENTENANȚĂ</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -254,79 +247,79 @@ if (
                   onChange={(e) => setStatus(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
                 >
-                  <option value="in_asteptare">In asteptare</option>
-                  <option value="in_lucru">In lucru</option>
+                  <option value="in_asteptare">În așteptare</option>
+                  <option value="in_lucru">În lucru</option>
                   <option value="finalizat">Finalizat</option>
                 </select>
               </div>
             </div>
           </div>
 
-<div className="rounded-2xl bg-white p-5 shadow">
-  <h2 className="text-2xl font-bold">Șefi de echipă</h2>
-  <p className="mt-3 text-base text-gray-600">
-    Selectează minim un șef de echipă pentru proiect.
-  </p>
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <h2 className="text-2xl font-bold">Șefi de echipă</h2>
+            <p className="mt-3 text-base text-gray-600">
+              Selectează minim un șef de echipă pentru proiect.
+            </p>
 
-  <div className="relative mt-5">
-    <button
-      type="button"
-      onClick={() => setShowTeamLeadsDropdown((prev) => !prev)}
-      className="flex w-full items-center justify-between rounded-xl border border-gray-300 bg-white px-5 py-4 text-left text-lg text-gray-800"
-    >
-      <span>
-        {selectedTeamLeads.length > 0
-          ? `Selectati: ${selectedTeamLeads.length}`
-          : "Selectează șefii de echipă"}
-      </span>
-      <span className="text-xl">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
-    </button>
-
-    {showTeamLeadsDropdown && (
-      <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-300 bg-white p-3 shadow-lg">
-        {teamLeads.length === 0 ? (
-          <p className="px-2 py-2 text-sm text-gray-500">
-            Nu există utilizatori cu rol de șef de echipă.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {teamLeads.map((lead) => (
-              <label
-                key={lead.id}
-                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50"
+            <div className="relative mt-5">
+              <button
+                type="button"
+                onClick={() => setShowTeamLeadsDropdown((prev) => !prev)}
+                className="flex w-full items-center justify-between rounded-xl border border-gray-300 bg-white px-5 py-4 text-left text-lg text-gray-800"
               >
-                <input
-                  type="checkbox"
-                  checked={selectedTeamLeads.includes(lead.id)}
-                  onChange={() => toggleTeamLead(lead.id)}
-                  className="h-5 w-5"
-                />
-                <span className="text-base text-gray-800">
-                  {lead.full_name}
+                <span>
+                  {selectedLeads.length > 0
+                    ? `Selectați: ${selectedLeads.length}`
+                    : "Selectează șefii de echipă"}
                 </span>
-              </label>
-            ))}
-          </div>
-        )}
-      </div>
-    )}
-  </div>
+                <span className="text-xl">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
+              </button>
 
-  {selectedTeamLeads.length > 0 && (
-    <div className="mt-4 flex flex-wrap gap-2">
-      {teamLeads
-        .filter((lead) => selectedTeamLeads.includes(lead.id))
-        .map((lead) => (
-          <span
-            key={lead.id}
-            className="rounded-full bg-[#0196ff]/10 px-3 py-2 text-sm font-medium text-[#0196ff]"
-          >
-            {lead.full_name}
-          </span>
-        ))}
-    </div>
-  )}
-</div>
+              {showTeamLeadsDropdown && (
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-300 bg-white p-3 shadow-lg">
+                  {teamLeads.length === 0 ? (
+                    <p className="px-2 py-2 text-sm text-gray-500">
+                      Nu există utilizatori cu rol de șef de echipă.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {teamLeads.map((lead) => (
+                        <label
+                          key={lead.id}
+                          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedLeads.includes(lead.id)}
+                            onChange={() => toggleLead(lead.id)}
+                            className="h-5 w-5"
+                          />
+                          <span className="text-base text-gray-800">
+                            {lead.full_name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {selectedLeads.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {teamLeads
+                  .filter((lead) => selectedLeads.includes(lead.id))
+                  .map((lead) => (
+                    <span
+                      key={lead.id}
+                      className="rounded-full bg-[#0196ff]/10 px-3 py-2 text-sm font-medium text-[#0196ff]"
+                    >
+                      {lead.full_name}
+                    </span>
+                  ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
