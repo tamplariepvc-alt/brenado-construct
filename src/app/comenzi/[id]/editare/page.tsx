@@ -253,17 +253,19 @@ const updateItemQuantity = (localId: string, quantity: string) => {
     setItems((prev) => prev.filter((item) => item.localId !== localId));
   };
 
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  }, [items]);
+const subtotal = useMemo(() => {
+  return items.reduce((sum, item) => {
+    const qty = Number(item.quantity) || 0;
+    return sum + item.unit_price * qty;
+  }, 0);
+}, [items]);
 
-  const vatTotal = useMemo(() => {
-    return items.reduce(
-      (sum, item) =>
-        sum + item.unit_price * item.quantity * (item.vat_percent / 100),
-      0
-    );
-  }, [items]);
+const vatTotal = useMemo(() => {
+  return items.reduce((sum, item) => {
+    const qty = Number(item.quantity) || 0;
+    return sum + item.unit_price * qty * (item.vat_percent / 100);
+  }, 0);
+}, [items]);
 
   const totalWithVat = useMemo(() => subtotal + vatTotal, [subtotal, vatTotal]);
 
@@ -504,9 +506,10 @@ const lineTotal = item.unit_price * qty;
             ) : (
               <div className="space-y-3">
                 {items.map((item, index) => {
-                  const lineTotal = item.unit_price * item.quantity;
-                  const lineTotalWithVat =
-                    lineTotal + lineTotal * (item.vat_percent / 100);
+const qty = Number(item.quantity) || 1;
+const lineTotal = item.unit_price * qty;
+const lineTotalWithVat =
+  lineTotal + lineTotal * (item.vat_percent / 100);
 
                   return (
                     <div
