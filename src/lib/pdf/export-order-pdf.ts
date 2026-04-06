@@ -58,14 +58,13 @@ function drawWrappedLines(
   x: number,
   y: number,
   maxWidth: number,
-  align: "left" | "right" = "left",
   lineHeight = 4
 ) {
   const lines = doc.splitTextToSize(text, maxWidth) as string[];
   let currentY = y;
 
   for (const line of lines) {
-    doc.text(line, x, currentY, { align });
+    doc.text(line, x, currentY);
     currentY += lineHeight;
   }
 
@@ -84,10 +83,12 @@ function drawPartyBox(
   },
   x: number,
   y: number,
-  width: number
+  width: number,
+  height: number
 ) {
   doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(x, y, width, 30, 2, 2);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(x, y, width, height, 2, 2, "FD");
 
   let cursorY = y + 5;
 
@@ -119,7 +120,6 @@ function drawPartyBox(
     x + 3,
     cursorY,
     width - 6,
-    "left",
     4
   );
 
@@ -129,7 +129,6 @@ function drawPartyBox(
     x + 3,
     cursorY,
     width - 6,
-    "left",
     4
   );
 }
@@ -141,53 +140,67 @@ export async function exportOrderPdf(data: OrderPdfData) {
 
   const logo = await loadImage("/logo.png");
 
+  // LOGO
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 10, 50, 28);
+    doc.addImage(logo, "PNG", margin, 12, 38, 22);
   }
 
+  // TITLU - mai jos, cu spatiu fata de logo
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDA FURNIZOR", pageWidth / 2, 42, { align: "center" });
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 30, { align: "center" });
 
+  // Linie subtire sub header
   doc.setDrawColor(230, 230, 230);
-  doc.line(margin, 48, pageWidth - margin, 48);
+  doc.line(margin, 38, pageWidth - margin, 38);
 
-  const boxY = 54;
-  const boxWidth = 86;
-  const gap = 8;
+  // CARDURI FIRME
+  const boxY = 44;
+  const boxWidth = 84;
+  const boxHeight = 30;
+  const boxGap = 8;
 
-  drawPartyBox(doc, "VANZATOR", SELLER, margin, boxY, boxWidth);
+  drawPartyBox(doc, "VANZATOR", SELLER, margin, boxY, boxWidth, boxHeight);
   drawPartyBox(
     doc,
     "CUMPARATOR",
     BUYER,
-    margin + boxWidth + gap,
+    margin + boxWidth + boxGap,
     boxY,
-    boxWidth
+    boxWidth,
+    boxHeight
   );
 
-  const infoY = 84;
+  // CARD DETALII COMANDA - coborat putin fata de cardurile firmelor
+  const infoY = 78;
+  const infoX = margin;
+  const infoW = pageWidth - margin * 2;
+  const infoH = 16;
 
   doc.setDrawColor(225, 225, 225);
-  doc.roundedRect(margin, infoY, pageWidth - margin * 2, 16, 2, 2);
+  doc.setFillColor(255, 255, 255);
+  doc.roundedRect(infoX, infoY, infoW, infoH, 2, 2, "FD");
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.setTextColor(50, 50, 50);
+  doc.setTextColor(60, 60, 60);
 
-  doc.text(`Nr.comanda: ${data.orderNumber}`, margin + 4, infoY + 6);
-  doc.text(`Data: ${data.orderDate}`, pageWidth - margin - 4, infoY + 6, {
+  // rand 1
+  doc.text(`Nr.comanda: ${data.orderNumber}`, infoX + 3, infoY + 6);
+  doc.text(`Data: ${data.orderDate}`, infoX + infoW - 3, infoY + 6, {
     align: "right",
   });
 
-  doc.text(`Santier: ${data.projectName || "-"}`, margin + 4, infoY + 12);
-  doc.text(`Creat de: ${data.creatorName}`, pageWidth - margin - 4, infoY + 12, {
+  // rand 2
+  doc.text(`Santier: ${data.projectName || "-"}`, infoX + 3, infoY + 12);
+  doc.text(`Creat de: ${data.creatorName}`, infoX + infoW - 3, infoY + 12, {
     align: "right",
   });
 
+  // TABEL
   autoTable(doc, {
-    startY: infoY + 22,
+    startY: infoY + infoH + 6,
     margin: { left: margin, right: margin },
     head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
     body: data.items.map((item, index) => [
@@ -228,6 +241,7 @@ export async function exportOrderPdf(data: OrderPdfData) {
     (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
       ?.finalY || 130;
 
+  // TOTALURI
   const totalsX = pageWidth - 72;
   const totalsY = finalY + 8;
   const totalsW = 60;
