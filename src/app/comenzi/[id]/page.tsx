@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { exportOrderPdf } from "@/lib/pdf/export-order-pdf";
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -184,6 +185,29 @@ export default function ComandaDetaliuPage() {
     }
     return "bg-gray-100 text-gray-700";
   }, [order]);
+  
+  const handleExportPdf = async () => {
+  if (!order) return;
+
+  await exportOrderPdf({
+    orderNumber: order.order_number || "-",
+    projectName: order.projects?.[0]?.name || "-",
+    orderDate: new Date(order.order_date).toLocaleDateString("ro-RO"),
+    creatorName: order.creator_name || "-",
+    subtotal: Number(order.subtotal || 0),
+    vatTotal: Number(order.vat_total || 0),
+    totalWithVat: Number(order.total_with_vat || 0),
+    items: items.map((item) => ({
+      article_code: item.article_code,
+      article_name: item.article_name,
+      unit: item.unit,
+      quantity: Number(item.quantity || 0),
+      unit_price: Number(item.unit_price || 0),
+      line_total: Number(item.line_total || 0),
+    })),
+  });
+};
+
 
   const updateOrderStatus = async (newStatus: "aprobata" | "refuzata") => {
     if (!order) return;
@@ -351,6 +375,13 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
   </div>
 )}
           </div>
+		  
+		  <button
+  onClick={handleExportPdf}
+  className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+>
+  Export PDF
+</button>
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <h2 className="mb-3 text-base font-semibold">Totaluri</h2>
