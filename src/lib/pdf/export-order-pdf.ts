@@ -142,18 +142,18 @@ export async function exportOrderPdf(data: OrderPdfData) {
   const logo = await loadImage("/logo.png");
 
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 12, 38, 22);
+    doc.addImage(logo, "PNG", margin, 10, 50, 28);
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDA FURNIZOR", pageWidth / 2, 24, { align: "center" });
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 42, { align: "center" });
 
   doc.setDrawColor(230, 230, 230);
-  doc.line(margin, 40, pageWidth - margin, 40);
+  doc.line(margin, 48, pageWidth - margin, 48);
 
-  const boxY = 46;
+  const boxY = 54;
   const boxWidth = 86;
   const gap = 8;
 
