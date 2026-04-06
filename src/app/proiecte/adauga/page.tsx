@@ -20,6 +20,7 @@ const [grupa, setGrupa] = useState("");
 const [dataStart, setDataStart] = useState("");
 const [termen, setTermen] = useState("");
 const [status, setStatus] = useState("in_asteptare");
+const [showTeamLeadsDropdown, setShowTeamLeadsDropdown] = useState(false);
 
   const [teamLeads, setTeamLeads] = useState<TeamLead[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
@@ -49,6 +50,7 @@ const [status, setStatus] = useState("in_asteptare");
         : [...prev, id]
     );
   };
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,35 +255,71 @@ if (
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Șef de echipă</h2>
-            <p className="mb-4 text-sm text-gray-600">
-              Selectează unul sau mai mulți utilizatori cu rol de Șef de echipă.
-            </p>
+<div className="rounded-2xl bg-white p-5 shadow">
+  <h2 className="text-2xl font-bold">Șefi de echipă</h2>
+  <p className="mt-3 text-base text-gray-600">
+    Selectează minim un șef de echipă pentru proiect.
+  </p>
 
-            {teamLeads.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există utilizatori cu rol de Șef de echipă.
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {teamLeads.map((lead) => (
-                  <label
-                    key={lead.id}
-                    className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedLeads.includes(lead.id)}
-                      onChange={() => toggleLead(lead.id)}
-                      className="h-4 w-4"
-                    />
-                    <span className="text-sm font-medium">{lead.full_name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
+  <div className="relative mt-5">
+    <button
+      type="button"
+      onClick={() => setShowTeamLeadsDropdown((prev) => !prev)}
+      className="flex w-full items-center justify-between rounded-xl border border-gray-300 bg-white px-5 py-4 text-left text-lg text-gray-800"
+    >
+      <span>
+        {selectedTeamLeads.length > 0
+          ? `Selectati: ${selectedTeamLeads.length}`
+          : "Selectează șefii de echipă"}
+      </span>
+      <span className="text-xl">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
+    </button>
+
+    {showTeamLeadsDropdown && (
+      <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-300 bg-white p-3 shadow-lg">
+        {teamLeads.length === 0 ? (
+          <p className="px-2 py-2 text-sm text-gray-500">
+            Nu există utilizatori cu rol de șef de echipă.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {teamLeads.map((lead) => (
+              <label
+                key={lead.id}
+                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50"
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedTeamLeads.includes(lead.id)}
+                  onChange={() => toggleTeamLead(lead.id)}
+                  className="h-5 w-5"
+                />
+                <span className="text-base text-gray-800">
+                  {lead.full_name}
+                </span>
+              </label>
+            ))}
           </div>
+        )}
+      </div>
+    )}
+  </div>
+
+  {selectedTeamLeads.length > 0 && (
+    <div className="mt-4 flex flex-wrap gap-2">
+      {teamLeads
+        .filter((lead) => selectedTeamLeads.includes(lead.id))
+        .map((lead) => (
+          <span
+            key={lead.id}
+            className="rounded-full bg-[#0196ff]/10 px-3 py-2 text-sm font-medium text-[#0196ff]"
+          >
+            {lead.full_name}
+          </span>
+        ))}
+    </div>
+  )}
+</div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
