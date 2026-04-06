@@ -631,6 +631,8 @@ export default function AdaugaComandaPage() {
     </div>
   </div>
 
+</div>
+
               <div className="mt-5 flex gap-3">
                 <button
                   type="button"
