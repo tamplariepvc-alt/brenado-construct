@@ -312,36 +312,36 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
 
         <div className="mb-3">
           <p className="text-xs text-gray-500">Denumire</p>
-          <p className="text-sm font-medium break-words leading-5">
-            {item.article_name}
-          </p>
+<p className="text-sm font-semibold text-[#0196ff] break-words leading-5 hover:underline">
+  {item.article_name}
+</p>
         </div>
 
-<div className="flex flex-col gap-1">
+<div className="flex flex-col gap-2">
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">Qty</span>
-    <span className="text-xs font-medium">
+    <span className="text-sm font-medium">
       {Number(item.quantity).toFixed(0)}
     </span>
   </div>
 
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">U.M.</span>
-    <span className="text-xs font-medium">
+    <span className="text-sm font-medium">
       {item.unit || "-"}
     </span>
   </div>
 
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">P.U</span>
-    <span className="text-xs font-medium">
+    <span className="text-sm font-medium">
       {Number(item.unit_price).toFixed(2)}
     </span>
   </div>
 
   <div className="flex justify-between">
     <span className="text-xs text-gray-500">V. Totală</span>
-    <span className="text-xs font-semibold">
+    <span className="text-sm font-semibold">
       {Number(item.line_total).toFixed(2)}
     </span>
   </div>
