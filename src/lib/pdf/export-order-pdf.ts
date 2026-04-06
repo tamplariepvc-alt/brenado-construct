@@ -62,7 +62,7 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDĂ FURNIZOR", pageWidth / 2, 18, {
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 18, {
     align: "center",
   });
 
@@ -71,7 +71,7 @@ export async function exportOrderPdf(data: OrderPdfData) {
   // 🔵 VANZATOR (stanga)
   doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
-  doc.text("VÂNZĂTOR", margin, y);
+  doc.text("VANZATOR", margin, y);
 
   y += 5;
 
@@ -90,7 +90,7 @@ export async function exportOrderPdf(data: OrderPdfData) {
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text("CUMPĂRĂTOR", rightX, rightY, { align: "right" });
+  doc.text("CUMPARATOR", rightX, rightY, { align: "right" });
 
   rightY += 5;
 

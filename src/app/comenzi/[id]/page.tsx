@@ -376,13 +376,6 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
 )}
           </div>
 		  
-		  <button
-  onClick={handleExportPdf}
-  className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
->
-  Export PDF
-</button>
-
           <div className="rounded-2xl bg-white p-5 shadow">
             <h2 className="mb-3 text-base font-semibold">Totaluri</h2>
 
@@ -409,6 +402,14 @@ className="bg-gray-50 px-4 py-4 border-b border-black-200 last:border-b-0"
               </div>
             </div>
           </div>
+		  
+		  		  <button
+  onClick={handleExportPdf}
+  className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+>
+  Export PDF
+</button>
+
 
           {profile?.role === "administrator" &&
             order.status === "asteapta_confirmare" && (
