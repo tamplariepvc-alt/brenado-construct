@@ -140,40 +140,35 @@ export async function exportOrderPdf(data: OrderPdfData) {
 
   const logo = await loadImage("/logo.png");
 
-  // LOGO
+  // LOGO SUS STANGA
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 12, 38, 22);
+    doc.addImage(logo, "PNG", margin, 10, 42, 24);
   }
 
-  // TITLU - mai jos, cu spatiu fata de logo
+  // TITLU PE RAND SEPARAT, MULT MAI JOS
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDA FURNIZOR", pageWidth / 2, 30, { align: "center" });
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 42, { align: "center" });
 
-  // Linie subtire sub header
+  // LINIE SUB TITLU
   doc.setDrawColor(230, 230, 230);
-  doc.line(margin, 38, pageWidth - margin, 38);
+  doc.line(margin, 48, pageWidth - margin, 48);
 
-  // CARDURI FIRME
-  const boxY = 44;
+  // CARDURI FIRME - PERFECT ALINIATE
+  const boxY = 54;
   const boxWidth = 84;
   const boxHeight = 30;
   const boxGap = 8;
 
-  drawPartyBox(doc, "VANZATOR", SELLER, margin, boxY, boxWidth, boxHeight);
-  drawPartyBox(
-    doc,
-    "CUMPARATOR",
-    BUYER,
-    margin + boxWidth + boxGap,
-    boxY,
-    boxWidth,
-    boxHeight
-  );
+  const leftBoxX = margin;
+  const rightBoxX = margin + boxWidth + boxGap;
 
-  // CARD DETALII COMANDA - coborat putin fata de cardurile firmelor
-  const infoY = 78;
+  drawPartyBox(doc, "VANZATOR", SELLER, leftBoxX, boxY, boxWidth, boxHeight);
+  drawPartyBox(doc, "CUMPARATOR", BUYER, rightBoxX, boxY, boxWidth, boxHeight);
+
+  // CARD DETALII COMANDA - CU SPATIU SUB CARDURILE DE SUS
+  const infoY = 88;
   const infoX = margin;
   const infoW = pageWidth - margin * 2;
   const infoH = 16;
@@ -186,13 +181,13 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
 
-  // rand 1
-  doc.text(`Nr.comanda: ${data.orderNumber}`, infoX + 3, infoY + 6);
+  // RAND 1
+  doc.text(`Nr. comanda: ${data.orderNumber}`, infoX + 3, infoY + 6);
   doc.text(`Data: ${data.orderDate}`, infoX + infoW - 3, infoY + 6, {
     align: "right",
   });
 
-  // rand 2
+  // RAND 2
   doc.text(`Santier: ${data.projectName || "-"}`, infoX + 3, infoY + 12);
   doc.text(`Creat de: ${data.creatorName}`, infoX + infoW - 3, infoY + 12, {
     align: "right",
