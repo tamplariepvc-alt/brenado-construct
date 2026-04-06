@@ -36,7 +36,7 @@ type OrderItemForm = {
   unit: string;
   unit_price: number;
   vat_percent: number;
-  quantity: number;
+  quantity: string;
 };
 
 function generateLocalId() {
@@ -166,35 +166,36 @@ export default function AdaugaComandaPage() {
         unit: article.unit || "",
         unit_price: Number(article.unit_price || 0),
         vat_percent: Number(article.vat_percent || 21),
-        quantity: 1,
+        quantity: "1",
       },
     ]);
   };
 
-  const updateItemQuantity = (localId: string, quantity: number) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.localId === localId
-          ? { ...item, quantity: quantity > 0 ? quantity : 1 }
-          : item
-      )
-    );
-  };
+const updateItemQuantity = (localId: string, quantity: string) => {
+  setItems((prev) =>
+    prev.map((item) =>
+      item.localId === localId ? { ...item, quantity } : item
+    )
+  );
+};
 
   const removeItem = (localId: string) => {
     setItems((prev) => prev.filter((item) => item.localId !== localId));
   };
 
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0);
-  }, [items]);
+const subtotal = useMemo(() => {
+  return items.reduce((sum, item) => {
+    const qty = Number(item.quantity) || 0;
+    return sum + item.unit_price * qty;
+  }, 0);
+}, [items]);
 
-  const vatTotal = useMemo(() => {
-    return items.reduce(
-      (sum, item) => sum + item.unit_price * item.quantity * (item.vat_percent / 100),
-      0
-    );
-  }, [items]);
+const vatTotal = useMemo(() => {
+  return items.reduce((sum, item) => {
+    const qty = Number(item.quantity) || 0;
+    return sum + item.unit_price * qty * (item.vat_percent / 100);
+  }, 0);
+}, [items]);
 
   const totalWithVat = useMemo(() => subtotal + vatTotal, [subtotal, vatTotal]);
 
@@ -252,8 +253,9 @@ if (orderError || !orderData) {
 }
 
     const orderItemsRows = items.map((item) => {
-      const lineTotal = item.unit_price * item.quantity;
-      const lineTotalWithVat = lineTotal + lineTotal * (item.vat_percent / 100);
+const qty = Number(item.quantity) || 1;
+const lineTotal = item.unit_price * qty;
+const lineTotalWithVat = lineTotal + lineTotal * (item.vat_percent / 100);
 
       return {
         order_id: orderData.id,
@@ -263,7 +265,7 @@ if (orderError || !orderData) {
         article_name: item.article_name,
         unit: item.unit,
         unit_price: Number(item.unit_price.toFixed(2)),
-        quantity: Number(item.quantity.toFixed(2)),
+        quantity: Number(qty.toFixed(2)),
         line_total: Number(lineTotal.toFixed(2)),
         vat_percent: Number(item.vat_percent.toFixed(2)),
         line_total_with_vat: Number(lineTotalWithVat.toFixed(2)),
@@ -438,9 +440,10 @@ router.push("/comenzi");
             ) : (
               <div className="space-y-3">
                 {items.map((item, index) => {
-                  const lineTotal = item.unit_price * item.quantity;
-                  const lineTotalWithVat =
-                    lineTotal + lineTotal * (item.vat_percent / 100);
+const qty = Number(item.quantity) || 0;
+const lineTotal = item.unit_price * qty;
+const lineTotalWithVat =
+  lineTotal + lineTotal * (item.vat_percent / 100);
 
                   return (
                     <div
@@ -483,14 +486,19 @@ router.push("/comenzi");
                           <label className="mb-2 block text-xs font-medium text-gray-600">
                             Cantitate
                           </label>
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItemQuantity(item.localId, Number(e.target.value))
-                            }
+<input
+  type="number"
+  min="1"
+  step="1"
+  value={item.quantity}
+  onChange={(e) =>
+    updateItemQuantity(item.localId, e.target.value)
+  }
+  onBlur={() => {
+    if (!item.quantity || Number(item.quantity) < 1) {
+      updateItemQuantity(item.localId, "1");
+    }
+  }}
                             className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
                           />
                         </div>

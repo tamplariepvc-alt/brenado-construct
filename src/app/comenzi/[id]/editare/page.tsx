@@ -49,7 +49,7 @@ type OrderItemForm = {
   unit: string;
   unit_price: number;
   vat_percent: number;
-  quantity: number;
+  quantity: string;
 };
 
 function generateLocalId() {
@@ -200,7 +200,7 @@ export default function EditareComandaPage() {
             unit: item.unit || "",
             unit_price: Number(item.unit_price || 0),
             vat_percent: Number(item.vat_percent || 21),
-            quantity: Number(item.quantity || 1),
+            quantity: String(Number(item.quantity || 1)),
           }))
         );
       }
@@ -236,20 +236,18 @@ export default function EditareComandaPage() {
         unit: article.unit || "",
         unit_price: Number(article.unit_price || 0),
         vat_percent: Number(article.vat_percent || 21),
-        quantity: 1,
+        quantity: "1",
       },
     ]);
   };
 
-  const updateItemQuantity = (localId: string, quantity: number) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.localId === localId
-          ? { ...item, quantity: quantity > 0 ? quantity : 1 }
-          : item
-      )
-    );
-  };
+const updateItemQuantity = (localId: string, quantity: string) => {
+  setItems((prev) =>
+    prev.map((item) =>
+      item.localId === localId ? { ...item, quantity } : item
+    )
+  );
+};
 
   const removeItem = (localId: string) => {
     setItems((prev) => prev.filter((item) => item.localId !== localId));
@@ -316,7 +314,8 @@ export default function EditareComandaPage() {
     }
 
     const orderItemsRows = items.map((item) => {
-      const lineTotal = item.unit_price * item.quantity;
+const qty = Number(item.quantity) || 1;
+const lineTotal = item.unit_price * qty;
       const lineTotalWithVat =
         lineTotal + lineTotal * (item.vat_percent / 100);
 
@@ -328,7 +327,7 @@ export default function EditareComandaPage() {
         article_name: item.article_name,
         unit: item.unit,
         unit_price: Number(item.unit_price.toFixed(2)),
-        quantity: Number(item.quantity.toFixed(2)),
+        quantity: Number(qty.toFixed(2)),
         line_total: Number(lineTotal.toFixed(2)),
         vat_percent: Number(item.vat_percent.toFixed(2)),
         line_total_with_vat: Number(lineTotalWithVat.toFixed(2)),
@@ -550,14 +549,19 @@ export default function EditareComandaPage() {
                           <label className="mb-2 block text-xs font-medium text-gray-600">
                             Cantitate
                           </label>
-                          <input
-                            type="number"
-                            min="1"
-                            step="1"
-                            value={item.quantity}
-                            onChange={(e) =>
-                              updateItemQuantity(item.localId, Number(e.target.value))
-                            }
+<input
+  type="number"
+  min="1"
+  step="1"
+  value={item.quantity}
+  onChange={(e) =>
+    updateItemQuantity(item.localId, e.target.value)
+  }
+  onBlur={() => {
+    if (!item.quantity || Number(item.quantity) < 1) {
+      updateItemQuantity(item.localId, "1");
+    }
+  }}
                             className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-black"
                           />
                         </div>
