@@ -15,6 +15,7 @@ type OrderPdfData = {
   projectName: string;
   orderDate: string;
   creatorName: string;
+  status: string;
   subtotal: number;
   vatTotal: number;
   totalWithVat: number;
@@ -140,14 +141,37 @@ export async function exportOrderPdf(data: OrderPdfData) {
 
   const logo = await loadImage("/logo.png");
 
-  if (logo) {
-    doc.addImage(logo, "PNG", margin, 10, 65, 24);
-  }
+if (logo) {
+  doc.addImage(logo, "PNG", margin, 10, 65, 24);
+}
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(18);
-  doc.setTextColor(1, 150, 255);
-  doc.text("COMANDA FURNIZOR", pageWidth / 2, 42, { align: "center" });
+doc.setFont("helvetica", "bold");
+doc.setFontSize(10);
+
+let statusLabel = data.status;
+let statusColor: [number, number, number] = [90, 90, 90];
+
+if (data.status === "draft") {
+  statusLabel = "DRAFT";
+  statusColor = [100, 100, 100];
+} else if (data.status === "asteapta_confirmare") {
+  statusLabel = "IN ASTEPTARE";
+  statusColor = [245, 158, 11];
+} else if (data.status === "aprobata") {
+  statusLabel = "APROBATA";
+  statusColor = [22, 163, 74];
+} else if (data.status === "refuzata") {
+  statusLabel = "REFUZATA";
+  statusColor = [220, 38, 38];
+}
+
+doc.setTextColor(...statusColor);
+doc.text(`STATUS: ${statusLabel}`, margin, 38);
+
+doc.setFont("helvetica", "bold");
+doc.setFontSize(18);
+doc.setTextColor(1, 150, 255);
+doc.text("COMANDA FURNIZOR", pageWidth / 2, 42, { align: "center" });
 
   doc.setDrawColor(230, 230, 230);
   doc.line(margin, 48, pageWidth - margin, 48);

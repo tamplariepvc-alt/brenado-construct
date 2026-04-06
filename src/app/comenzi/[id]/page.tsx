@@ -189,23 +189,24 @@ export default function ComandaDetaliuPage() {
   const handleExportPdf = async () => {
   if (!order) return;
 
-  await exportOrderPdf({
-    orderNumber: order.order_number || "-",
-    projectName: order.projects?.[0]?.name || "-",
-    orderDate: new Date(order.order_date).toLocaleDateString("ro-RO"),
-    creatorName: order.creator_name || "-",
-    subtotal: Number(order.subtotal || 0),
-    vatTotal: Number(order.vat_total || 0),
-    totalWithVat: Number(order.total_with_vat || 0),
-    items: items.map((item) => ({
-      article_code: item.article_code,
-      article_name: item.article_name,
-      unit: item.unit,
-      quantity: Number(item.quantity || 0),
-      unit_price: Number(item.unit_price || 0),
-      line_total: Number(item.line_total || 0),
-    })),
-  });
+await exportOrderPdf({
+  orderNumber: order.order_number || "-",
+  projectName: order.projects?.[0]?.name || "-",
+  orderDate: new Date(order.order_date).toLocaleDateString("ro-RO"),
+  creatorName: order.creator_name || "-",
+  status: order.status,
+  subtotal: Number(order.subtotal || 0),
+  vatTotal: Number(order.vat_total || 0),
+  totalWithVat: Number(order.total_with_vat || 0),
+  items: items.map((item) => ({
+    article_code: item.article_code,
+    article_name: item.article_name,
+    unit: item.unit,
+    quantity: Number(item.quantity || 0),
+    unit_price: Number(item.unit_price || 0),
+    line_total: Number(item.line_total || 0),
+  })),
+});
 };
 
 
