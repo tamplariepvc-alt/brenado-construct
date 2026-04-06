@@ -580,35 +580,56 @@ export default function AdaugaComandaPage() {
             <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
               <h3 className="text-lg font-semibold">Adaugă articol</h3>
 
-              <div className="mt-4 space-y-3">
-                <div>
-                  <p className="text-xs text-gray-500">Cod</p>
-                  <p className="text-sm font-medium break-words">
-                    {selectedArticleForPopup.article_code || "-"}
-                  </p>
-                </div>
+<div className="mt-4 space-y-3">
 
-                <div>
-                  <p className="text-xs text-gray-500">Denumire</p>
-                  <p className="text-sm font-medium text-[#0196ff] break-words">
-                    {selectedArticleForPopup.name}
-                  </p>
-                </div>
+  {/* Cod + UM */}
+  <div className="flex justify-between items-center">
+    <div>
+      <p className="text-xs text-gray-500">Cod</p>
+      <p className="text-sm font-medium break-words">
+        {selectedArticleForPopup.article_code || "-"}
+      </p>
+    </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Cantitate
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={popupQuantity}
-                    onChange={(e) => setPopupQuantity(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3"
-                  />
-                </div>
-              </div>
+    <div className="text-right">
+      <p className="text-xs text-gray-500">U.M.</p>
+      <p className="text-sm font-semibold">
+        {selectedArticleForPopup.unit || "-"}
+      </p>
+    </div>
+  </div>
+
+  {/* Denumire */}
+  <div>
+    <p className="text-xs text-gray-500">Denumire</p>
+    <p className="text-sm font-semibold text-[#0196ff] break-words">
+      {selectedArticleForPopup.name}
+    </p>
+  </div>
+
+  {/* Pret + Cantitate pe acelasi rand */}
+  <div className="flex items-end justify-between gap-4">
+    <div>
+      <p className="text-xs text-gray-500">Preț unitar</p>
+      <p className="text-sm font-semibold">
+        {Number(selectedArticleForPopup.unit_price).toFixed(2)} lei
+      </p>
+    </div>
+
+    <div className="w-24">
+      <label className="mb-1 block text-xs text-gray-500">
+        Cantitate
+      </label>
+      <input
+        type="number"
+        min="1"
+        step="1"
+        value={popupQuantity}
+        onChange={(e) => setPopupQuantity(e.target.value)}
+        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
+      />
+    </div>
+  </div>
 
               <div className="mt-5 flex gap-3">
                 <button
