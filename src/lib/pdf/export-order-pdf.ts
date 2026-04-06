@@ -235,7 +235,6 @@ headStyles: {
 didParseCell: function (data) {
   if (data.column.index === 2) {
     data.cell.styles.cellWidth = "auto";
-  }
 },
 });
 
