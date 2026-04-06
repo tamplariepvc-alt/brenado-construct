@@ -217,18 +217,21 @@ export default function EditareComandaPage() {
     loadData();
   }, [orderId, router]);
 
-  const filteredArticles = useMemo(() => {
-    const q = articleSearch.trim().toLowerCase();
-    if (!q) return articles;
+const filteredArticles = useMemo(() => {
+  const q = articleSearch.trim().toLowerCase();
 
-    return articles.filter((article) => {
-      return (
-        article.name.toLowerCase().includes(q) ||
-        (article.article_code || "").toLowerCase().includes(q) ||
-        (article.article_number || "").toLowerCase().includes(q)
-      );
-    });
-  }, [articles, articleSearch]);
+  if (!q) {
+    return articles.slice(0, 3);
+  }
+
+  return articles.filter((article) => {
+    return (
+      article.name.toLowerCase().includes(q) ||
+      (article.article_code || "").toLowerCase().includes(q) ||
+      (article.article_number || "").toLowerCase().includes(q)
+    );
+  });
+}, [articles, articleSearch]);
 
   const openAddArticlePopup = (article: Article) => {
     setSelectedArticleForPopup(article);
@@ -484,6 +487,11 @@ export default function EditareComandaPage() {
                 placeholder="Caută după număr, cod sau denumire articol"
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
               />
+			  
+			  <p className="mt-2 text-xs text-gray-500">
+  Sunt afișate primele 3 articole. Scrie în căutare pentru a vedea mai multe.
+</p>
+			  
             </div>
 
             <div className="overflow-hidden rounded-xl border border-gray-200">
