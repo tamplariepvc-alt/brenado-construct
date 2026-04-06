@@ -170,7 +170,7 @@ if (data.status === "draft") {
 doc.setFont("helvetica", "bold");
 doc.setFontSize(10);
 
-const badgeW = 22;
+const badgeW = 56;
 const badgeH = 8;
 const badgeX = pageWidth - margin - badgeW;
 const badgeY = 38;
