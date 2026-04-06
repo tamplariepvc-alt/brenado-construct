@@ -140,30 +140,34 @@ export async function exportOrderPdf(data: OrderPdfData) {
 
   const logo = await loadImage("/logo.png");
 
+  // LOGO SUS STANGA
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 10, 44, 24);
+    doc.addImage(logo, "PNG", margin, 10, 56, 24);
   }
 
+  // TITLU PE RAND SEPARAT, MULT MAI JOS
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
   doc.text("COMANDA FURNIZOR", pageWidth / 2, 42, { align: "center" });
 
+  // LINIE SUB TITLU
   doc.setDrawColor(230, 230, 230);
   doc.line(margin, 48, pageWidth - margin, 48);
 
+  // CARDURI FIRME - PERFECT ALINIATE
   const boxY = 54;
-  const boxGap = 6;
-  const totalContentWidth = pageWidth - margin * 2;
-  const boxWidth = (totalContentWidth - boxGap) / 2;
+  const boxWidth = 84;
   const boxHeight = 30;
+  const boxGap = 8;
 
   const leftBoxX = margin;
-  const rightBoxX = leftBoxX + boxWidth + boxGap;
+  const rightBoxX = margin + boxWidth + boxGap;
 
   drawPartyBox(doc, "VANZATOR", SELLER, leftBoxX, boxY, boxWidth, boxHeight);
   drawPartyBox(doc, "CUMPARATOR", BUYER, rightBoxX, boxY, boxWidth, boxHeight);
 
+  // CARD DETALII COMANDA - CU SPATIU SUB CARDURILE DE SUS
   const infoY = 88;
   const infoX = margin;
   const infoW = pageWidth - margin * 2;
@@ -177,20 +181,22 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
 
+  // RAND 1
   doc.text(`Nr. comanda: ${data.orderNumber}`, infoX + 3, infoY + 6);
   doc.text(`Data: ${data.orderDate}`, infoX + infoW - 3, infoY + 6, {
     align: "right",
   });
 
+  // RAND 2
   doc.text(`Santier: ${data.projectName || "-"}`, infoX + 3, infoY + 12);
   doc.text(`Creat de: ${data.creatorName}`, infoX + infoW - 3, infoY + 12, {
     align: "right",
   });
 
+  // TABEL
   autoTable(doc, {
     startY: infoY + infoH + 6,
     margin: { left: margin, right: margin },
-    tableWidth: pageWidth - margin * 2,
     head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
     body: data.items.map((item, index) => [
       index + 1,
@@ -216,13 +222,13 @@ export async function exportOrderPdf(data: OrderPdfData) {
       fontStyle: "bold",
     },
     columnStyles: {
-      0: { cellWidth: 10, halign: "center" },
-      1: { cellWidth: 24 },
-      2: { cellWidth: 78 },
-      3: { cellWidth: 12, halign: "center" },
-      4: { cellWidth: 12, halign: "center" },
-      5: { cellWidth: 20, halign: "right" },
-      6: { cellWidth: 20, halign: "right" },
+      0: { cellWidth: 12, halign: "center" },
+      1: { cellWidth: 26 },
+      2: { cellWidth: 72 },
+      3: { cellWidth: 14, halign: "center" },
+      4: { cellWidth: 14, halign: "center" },
+      5: { cellWidth: 22, halign: "right" },
+      6: { cellWidth: 22, halign: "right" },
     },
   });
 
@@ -230,9 +236,10 @@ export async function exportOrderPdf(data: OrderPdfData) {
     (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
       ?.finalY || 130;
 
-  const totalsW = 60;
-  const totalsX = pageWidth - margin - totalsW;
+  // TOTALURI
+  const totalsX = pageWidth - 72;
   const totalsY = finalY + 8;
+  const totalsW = 60;
   const rowH = 7;
 
   doc.setFillColor(248, 250, 252);
