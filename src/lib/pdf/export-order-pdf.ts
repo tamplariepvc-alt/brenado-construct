@@ -67,36 +67,51 @@ function drawPartyBlock(
   width: number,
   align: "left" | "right"
 ) {
+  let cursorY = y;
+
   const textX = align === "left" ? x : x + width;
-  const normalAlign = { align } as { align: "left" | "right" };
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text(title, textX, y, normalAlign);
+  doc.text(title, textX, cursorY, { align });
 
-  let cursorY = y + 5;
+  cursorY += 6;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9);
-  doc.text(party.name, textX, cursorY, normalAlign);
-  cursorY += 4.5;
+  doc.text(party.name, textX, cursorY, { align });
+
+  cursorY += 5;
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
 
-  doc.text(`Reg. Com.: ${party.regNo}`, textX, cursorY, normalAlign);
-  cursorY += 4;
-  doc.text(`CUI: ${party.fiscalCode}`, textX, cursorY, normalAlign);
+  doc.text(`Reg. Com.: ${party.regNo}`, textX, cursorY, { align });
   cursorY += 4;
 
-  const addressLines = doc.splitTextToSize(`Adresă: ${party.address}`, width);
-  doc.text(addressLines, textX, cursorY, normalAlign);
-  cursorY += addressLines.length * 3.8;
+  doc.text(`CUI: ${party.fiscalCode}`, textX, cursorY, { align });
+  cursorY += 4;
 
-  const emailLines = doc.splitTextToSize(`Email: ${party.email}`, width);
-  doc.text(emailLines, textX, cursorY, normalAlign);
-  cursorY += emailLines.length * 3.8;
+  // 🔥 AICI E FIXUL
+  const addressLines = doc.splitTextToSize(
+    `Adresă: ${party.address}`,
+    width
+  );
+
+  addressLines.forEach((line: string) => {
+    doc.text(line, textX, cursorY, { align });
+    cursorY += 4;
+  });
+
+  const emailLines = doc.splitTextToSize(
+    `Email: ${party.email}`,
+    width
+  );
+
+  emailLines.forEach((line: string) => {
+    doc.text(line, textX, cursorY, { align });
+    cursorY += 4;
+  });
 
   return cursorY;
 }
@@ -113,19 +128,19 @@ export async function exportOrderPdf(data: OrderPdfData) {
   const blockWidth = 76;
 
   if (logo) {
-    doc.addImage(logo, "PNG", margin, 10, 32, 18);
+    doc.addImage(logo, "PNG", margin, 14, 36, 20);
   }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(1, 150, 255);
-  doc.text("COMANDA FURNIZOR", pageWidth / 2, 22, { align: "center" });
+  doc.text("COMANDA FURNIZOR", pageWidth / 2, 28, { align: "center" });
 
   doc.setDrawColor(220, 220, 220);
-  doc.line(margin, 32, pageWidth - margin, 32);
+  doc.line(margin, 36, pageWidth - margin, 36);
 
-  const leftY = 42;
-  const rightY = 42;
+  const leftY = 48;
+  const rightY = 48;
 
   const sellerEndY = drawPartyBlock(
     doc,
@@ -152,14 +167,23 @@ export async function exportOrderPdf(data: OrderPdfData) {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(60, 60, 60);
+  
+const infoY = detailsY;
 
-  doc.text(`Nr. comandă: ${data.orderNumber}`, margin, detailsY);
-  doc.text(`Șantier: ${data.projectName}`, 70, detailsY);
-  doc.text(`Data: ${data.orderDate}`, 145, detailsY);
-  doc.text(`Creată de: ${data.creatorName}`, margin, detailsY + 5);
+doc.setFont("helvetica", "normal");
+doc.setFontSize(9);
+doc.setTextColor(60, 60, 60);
+
+// rând 1
+doc.text(`Nr. comandă: ${data.orderNumber}`, margin, infoY);
+doc.text(`Șantier: ${data.projectName || "-"}`, pageWidth / 2, infoY, { align: "center" });
+doc.text(`Data: ${data.orderDate}`, pageWidth - margin, infoY, { align: "right" });
+
+// rând 2
+doc.text(`Creată de: ${data.creatorName}`, margin, infoY + 6);
 
   autoTable(doc, {
-    startY: detailsY + 10,
+    startY: detailsY + 14,
     margin: { left: margin, right: margin },
     head: [["Nr.", "Cod", "Denumire", "UM", "Qty", "P.U.", "Val."]],
     body: data.items.map((item, index) => [
