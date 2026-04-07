@@ -273,9 +273,13 @@ export default function CentruDeCostDetaliuPage() {
                 </p>
               </div>
 
-              <span className="inline-flex w-fit rounded-full bg-[#0196ff]/10 px-3 py-1 text-sm font-semibold text-[#0196ff]">
-                {getProjectStatusLabel(project.status)}
-              </span>
+<span
+  className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getProjectStatusStyle(
+    project.status
+  )}`}
+>
+  {getProjectStatusLabel(project.status)}
+</span>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
