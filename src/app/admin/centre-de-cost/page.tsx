@@ -46,7 +46,14 @@ export default function CentreDeCostPage() {
     loadCentres();
   }, []);
 
-const getStatusLabel = (status: string) => {
+  const getStatusLabel = (status: string) => {
+    if (status === "in_asteptare") return "În așteptare";
+    if (status === "in_lucru") return "În lucru";
+    if (status === "finalizat") return "Finalizat";
+    return status;
+  };
+  
+  const getStatusStyle = (status: string) => {
   if (status === "in_asteptare") {
     return "bg-blue-100 text-blue-800";
   }
@@ -108,7 +115,15 @@ const getStatusLabel = (status: string) => {
     {centre.cost_center_code || "-"}
   </div>
   <div>{centre.name}</div>
-  <div>{getStatusLabel(centre.status)}</div>
+<div>
+  <span
+    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusStyle(
+      centre.status
+    )}`}
+  >
+    {getStatusLabel(centre.status)}
+  </span>
+</div>
 </button>
   ))
 )}
