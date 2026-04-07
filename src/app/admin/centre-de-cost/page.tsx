@@ -46,7 +46,7 @@ export default function CentreDeCostPage() {
     loadCentres();
   }, []);
 
-const getStatusStyle = (status: string) => {
+const getStatusLabel = (status: string) => {
   if (status === "in_asteptare") {
     return "bg-blue-100 text-blue-800";
   }
