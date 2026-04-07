@@ -6,6 +6,12 @@ export default function AdminPage() {
   const router = useRouter();
 
   const buttons = [
+  <button
+  onClick={() => router.push("/admin/centre-de-cost")}
+  className="rounded-2xl bg-white p-5 text-left shadow"
+>
+  CENTRE DE COST
+</button>
     "FACTURI FURNIZOR",
     "BONURI FISCALE",
     "FACTURI VÂNZĂRI",

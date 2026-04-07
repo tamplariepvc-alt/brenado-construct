@@ -75,20 +75,28 @@ export default function AdaugaProiectPage() {
 
     setLoading(true);
 
-    const { data: projectData, error: projectError } = await supabase
-      .from("projects")
-      .insert({
-        name: nume,
-        beneficiary: beneficiar,
-        project_location: locatie,
-        project_type: tip,
-        project_group: grupa,
-        start_date: dataStart,
-        execution_deadline: termen,
-        status,
-      })
-      .select()
-      .single();
+const { count } = await supabase
+  .from("projects")
+  .select("*", { count: "exact", head: true });
+
+const nextCostCenterCode = `CC-${String((count || 0) + 1).padStart(4, "0")}`;
+
+const { data: projectData, error: projectError } = await supabase
+  .from("projects")
+  .insert({
+    name: nume,
+    beneficiary: beneficiar,
+    project_location: locatie,
+    project_type: tip,
+    project_group: grupa,
+    start_date: dataStart,
+    execution_deadline: termen,
+    status,
+    is_cost_center: true,
+    cost_center_code: nextCostCenterCode,
+  })
+  .select()
+  .single();
 
     if (projectError || !projectData) {
       alert("A apărut o eroare la salvarea proiectului.");
