@@ -68,10 +68,9 @@ export default function MuncitoriPage() {
         </div>
 
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-          <div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+          <div className="grid grid-cols-3 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
             <div>Nume</div>
             <div>Funcție</div>
-            <div>Salariu lunar</div>
             <div>Status</div>
           </div>
 
@@ -81,29 +80,21 @@ export default function MuncitoriPage() {
             </div>
           ) : (
             workers.map((worker) => (
-              <div
-                key={worker.id}
-                className="grid grid-cols-4 border-b px-4 py-3 text-sm last:border-b-0"
-              >
-                <div className="font-medium">{worker.full_name}</div>
-                <div>{worker.job_title || "-"}</div>
-                <div>
-                  {worker.monthly_salary != null
-                    ? `${Number(worker.monthly_salary).toFixed(2)} lei`
-                    : "-"}
-                </div>
-                <div>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      worker.is_active
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {worker.is_active ? "Activ" : "Inactiv"}
-                  </span>
-                </div>
-              </div>
+<div className="grid grid-cols-3 ...">
+  <div>{worker.full_name}</div>
+  <div>{worker.role}</div>
+  <div>
+    <span
+      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+        worker.is_active
+          ? "bg-green-100 text-green-800"
+          : "bg-gray-100 text-gray-800"
+      }`}
+    >
+      {worker.is_active ? "Activ" : "Inactiv"}
+    </span>
+  </div>
+</div>
             ))
           )}
         </div>
