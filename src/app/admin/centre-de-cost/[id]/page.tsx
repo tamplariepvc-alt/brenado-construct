@@ -91,7 +91,7 @@ export default function CentruDeCostDetaliuPage() {
     loadData();
   }, [projectId, router]);
 
-  const totals = useMemo(() => {
+  const orderTotals = useMemo(() => {
     return orders.reduce(
       (acc, order) => {
         acc.subtotal += Number(order.subtotal || 0);
@@ -103,12 +103,97 @@ export default function CentruDeCostDetaliuPage() {
     );
   }, [orders]);
 
+  const categoryTotals = useMemo(() => {
+    return {
+      comenzi: orderTotals.total,
+      bonuri: 0,
+      facturi: 0,
+      transport: 0,
+      manopera: 0,
+      nedeductibile: 0,
+    };
+  }, [orderTotals]);
+
+  const projectGrandTotal = useMemo(() => {
+    return (
+      categoryTotals.comenzi +
+      categoryTotals.bonuri +
+      categoryTotals.facturi +
+      categoryTotals.transport +
+      categoryTotals.manopera +
+      categoryTotals.nedeductibile
+    );
+  }, [categoryTotals]);
+
   const getProjectStatusLabel = (status: string) => {
     if (status === "in_asteptare") return "În așteptare";
     if (status === "in_lucru") return "În lucru";
     if (status === "finalizat") return "Finalizat";
     return status;
   };
+
+  const categoryCards = [
+    {
+      key: "comenzi",
+      title: "Comenzi",
+      value: categoryTotals.comenzi,
+      description: "Comenzi aprobate din proiect",
+      onClick: () => {},
+      active: true,
+      color: "bg-[#0196ff] text-white",
+      subColor: "text-white/80",
+    },
+    {
+      key: "bonuri",
+      title: "Bonuri",
+      value: categoryTotals.bonuri,
+      description: "Bonuri fiscale aferente proiectului",
+      onClick: () => {},
+      active: false,
+      color: "bg-white text-gray-900",
+      subColor: "text-gray-500",
+    },
+    {
+      key: "facturi",
+      title: "Facturi",
+      value: categoryTotals.facturi,
+      description: "Facturi aferente proiectului",
+      onClick: () => {},
+      active: false,
+      color: "bg-white text-gray-900",
+      subColor: "text-gray-500",
+    },
+    {
+      key: "transport",
+      title: "Transport",
+      value: categoryTotals.transport,
+      description: "Cheltuieli de transport",
+      onClick: () => {},
+      active: false,
+      color: "bg-white text-gray-900",
+      subColor: "text-gray-500",
+    },
+    {
+      key: "manopera",
+      title: "Manoperă",
+      value: categoryTotals.manopera,
+      description: "Costuri cu manopera",
+      onClick: () => {},
+      active: false,
+      color: "bg-white text-gray-900",
+      subColor: "text-gray-500",
+    },
+    {
+      key: "nedeductibile",
+      title: "Nedeductibile",
+      value: categoryTotals.nedeductibile,
+      description: "Cheltuieli nedeductibile",
+      onClick: () => {},
+      active: false,
+      color: "bg-white text-gray-900",
+      subColor: "text-gray-500",
+    },
+  ];
 
   if (loading) {
     return <div className="p-6">Se încarcă centrul de cost...</div>;
@@ -125,7 +210,7 @@ export default function CentruDeCostDetaliuPage() {
           <div>
             <h1 className="text-2xl font-bold">Detaliu centru de cost</h1>
             <p className="text-sm text-gray-600">
-              Vezi informațiile proiectului și comenzile aprobate.
+              Vezi structura costurilor pe proiect.
             </p>
           </div>
 
@@ -208,60 +293,100 @@ export default function CentruDeCostDetaliuPage() {
             </div>
 
             <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm text-gray-500">Subtotal</p>
+              <p className="text-sm text-gray-500">Subtotal comenzi</p>
               <p className="mt-2 text-2xl font-bold">
-                {totals.subtotal.toFixed(2)} lei
+                {orderTotals.subtotal.toFixed(2)} lei
               </p>
             </div>
 
             <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm text-gray-500">TVA</p>
+              <p className="text-sm text-gray-500">TVA comenzi</p>
               <p className="mt-2 text-2xl font-bold">
-                {totals.vat.toFixed(2)} lei
+                {orderTotals.vat.toFixed(2)} lei
               </p>
             </div>
 
             <div className="rounded-2xl bg-[#0196ff] p-5 text-white shadow">
-              <p className="text-sm opacity-90">Total cu TVA</p>
+              <p className="text-sm opacity-90">Total general proiect</p>
               <p className="mt-2 text-2xl font-bold">
-                {totals.total.toFixed(2)} lei
+                {projectGrandTotal.toFixed(2)} lei
               </p>
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl bg-white shadow">
-            <div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-              <div>Nr. comandă</div>
-              <div>Data</div>
-              <div>Subtotal</div>
-              <div>Total</div>
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Categorii centru de cost</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Fiecare categorie va avea propria funcție și propriile înregistrări.
+              </p>
             </div>
 
-            {orders.length === 0 ? (
-              <div className="px-4 py-6 text-sm text-gray-500">
-                Nu există comenzi aprobate pentru acest centru de cost.
-              </div>
-            ) : (
-              orders.map((order) => (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {categoryCards.map((card) => (
                 <button
-                  key={order.id}
+                  key={card.key}
                   type="button"
-                  onClick={() => router.push(`/comenzi/${order.id}`)}
-                  className="grid w-full grid-cols-4 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+                  onClick={card.onClick}
+                  className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
                 >
-                  <div className="font-semibold">
-                    {order.order_number || "-"}
-                  </div>
-                  <div>
-                    {new Date(order.order_date).toLocaleDateString("ro-RO")}
-                  </div>
-                  <div>{Number(order.subtotal).toFixed(2)} lei</div>
-                  <div className="font-semibold">
-                    {Number(order.total_with_vat).toFixed(2)} lei
-                  </div>
+                  <h3 className="text-lg font-semibold">{card.title}</h3>
+                  <p className={`mt-1 text-sm ${card.subColor}`}>
+                    {card.description}
+                  </p>
+                  <p className="mt-4 text-2xl font-bold">
+                    {card.value.toFixed(2)} lei
+                  </p>
+                  <p className={`mt-2 text-xs ${card.subColor}`}>
+                    {card.active ? "Funcție activă" : "În dezvoltare"}
+                  </p>
                 </button>
-              ))
-            )}
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Comenzi</h2>
+              <span className="rounded-full bg-[#0196ff]/10 px-3 py-1 text-xs font-semibold text-[#0196ff]">
+                Funcție activă
+              </span>
+            </div>
+
+            <div className="overflow-hidden rounded-2xl border border-gray-200">
+              <div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+                <div>Nr. comandă</div>
+                <div>Data</div>
+                <div>Subtotal</div>
+                <div>Total</div>
+              </div>
+
+              {orders.length === 0 ? (
+                <div className="px-4 py-6 text-sm text-gray-500">
+                  Nu există comenzi aprobate pentru acest centru de cost.
+                </div>
+              ) : (
+                orders.map((order) => (
+                  <button
+                    key={order.id}
+                    type="button"
+                    onClick={() => router.push(`/comenzi/${order.id}`)}
+                    className="grid w-full grid-cols-4 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+                  >
+                    <div className="font-semibold">
+                      {order.order_number || "-"}
+                    </div>
+                    <div>
+                      {new Date(order.order_date).toLocaleDateString("ro-RO")}
+                    </div>
+                    <div>{Number(order.subtotal).toFixed(2)} lei</div>
+                    <div className="font-semibold">
+                      {Number(order.total_with_vat).toFixed(2)} lei
+                    </div>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </div>
       </div>
