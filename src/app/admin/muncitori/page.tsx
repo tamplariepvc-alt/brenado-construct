@@ -71,7 +71,6 @@ export default function MuncitoriPage() {
         <div className="overflow-hidden rounded-2xl bg-white shadow">
           <div className="grid grid-cols-[1.3fr_1fr_.9fr_auto] border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
             <div>Nume</div>
-            <div>Funcție</div>
             <div>Status</div>
             <div className="text-right">Acțiune</div>
           </div>
@@ -84,11 +83,9 @@ export default function MuncitoriPage() {
             workers.map((worker) => (
               <div
                 key={worker.id}
-                className="grid grid-cols-[1.3fr_1fr_.9fr_auto] items-center gap-3 border-b px-4 py-3 text-sm last:border-b-0"
+                className="grid-cols-[1fr_.7fr_auto] items-center gap-3 border-b px-4 py-3 text-sm last:border-b-0"
               >
                 <div className="font-medium break-words">{worker.full_name}</div>
-
-                <div className="break-words">{worker.job_title || "-"}</div>
 
                 <div>
                   <span
