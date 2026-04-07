@@ -161,7 +161,7 @@ const inCurs = projectsData.filter(
 
 <button
   onClick={() => router.push("/pontaje")}
-  className="rounded-2xl bg-[#66CC99] p-5 text-left text-white shadow"
+  className="rounded-2xl bg-[#66CC99] px-4 py-3 text-left text-white shadow"
 >
   PONTAJE
 </button>
@@ -188,7 +188,7 @@ const inCurs = projectsData.filter(
 </button>
 <button
   onClick={() => router.push("/pontaje")}
-  className="rounded-2xl bg-[#66CC99] p-5 text-left text-white shadow"
+  className="rounded-2xl bg-[#66CC99] px-4 py-3 text-left text-white shadow"
 >
   PONTAJE
 </button>
