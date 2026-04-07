@@ -397,7 +397,7 @@ export default function PontajSantierPage() {
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Toți muncitorii activi</h2>
+              <h2 className="text-sm font-semibold">Toți membrii activi</h2>
 
 <button
   type="button"
