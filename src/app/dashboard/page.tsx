@@ -161,17 +161,17 @@ const inCurs = projectsData.filter(
 
 <button
   onClick={() => router.push("/pontaje")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
+  className="rounded-2xl bg-[#66CC99] p-5 text-left text-white shadow"
 >
   PONTAJE
 </button>
 
-      <button
-        onClick={() => router.push("/admin")}
-        className="rounded-xl bg-black px-4 py-3 text-sm font-semibold text-left text-white shadow"
-      >
-        PANOU ADMINISTRATOR
-      </button>
+<button
+  onClick={() => router.push("/admin")}
+  className="mb-4 rounded-2xl bg-black p-5 text-left text-white shadow"
+>
+  PANOU ADMINISTRATOR
+</button>
     </div>
   )}
 
@@ -188,11 +188,11 @@ const inCurs = projectsData.filter(
 </button>
 <button
   onClick={() => router.push("/pontaje")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
+  className="rounded-2xl bg-[#66CC99] p-5 text-left text-white shadow"
 >
   PONTAJE
 </button>
-      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
+      <button className="mb-4 rounded-2xl bg-black p-5 text-left text-white shadow">
         CERERE TRANSFER DE BANI
       </button>
     </div>
