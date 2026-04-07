@@ -130,7 +130,7 @@ export default function PontajSantierPage() {
     const startMs = new Date(startTime).getTime();
     if (now < startMs) return false;
 
-    const { pauseStart, pauseEnd } = getPauseWindowForDate(now);
+    const { pauseStart, pauseEnd } = getPauseWindowForDate(new Date(now));
     return now >= pauseStart && now < pauseEnd && startMs < pauseEnd;
   };
 
