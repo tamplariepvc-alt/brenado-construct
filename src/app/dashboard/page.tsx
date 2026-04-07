@@ -188,7 +188,7 @@ const inCurs = projectsData.filter(
 </button>
 <button
   onClick={() => router.push("/pontaje")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
+  className="rounded-xl px-4 py-3 shadow text-white bg-green-500"
 >
   PONTAJE
 </button>
@@ -213,19 +213,19 @@ const inCurs = projectsData.filter(
 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
   
   {/* TOTAL PROIECTE */}
-  <div className="rounded-xl px-4 py-3 shadow text-white" style={{ backgroundColor: "#0196ff" }}>
+  <div className="rounded-xl px-3 py-2 shadow text-white" style={{ backgroundColor: "#0196ff" }}>
     <p className="text-xs opacity-90">TOTAL PROIECTE</p>
     <p className="mt-1 text-xl font-bold">{stats.total}</p>
   </div>
 
   {/* PROIECTE IN CURS */}
-  <div className="rounded-xl px-4 py-3 shadow text-white bg-yellow-500">
+  <div className="rounded-xl px-3 py-2 shadow text-white bg-yellow-500">
     <p className="text-xs opacity-90">PROIECTE ÎN CURS</p>
     <p className="mt-1 text-xl font-bold">{stats.inCurs}</p>
   </div>
 
   {/* FINALIZATE */}
-  <div className="rounded-xl px-4 py-3 shadow text-white bg-green-600">
+  <div className="rounded-xl px-3 py-2 shadow text-white bg-green-600">
     <p className="text-xs opacity-90">PROIECTE FINALIZATE</p>
     <p className="mt-1 text-xl font-bold">{stats.finalizate}</p>
   </div>
