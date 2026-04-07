@@ -43,6 +43,8 @@ export default function PontajSantierPage() {
   const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveTimeEntry[]>([]);
   const [now, setNow] = useState(Date.now());
+  const [sameTeamAsYesterday, setSameTeamAsYesterday] = useState(false);
+  const [yesterdayWorkerIds, setYesterdayWorkerIds] = useState<string[]>([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -79,6 +81,10 @@ export default function PontajSantierPage() {
 
     const today = new Date().toISOString().split("T")[0];
 
+    const yesterdayDate = new Date();
+    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+    const yesterday = yesterdayDate.toISOString().split("T")[0];
+
     const { data: activeData, error: activeError } = await supabase
       .from("time_entries")
       .select(`
@@ -96,6 +102,12 @@ export default function PontajSantierPage() {
       .eq("status", "activ")
       .is("end_time", null)
       .order("start_time", { ascending: true });
+
+    const { data: yesterdayData, error: yesterdayError } = await supabase
+      .from("time_entries")
+      .select("worker_id")
+      .eq("project_id", projectId)
+      .eq("work_date", yesterday);
 
     setProject(projectData as Project);
     setWorkers(parsedWorkers);
@@ -116,6 +128,16 @@ export default function PontajSantierPage() {
       setActiveEntries(enrichedEntries);
     } else {
       setActiveEntries([]);
+    }
+
+    if (!yesterdayError && yesterdayData) {
+      const uniqueYesterdayWorkerIds = Array.from(
+        new Set(yesterdayData.map((item) => item.worker_id))
+      ) as string[];
+
+      setYesterdayWorkerIds(uniqueYesterdayWorkerIds);
+    } else {
+      setYesterdayWorkerIds([]);
     }
 
     setLoading(false);
@@ -139,6 +161,19 @@ export default function PontajSantierPage() {
         ? prev.filter((id) => id !== workerId)
         : [...prev, workerId]
     );
+  };
+
+  const handleToggleSameTeamAsYesterday = (checked: boolean) => {
+    setSameTeamAsYesterday(checked);
+
+    if (checked) {
+      const availableYesterdayWorkers = yesterdayWorkerIds.filter((workerId) =>
+        availableWorkers.some((worker) => worker.id === workerId)
+      );
+      setSelectedWorkers(availableYesterdayWorkers);
+    } else {
+      setSelectedWorkers([]);
+    }
   };
 
   const selectedWorkersList = useMemo(() => {
@@ -195,6 +230,7 @@ export default function PontajSantierPage() {
     }
 
     setSelectedWorkers([]);
+    setSameTeamAsYesterday(false);
     setSubmitting(false);
     await loadData();
   };
@@ -370,6 +406,27 @@ export default function PontajSantierPage() {
               >
                 {showWorkersList ? "Ascunde lista" : "Arată lista"}
               </button>
+            </div>
+
+            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={sameTeamAsYesterday}
+                  onChange={(e) =>
+                    handleToggleSameTeamAsYesterday(e.target.checked)
+                  }
+                  className="h-5 w-5"
+                />
+                <span className="text-sm font-medium text-gray-800">
+                  Aceeași echipă ca ieri
+                </span>
+              </label>
+
+              <p className="mt-2 text-xs text-gray-500">
+                Selectează automat muncitorii care au fost pontați ieri pe acest
+                șantier.
+              </p>
             </div>
 
             {showWorkersList && (
