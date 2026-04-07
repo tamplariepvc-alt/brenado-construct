@@ -131,6 +131,22 @@ export default function CentruDeCostDetaliuPage() {
     if (status === "finalizat") return "Finalizat";
     return status;
   };
+  
+  const getProjectStatusStyle = (status: string) => {
+  if (status === "in_asteptare") {
+    return "bg-blue-100 text-blue-800";
+  }
+
+  if (status === "in_lucru") {
+    return "bg-yellow-100 text-yellow-800";
+  }
+
+  if (status === "finalizat") {
+    return "bg-green-100 text-green-800";
+  }
+
+  return "bg-gray-100 text-gray-800";
+};
 
   const handleCategoryClick = (key: string) => {
     if (key === "comenzi") {
@@ -257,7 +273,7 @@ export default function CentruDeCostDetaliuPage() {
                 </p>
               </div>
 
-              <span className="inline-flex w-fit rounded-full bg-[#0196ff]/10 px-3 py-1 text-sm font-semibold text-[#0196ff]">
+              <span> className="inline-flex w-fit rounded-full bg-[#0196ff]/10 px-3 py-1 text-sm font-semibold text-[#0196ff]">
                 {getProjectStatusLabel(project.status)}
               </span>
             </div>
