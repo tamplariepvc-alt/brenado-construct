@@ -362,12 +362,11 @@ export default function CentruDeCostDetaliuPage() {
       </div>
 
       <div className="shrink-0 text-4xl font-light text-gray-400">
-        ›
+        →
       </div>
     </div>
   </button>
 ))}
-              ))}
 
               <div className="rounded-2xl bg-[#0196ff] p-5 text-left text-white shadow">
                 <h3 className="text-lg font-semibold">Total general proiect</h3>
