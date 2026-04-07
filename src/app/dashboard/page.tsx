@@ -129,8 +129,8 @@ const inCurs = projectsData.filter(
     Rol: <span className="font-semibold">{profile?.role}</span>
   </p>
 
-  {profile?.role === "administrator" && (
-    <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+{profile?.role === "administrator" && (
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
       <button
         onClick={() => router.push("/proiecte/adauga")}
         className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
@@ -153,6 +153,13 @@ const inCurs = projectsData.filter(
 </button>
 
 <button
+  onClick={() => router.push("/pontaje")}
+  className="rounded-2xl bg-white p-5 text-left shadow"
+>
+  PONTAJE
+</button
+
+<button
   onClick={() => router.push("/comenzi")}
   className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
 >
@@ -168,11 +175,18 @@ const inCurs = projectsData.filter(
     </div>
   )}
 
-  {profile?.role === "sef_echipa" && (
-    <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+ {profile?.role === "sef_echipa" && (
+  <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
       <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
         PROIECTELE MELE
       </button>
+	  
+	  <button
+  onClick={() => router.push("/pontaje")}
+  className="rounded-2xl bg-white p-5 text-left shadow"
+>
+  PONTAJE
+</button>
 
 <button
   onClick={() => router.push("/comenzi")}
