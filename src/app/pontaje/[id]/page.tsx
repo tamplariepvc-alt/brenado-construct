@@ -17,6 +17,17 @@ type Worker = {
   is_active: boolean;
 };
 
+type ActiveTimeEntry = {
+  id: string;
+  worker_id: string;
+  start_time: string;
+  status: string;
+  workers?: {
+    id: string;
+    full_name: string;
+  }[] | null;
+};
+
 export default function PontajSantierPage() {
   const router = useRouter();
   const params = useParams();
@@ -28,46 +39,94 @@ export default function PontajSantierPage() {
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [showWorkersList, setShowWorkersList] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [stoppingId, setStoppingId] = useState<string | null>(null);
+  const [activeEntries, setActiveEntries] = useState<ActiveTimeEntry[]>([]);
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    const loadData = async () => {
-      const { data: projectData, error: projectError } = await supabase
-        .from("projects")
-        .select("id, name, beneficiary, project_location")
-        .eq("id", projectId)
-        .single();
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
 
-      if (projectError || !projectData) {
-        router.push("/pontaje");
-        return;
-      }
+    return () => clearInterval(timer);
+  }, []);
 
-      const { data: workersData, error: workersError } = await supabase
-        .from("project_workers")
-        .select(`
-          worker_id,
-          workers:worker_id (
-            id,
-            full_name,
-            is_active
-          )
-        `)
-        .eq("project_id", projectId);
+  const loadData = async () => {
+    const { data: projectData, error: projectError } = await supabase
+      .from("projects")
+      .select("id, name, beneficiary, project_location")
+      .eq("id", projectId)
+      .single();
 
-      if (!workersError && workersData) {
-        const parsedWorkers = workersData
-          .map((item: any) => item.workers)
-          .filter(Boolean) as Worker[];
+    if (projectError || !projectData) {
+      router.push("/pontaje");
+      return;
+    }
 
-        setWorkers(parsedWorkers.filter((worker) => worker.is_active));
-      }
+    const { data: workersData, error: workersError } = await supabase
+      .from("project_workers")
+      .select(`
+        worker_id,
+        workers:worker_id (
+          id,
+          full_name,
+          is_active
+        )
+      `)
+      .eq("project_id", projectId);
 
-      setProject(projectData as Project);
-      setLoading(false);
-    };
+    let parsedWorkers: Worker[] = [];
+    if (!workersError && workersData) {
+      parsedWorkers = workersData
+        .map((item: any) => item.workers?.[0])
+        .filter(Boolean) as Worker[];
 
+      parsedWorkers = parsedWorkers.filter((worker) => worker.is_active);
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    const { data: activeData, error: activeError } = await supabase
+      .from("time_entries")
+      .select(`
+        id,
+        worker_id,
+        start_time,
+        status,
+        workers:worker_id (
+          id,
+          full_name
+        )
+      `)
+      .eq("project_id", projectId)
+      .eq("work_date", today)
+      .eq("status", "activ")
+      .is("end_time", null)
+      .order("start_time", { ascending: true });
+
+    setProject(projectData as Project);
+    setWorkers(parsedWorkers);
+
+    if (!activeError && activeData) {
+      setActiveEntries(activeData as ActiveTimeEntry[]);
+    } else {
+      setActiveEntries([]);
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
     loadData();
   }, [projectId, router]);
+
+  const activeWorkerIds = useMemo(() => {
+    return activeEntries.map((entry) => entry.worker_id);
+  }, [activeEntries]);
+
+  const availableWorkers = useMemo(() => {
+    return workers.filter((worker) => !activeWorkerIds.includes(worker.id));
+  }, [workers, activeWorkerIds]);
 
   const toggleWorker = (workerId: string) => {
     setSelectedWorkers((prev) =>
@@ -78,8 +137,23 @@ export default function PontajSantierPage() {
   };
 
   const selectedWorkersList = useMemo(() => {
-    return workers.filter((worker) => selectedWorkers.includes(worker.id));
-  }, [workers, selectedWorkers]);
+    return availableWorkers.filter((worker) => selectedWorkers.includes(worker.id));
+  }, [availableWorkers, selectedWorkers]);
+
+  const formatDuration = (startTime: string) => {
+    const start = new Date(startTime).getTime();
+    const diff = Math.max(0, now - start);
+
+    const totalSeconds = Math.floor(diff / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+      2,
+      "0"
+    )}:${String(seconds).padStart(2, "0")}`;
+  };
 
   const handleStartTimeEntries = async () => {
     const {
@@ -115,9 +189,30 @@ export default function PontajSantierPage() {
       return;
     }
 
-    alert("Pontaj pornit cu succes.");
+    setSelectedWorkers([]);
     setSubmitting(false);
-    router.push("/pontaje");
+    await loadData();
+  };
+
+  const handleStopTimeEntry = async (entryId: string) => {
+    setStoppingId(entryId);
+
+    const { error } = await supabase
+      .from("time_entries")
+      .update({
+        end_time: new Date().toISOString(),
+        status: "oprit",
+      })
+      .eq("id", entryId);
+
+    if (error) {
+      alert("A apărut o eroare la oprirea pontajului.");
+      setStoppingId(null);
+      return;
+    }
+
+    setStoppingId(null);
+    await loadData();
   };
 
   if (loading) {
@@ -135,7 +230,7 @@ export default function PontajSantierPage() {
           <div>
             <h1 className="text-2xl font-bold">Pontaj șantier</h1>
             <p className="text-sm text-gray-600">
-              Selectează echipa care intră la lucru.
+              Selectează echipa care intră la lucru și gestionează pontajele active.
             </p>
           </div>
 
@@ -161,7 +256,69 @@ export default function PontajSantierPage() {
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Echipa</h2>
+              <h2 className="text-lg font-semibold">Pontaje active</h2>
+              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                {activeEntries.length} activi
+              </span>
+            </div>
+
+            {activeEntries.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu există muncitori pontați în acest moment.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {activeEntries.map((entry) => (
+                  <div
+                    key={entry.id}
+                    className="rounded-xl border border-green-200 bg-green-50 p-4"
+                  >
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="text-base font-semibold text-gray-900">
+                          {entry.workers?.[0]?.full_name || "-"}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-600">
+                          Intrare:{" "}
+                          {new Date(entry.start_time).toLocaleTimeString("ro-RO", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </p>
+                      </div>
+
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <div className="rounded-lg bg-white px-4 py-2 text-center shadow-sm">
+                          <p className="text-xs font-medium text-gray-500">
+                            Cronometru
+                          </p>
+                          <p className="text-lg font-bold text-green-700">
+                            {formatDuration(entry.start_time)}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleStopTimeEntry(entry.id)}
+                          disabled={stoppingId === entry.id}
+                          className="rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          {stoppingId === entry.id
+                            ? "Se oprește..."
+                            : "Oprește pontajul"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Echipa disponibilă</h2>
 
               <button
                 type="button"
@@ -174,12 +331,12 @@ export default function PontajSantierPage() {
 
             {showWorkersList && (
               <div className="space-y-3">
-                {workers.length === 0 ? (
+                {availableWorkers.length === 0 ? (
                   <p className="text-sm text-gray-500">
-                    Nu există muncitori alocați acestui șantier.
+                    Nu există muncitori disponibili pentru pontare pe acest șantier.
                   </p>
                 ) : (
-                  workers.map((worker) => (
+                  availableWorkers.map((worker) => (
                     <label
                       key={worker.id}
                       className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
@@ -209,7 +366,7 @@ export default function PontajSantierPage() {
                   {selectedWorkersList.map((worker) => (
                     <span
                       key={worker.id}
-                      className="rounded-full bg-green-50 px-3 py-2 text-sm font-medium text-green-700"
+                      className="rounded-full bg-[#66CC99]/15 px-3 py-2 text-sm font-medium text-[#2f855a]"
                     >
                       {worker.full_name}
                     </span>
