@@ -84,25 +84,27 @@ export default function CentreDeCostPage() {
             <div>Status</div>
           </div>
 
-          {centres.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-gray-500">
-              Nu există centre de cost.
-            </div>
-          ) : (
-            centres.map((centre) => (
-              <div
-                key={centre.id}
-                className="grid grid-cols-4 border-b px-4 py-3 text-sm last:border-b-0"
-              >
-                <div className="font-semibold">
-                  {centre.cost_center_code || "-"}
-                </div>
-                <div>{centre.name}</div>
-                <div>{centre.beneficiary || "-"}</div>
-                <div>{getStatusLabel(centre.status)}</div>
-              </div>
-            ))
-          )}
+{centres.length === 0 ? (
+  <div className="px-4 py-6 text-sm text-gray-500">
+    Nu există centre de cost.
+  </div>
+) : (
+  centres.map((centre) => (
+    <button
+      key={centre.id}
+      type="button"
+      onClick={() => router.push(`/admin/centre-de-cost/${centre.id}`)}
+      className="grid w-full grid-cols-4 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+    >
+      <div className="font-semibold">
+        {centre.cost_center_code || "-"}
+      </div>
+      <div>{centre.name}</div>
+      <div>{centre.beneficiary || "-"}</div>
+      <div>{getStatusLabel(centre.status)}</div>
+    </button>
+  ))
+)}
         </div>
       </div>
     </div>
