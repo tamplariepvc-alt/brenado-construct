@@ -29,6 +29,30 @@ type ActiveTimeEntry = {
   }[] | null;
 };
 
+type HistoryTimeEntry = {
+  id: string;
+  worker_id: string;
+  start_time: string;
+  end_time: string | null;
+  work_date: string;
+  status: string;
+  worker_name?: string;
+  workers?: {
+    id: string;
+    full_name: string;
+  }[] | null;
+};
+
+type DailyHistoryGroup = {
+  key: string;
+  worker_id: string;
+  worker_name: string;
+  work_date: string;
+  first_start: string;
+  last_end: string;
+  total_ms: number;
+};
+
 export default function PontajSantierPage() {
   const router = useRouter();
   const params = useParams();
@@ -42,6 +66,7 @@ export default function PontajSantierPage() {
   const [submitting, setSubmitting] = useState(false);
   const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveTimeEntry[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<HistoryTimeEntry[]>([]);
   const [now, setNow] = useState(Date.now());
   const [sameTeamAsYesterday, setSameTeamAsYesterday] = useState(false);
   const [yesterdayWorkerIds, setYesterdayWorkerIds] = useState<string[]>([]);
@@ -53,6 +78,73 @@ export default function PontajSantierPage() {
 
     return () => clearInterval(timer);
   }, []);
+
+  // =========================
+  // Pauza automata 12:00-13:00
+  // =========================
+  const getPauseWindowForDate = (dateLike: string | Date) => {
+    const d = typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const day = d.getDate();
+
+    const pauseStart = new Date(year, month, day, 12, 0, 0, 0).getTime();
+    const pauseEnd = new Date(year, month, day, 13, 0, 0, 0).getTime();
+
+    return { pauseStart, pauseEnd };
+  };
+
+  const getOverlapMs = (startMs: number, endMs: number, overlapStart: number, overlapEnd: number) => {
+    const start = Math.max(startMs, overlapStart);
+    const end = Math.min(endMs, overlapEnd);
+    return Math.max(0, end - start);
+  };
+
+  const getWorkedMsWithoutPause = (startTime: string, endTime?: string | null) => {
+    const startMs = new Date(startTime).getTime();
+    const endMs = endTime ? new Date(endTime).getTime() : now;
+
+    if (endMs <= startMs) return 0;
+
+    // Dacă intervalul trece peste mai multe zile, scădem pauza pentru fiecare zi
+    // (în practică la tine pontajul e în aceeași zi, dar facem robust)
+    let total = endMs - startMs;
+
+    const startDate = new Date(startMs);
+    const endDate = new Date(endMs);
+
+    const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+    const last = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 0, 0, 0, 0);
+
+    while (cursor.getTime() <= last.getTime()) {
+      const { pauseStart, pauseEnd } = getPauseWindowForDate(cursor);
+      total -= getOverlapMs(startMs, endMs, pauseStart, pauseEnd);
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return Math.max(0, total);
+  };
+
+  const isNowInPauseForEntry = (startTime: string) => {
+    const startMs = new Date(startTime).getTime();
+    if (now < startMs) return false;
+
+    const { pauseStart, pauseEnd } = getPauseWindowForDate(now);
+    return now >= pauseStart && now < pauseEnd && startMs < pauseEnd;
+  };
+
+  const formatMsToHHMMSS = (ms: number) => {
+    const totalSeconds = Math.floor(Math.max(0, ms) / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
+      2,
+      "0"
+    )}:${String(seconds).padStart(2, "0")}`;
+  };
 
   const loadData = async () => {
     const { data: projectData, error: projectError } = await supabase
@@ -74,9 +166,7 @@ export default function PontajSantierPage() {
 
     let parsedWorkers: Worker[] = [];
     if (!workersError && workersData) {
-      parsedWorkers = (workersData as Worker[]).filter(
-        (worker) => worker.is_active
-      );
+      parsedWorkers = (workersData as Worker[]).filter((worker) => worker.is_active);
     }
 
     const today = new Date().toISOString().split("T")[0];
@@ -109,15 +199,32 @@ export default function PontajSantierPage() {
       .eq("project_id", projectId)
       .eq("work_date", yesterday);
 
+    const { data: historyData, error: historyError } = await supabase
+      .from("time_entries")
+      .select(`
+        id,
+        worker_id,
+        start_time,
+        end_time,
+        work_date,
+        status,
+        workers:worker_id (
+          id,
+          full_name
+        )
+      `)
+      .eq("project_id", projectId)
+      .not("end_time", "is", null)
+      .order("work_date", { ascending: false })
+      .order("start_time", { ascending: false });
+
     setProject(projectData as Project);
     setWorkers(parsedWorkers);
 
     if (!activeError && activeData) {
       const enrichedEntries = (activeData as ActiveTimeEntry[]).map((entry) => {
         const workerFromRelation = entry.workers?.[0]?.full_name;
-        const workerFromList = parsedWorkers.find(
-          (worker) => worker.id === entry.worker_id
-        )?.full_name;
+        const workerFromList = parsedWorkers.find((worker) => worker.id === entry.worker_id)?.full_name;
 
         return {
           ...entry,
@@ -128,6 +235,22 @@ export default function PontajSantierPage() {
       setActiveEntries(enrichedEntries);
     } else {
       setActiveEntries([]);
+    }
+
+    if (!historyError && historyData) {
+      const enrichedHistory = (historyData as HistoryTimeEntry[]).map((entry) => {
+        const workerFromRelation = entry.workers?.[0]?.full_name;
+        const workerFromList = parsedWorkers.find((worker) => worker.id === entry.worker_id)?.full_name;
+
+        return {
+          ...entry,
+          worker_name: workerFromRelation || workerFromList || "-",
+        };
+      });
+
+      setHistoryEntries(enrichedHistory);
+    } else {
+      setHistoryEntries([]);
     }
 
     if (!yesterdayError && yesterdayData) {
@@ -181,18 +304,8 @@ export default function PontajSantierPage() {
   }, [availableWorkers, selectedWorkers]);
 
   const formatDuration = (startTime: string) => {
-    const start = new Date(startTime).getTime();
-    const diff = Math.max(0, now - start);
-
-    const totalSeconds = Math.floor(diff / 1000);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(seconds).padStart(2, "0")}`;
+    const workedMs = getWorkedMsWithoutPause(startTime, null);
+    return formatMsToHHMMSS(workedMs);
   };
 
   const handleStartTimeEntries = async () => {
@@ -287,6 +400,51 @@ export default function PontajSantierPage() {
     await loadData();
   };
 
+  // =========================
+  // Istoric grupat pe zi + muncitor
+  // =========================
+  const historyGrouped = useMemo<DailyHistoryGroup[]>(() => {
+    const map = new Map<string, DailyHistoryGroup>();
+
+    for (const entry of historyEntries) {
+      if (!entry.end_time) continue;
+
+      const key = `${entry.work_date}__${entry.worker_id}`;
+      const workedMs = getWorkedMsWithoutPause(entry.start_time, entry.end_time);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          worker_id: entry.worker_id,
+          worker_name: entry.worker_name || "-",
+          work_date: entry.work_date,
+          first_start: entry.start_time,
+          last_end: entry.end_time,
+          total_ms: workedMs,
+        });
+      } else {
+        const current = map.get(key)!;
+
+        if (new Date(entry.start_time).getTime() < new Date(current.first_start).getTime()) {
+          current.first_start = entry.start_time;
+        }
+
+        if (new Date(entry.end_time).getTime() > new Date(current.last_end).getTime()) {
+          current.last_end = entry.end_time;
+        }
+
+        current.total_ms += workedMs;
+        map.set(key, current);
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => {
+      const dateDiff = new Date(b.work_date).getTime() - new Date(a.work_date).getTime();
+      if (dateDiff !== 0) return dateDiff;
+      return a.worker_name.localeCompare(b.worker_name, "ro");
+    });
+  }, [historyEntries, now]);
+
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
   }
@@ -317,9 +475,7 @@ export default function PontajSantierPage() {
         <div className="space-y-6">
           <div className="rounded-2xl bg-white p-5 shadow">
             <h2 className="text-lg font-semibold">{project.name}</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {project.beneficiary || "-"}
-            </p>
+            <p className="mt-1 text-sm text-gray-500">{project.beneficiary || "-"}</p>
             <p className="mt-2 text-sm">
               <span className="font-medium text-gray-500">Locație:</span>{" "}
               {project.project_location || "-"}
@@ -340,48 +496,60 @@ export default function PontajSantierPage() {
               </p>
             ) : (
               <div className="space-y-2">
-                {activeEntries.map((entry) => (
-                  <div
-                    key={entry.id}
-                    className="rounded-lg border border-green-200 bg-green-50 p-3"
-                  >
-                    <div className="space-y-2">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">
-                          {entry.worker_name || "-"}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Intrare:{" "}
-                          {new Date(entry.start_time).toLocaleTimeString("ro-RO", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          })}
-                        </p>
-                      </div>
+                {activeEntries.map((entry) => {
+                  const inPause = isNowInPauseForEntry(entry.start_time);
 
-                      <div className="rounded-md bg-white px-3 py-2 shadow-sm">
-                        <p className="text-xs font-medium text-gray-500">
-                          Cronometru
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-green-700">
-                          {formatDuration(entry.start_time)}
-                        </p>
-                      </div>
+                  return (
+                    <div
+                      key={entry.id}
+                      className="rounded-lg border border-green-200 bg-green-50 p-3"
+                    >
+                      <div className="space-y-2">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {entry.worker_name || "-"}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            Intrare:{" "}
+                            {new Date(entry.start_time).toLocaleTimeString("ro-RO", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                            })}
+                          </p>
+                        </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleStopTimeEntry(entry.id)}
-                        disabled={stoppingId === entry.id || submitting}
-                        className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                      >
-                        {stoppingId === entry.id
-                          ? "Se oprește..."
-                          : "Oprește pontajul"}
-                      </button>
+                        <div className="rounded-md bg-white px-3 py-2 shadow-sm">
+                          <p className="text-xs font-medium text-gray-500">
+                            Cronometru
+                          </p>
+
+                          {inPause ? (
+                            <div className="mt-1 flex items-center justify-between">
+                              <p className="text-lg font-bold text-orange-600">Pauză</p>
+                              <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-700">
+                                12:00 - 13:00
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="mt-1 text-lg font-bold text-green-700">
+                              {formatDuration(entry.start_time)}
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleStopTimeEntry(entry.id)}
+                          disabled={stoppingId === entry.id || submitting}
+                          className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          {stoppingId === entry.id ? "Se oprește..." : "Oprește pontajul"}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 <button
                   type="button"
@@ -397,17 +565,81 @@ export default function PontajSantierPage() {
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Istoric pontaje (pe zi / muncitor)</h2>
+              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                {historyGrouped.length} înregistrări
+              </span>
+            </div>
+
+            {historyGrouped.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu există pontaje finalizate pentru acest șantier.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {historyGrouped.map((item) => (
+                  <div
+                    key={item.key}
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                  >
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold text-gray-900">{item.worker_name}</p>
+
+                      <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-4">
+                        <div>
+                          <span className="font-medium text-gray-500">Data:</span>{" "}
+                          {new Date(item.work_date).toLocaleDateString("ro-RO")}
+                        </div>
+
+                        <div>
+                          <span className="font-medium text-gray-500">Prima intrare:</span>{" "}
+                          {new Date(item.first_start).toLocaleTimeString("ro-RO", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </div>
+
+                        <div>
+                          <span className="font-medium text-gray-500">Ultima ieșire:</span>{" "}
+                          {new Date(item.last_end).toLocaleTimeString("ro-RO", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </div>
+
+                        <div>
+                          <span className="font-medium text-gray-500">Total:</span>{" "}
+                          <span className="font-semibold text-gray-900">
+                            {formatMsToHHMMSS(item.total_ms)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-gray-500">
+                        Pauza 12:00 - 13:00 este exclusă automat din calcul.
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Toți membrii activi</h2>
 
-<button
-  type="button"
-  onClick={() => setShowWorkersList((prev) => !prev)}
-  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 ${
-    showWorkersList ? "bg-gray-600" : "bg-[#0196ff]"
-  }`}
->
-  {showWorkersList ? "Ascunde lista" : "Arată lista"}
-</button>
+              <button
+                type="button"
+                onClick={() => setShowWorkersList((prev) => !prev)}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 ${
+                  showWorkersList ? "bg-gray-600" : "bg-[#0196ff]"
+                }`}
+              >
+                {showWorkersList ? "Ascunde lista" : "Arată lista"}
+              </button>
             </div>
 
             <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
@@ -415,9 +647,7 @@ export default function PontajSantierPage() {
                 <input
                   type="checkbox"
                   checked={sameTeamAsYesterday}
-                  onChange={(e) =>
-                    handleToggleSameTeamAsYesterday(e.target.checked)
-                  }
+                  onChange={(e) => handleToggleSameTeamAsYesterday(e.target.checked)}
                   className="h-5 w-5"
                 />
                 <span className="text-sm font-medium text-gray-800">
@@ -426,8 +656,7 @@ export default function PontajSantierPage() {
               </label>
 
               <p className="mt-2 text-xs text-gray-500">
-                Selectează automat muncitorii care au fost pontați ieri pe acest
-                șantier.
+                Selectează automat muncitorii care au fost pontați ieri pe acest șantier.
               </p>
             </div>
 
