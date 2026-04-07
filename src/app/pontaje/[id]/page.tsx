@@ -303,18 +303,18 @@ export default function PontajSantierPage() {
                 Nu există muncitori pontați în acest moment.
               </p>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {activeEntries.map((entry) => (
                   <div
                     key={entry.id}
-                    className="rounded-xl border border-green-200 bg-green-50 p-4"
+                    className="rounded-lg border border-green-200 bg-green-50 p-3"
                   >
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div>
-                        <p className="text-base font-semibold text-gray-900">
+                        <p className="text-sm font-semibold text-gray-900">
                           {entry.worker_name || "-"}
                         </p>
-                        <p className="mt-1 text-sm text-gray-600">
+                        <p className="text-xs text-gray-600">
                           Intrare:{" "}
                           {new Date(entry.start_time).toLocaleTimeString("ro-RO", {
                             hour: "2-digit",
@@ -324,11 +324,11 @@ export default function PontajSantierPage() {
                         </p>
                       </div>
 
-                      <div className="rounded-lg bg-white px-4 py-3 shadow-sm">
+                      <div className="rounded-md bg-white px-3 py-2 shadow-sm">
                         <p className="text-xs font-medium text-gray-500">
                           Cronometru
                         </p>
-                        <p className="mt-1 text-2xl font-bold text-green-700">
+                        <p className="mt-1 text-lg font-bold text-green-700">
                           {formatDuration(entry.start_time)}
                         </p>
                       </div>
@@ -337,7 +337,7 @@ export default function PontajSantierPage() {
                         type="button"
                         onClick={() => handleStopTimeEntry(entry.id)}
                         disabled={stoppingId === entry.id || submitting}
-                        className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                       >
                         {stoppingId === entry.id
                           ? "Se oprește..."
@@ -373,7 +373,7 @@ export default function PontajSantierPage() {
             </div>
 
             {showWorkersList && (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {availableWorkers.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     Nu există muncitori disponibili pentru pontare.
