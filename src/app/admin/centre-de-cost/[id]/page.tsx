@@ -374,7 +374,7 @@ export default function CentruDeCostDetaliuPage() {
                   Total cumulat din toate categoriile
                 </p>
                 <p className="mt-4 text-2xl font-bold">
-                  {projectGrandTotal.toFixed(2)} lei (tva inclus)
+                  {projectGrandTotal.toFixed(2)} lei<p className="mt-2 text-xl font-bold">TVA Inclus</p>
                 </p>
                 <p className="mt-2 text-xs text-white/80">
                   Sumar total centru de cost
