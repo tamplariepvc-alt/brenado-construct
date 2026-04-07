@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -35,10 +36,6 @@ export default function MuncitoriPage() {
     loadWorkers();
   }, []);
 
-  const goToEdit = (workerId: string) => {
-    window.location.href = `/admin/muncitori/${workerId}/edit`;
-  };
-
   if (loading) {
     return <div className="p-6">Se încarcă muncitorii...</div>;
   }
@@ -62,17 +59,17 @@ export default function MuncitoriPage() {
               Înapoi la panou admin
             </button>
 
-            <button
-              onClick={() => router.push("/admin/muncitori/adauga")}
-              className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+            <Link
+              href="/admin/muncitori/adauga"
+              className="rounded-lg bg-[#0196ff] px-4 py-2 text-center text-sm font-semibold text-white"
             >
               + Adaugă muncitor
-            </button>
+            </Link>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-          <div className="grid grid-cols-[1.2fr_1fr_.8fr_auto] gap-2 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+          <div className="grid grid-cols-[1.3fr_1fr_.9fr_auto] border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
             <div>Nume</div>
             <div>Funcție</div>
             <div>Status</div>
@@ -87,7 +84,7 @@ export default function MuncitoriPage() {
             workers.map((worker) => (
               <div
                 key={worker.id}
-                className="grid grid-cols-[1.2fr_1fr_.8fr_auto] items-center gap-2 border-b px-4 py-3 text-sm last:border-b-0"
+                className="grid grid-cols-[1.3fr_1fr_.9fr_auto] items-center gap-3 border-b px-4 py-3 text-sm last:border-b-0"
               >
                 <div className="font-medium break-words">{worker.full_name}</div>
 
@@ -106,13 +103,12 @@ export default function MuncitoriPage() {
                 </div>
 
                 <div className="text-right">
-                  <button
-                    type="button"
-                    onClick={() => goToEdit(worker.id)}
-                    className="inline-flex h-8 items-center justify-center rounded-md border border-gray-300 bg-white px-2.5 text-[11px] font-medium text-gray-700"
+                  <Link
+                    href={`/admin/muncitori/${worker.id}/edit`}
+                    className="inline-flex whitespace-nowrap rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 transition hover:bg-gray-50"
                   >
                     Editează
-                  </button>
+                  </Link>
                 </div>
               </div>
             ))
