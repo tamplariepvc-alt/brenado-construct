@@ -180,19 +180,17 @@ const inCurs = projectsData.filter(
       <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
         PROIECTELE MELE
       </button>
-	  
-	  <button
-  onClick={() => router.push("/pontaje")}
-  className="rounded-2xl bg-white p-5 text-left shadow"
->
-  PONTAJE
-</button>
-
 <button
   onClick={() => router.push("/comenzi")}
   className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
 >
   COMENZI
+</button>
+<button
+  onClick={() => router.push("/pontaje")}
+  className="rounded-2xl bg-white p-5 text-left shadow"
+>
+  PONTAJE
 </button>
       <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
         CERERE TRANSFER DE BANI
