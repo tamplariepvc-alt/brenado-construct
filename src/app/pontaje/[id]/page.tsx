@@ -63,26 +63,18 @@ export default function PontajSantierPage() {
       return;
     }
 
-    const { data: workersData, error: workersError } = await supabase
-      .from("project_workers")
-      .select(`
-        worker_id,
-        workers:worker_id (
-          id,
-          full_name,
-          is_active
-        )
-      `)
-      .eq("project_id", projectId);
+const { data: workersData, error: workersError } = await supabase
+  .from("workers")
+  .select("id, full_name, is_active")
+  .eq("is_active", true)
+  .order("full_name", { ascending: true });
 
-    let parsedWorkers: Worker[] = [];
-    if (!workersError && workersData) {
-      parsedWorkers = workersData
-        .map((item: any) => item.workers?.[0])
-        .filter(Boolean) as Worker[];
-
-      parsedWorkers = parsedWorkers.filter((worker) => worker.is_active);
-    }
+let parsedWorkers: Worker[] = [];
+if (!workersError && workersData) {
+  parsedWorkers = (workersData as Worker[]).filter(
+    (worker) => worker.is_active
+  );
+}
 
     const today = new Date().toISOString().split("T")[0];
 
