@@ -64,18 +64,18 @@ export default function PontajSantierPage() {
       return;
     }
 
-const { data: workersData, error: workersError } = await supabase
-  .from("workers")
-  .select("id, full_name, is_active")
-  .eq("is_active", true)
-  .order("full_name", { ascending: true });
+    const { data: workersData, error: workersError } = await supabase
+      .from("workers")
+      .select("id, full_name, is_active")
+      .eq("is_active", true)
+      .order("full_name", { ascending: true });
 
-let parsedWorkers: Worker[] = [];
-if (!workersError && workersData) {
-  parsedWorkers = (workersData as Worker[]).filter(
-    (worker) => worker.is_active
-  );
-}
+    let parsedWorkers: Worker[] = [];
+    if (!workersError && workersData) {
+      parsedWorkers = (workersData as Worker[]).filter(
+        (worker) => worker.is_active
+      );
+    }
 
     const today = new Date().toISOString().split("T")[0];
 
@@ -100,23 +100,23 @@ if (!workersError && workersData) {
     setProject(projectData as Project);
     setWorkers(parsedWorkers);
 
-if (!activeError && activeData) {
-  const enrichedEntries = (activeData as ActiveTimeEntry[]).map((entry) => {
-    const workerFromRelation = entry.workers?.[0]?.full_name;
-    const workerFromList = parsedWorkers.find(
-      (worker) => worker.id === entry.worker_id
-    )?.full_name;
+    if (!activeError && activeData) {
+      const enrichedEntries = (activeData as ActiveTimeEntry[]).map((entry) => {
+        const workerFromRelation = entry.workers?.[0]?.full_name;
+        const workerFromList = parsedWorkers.find(
+          (worker) => worker.id === entry.worker_id
+        )?.full_name;
 
-    return {
-      ...entry,
-      worker_name: workerFromRelation || workerFromList || "-",
-    };
-  });
+        return {
+          ...entry,
+          worker_name: workerFromRelation || workerFromList || "-",
+        };
+      });
 
-  setActiveEntries(enrichedEntries);
-} else {
-  setActiveEntries([]);
-}
+      setActiveEntries(enrichedEntries);
+    } else {
+      setActiveEntries([]);
+    }
 
     setLoading(false);
   };
@@ -220,40 +220,36 @@ if (!activeError && activeData) {
     await loadData();
   };
 
-const handleStopAllTimeEntries = async () => {
-  if (activeEntries.length === 0) {
-    return;
-  }
+  const handleStopAllTimeEntries = async () => {
+    if (activeEntries.length === 0) return;
 
-  const confirmStop = window.confirm(
-    "Sigur vrei să oprești pontajul pentru toți muncitorii activi?"
-  );
+    const confirmStop = window.confirm(
+      "Sigur vrei să oprești pontajul pentru toți muncitorii activi?"
+    );
 
-  if (!confirmStop) {
-    return;
-  }
+    if (!confirmStop) return;
 
-  setSubmitting(true);
+    setSubmitting(true);
 
-  const activeIds = activeEntries.map((entry) => entry.id);
+    const activeIds = activeEntries.map((entry) => entry.id);
 
-  const { error } = await supabase
-    .from("time_entries")
-    .update({
-      end_time: new Date().toISOString(),
-      status: "oprit",
-    })
-    .in("id", activeIds);
+    const { error } = await supabase
+      .from("time_entries")
+      .update({
+        end_time: new Date().toISOString(),
+        status: "oprit",
+      })
+      .in("id", activeIds);
 
-  if (error) {
-    alert("A apărut o eroare la oprirea tuturor pontajelor.");
+    if (error) {
+      alert("A apărut o eroare la oprirea tuturor pontajelor.");
+      setSubmitting(false);
+      return;
+    }
+
     setSubmitting(false);
-    return;
-  }
-
-  setSubmitting(false);
-  await loadData();
-};
+    await loadData();
+  };
 
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
@@ -294,70 +290,13 @@ const handleStopAllTimeEntries = async () => {
             </p>
           </div>
 
- <div className="rounded-2xl bg-white p-5 shadow">
-  <div className="mb-4 flex items-center justify-between">
-    <h2 className="text-lg font-semibold">Pontaje active</h2>
-    <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-      {activeEntries.length} activi
-    </span>
-  </div>
-
-  {activeEntries.length === 0 ? (
-    <p className="text-sm text-gray-500">
-      Nu există muncitori pontați în acest moment.
-    </p>
-  ) : (
-    <div className="space-y-3">
-      {activeEntries.map((entry) => (
-        <div
-          key={entry.id}
-          className="rounded-xl border border-green-200 bg-green-50 p-4"
-        >
-          <div className="space-y-3">
-            <div>
-              <p className="text-base font-semibold text-gray-900">
-                {entry.worker_name || "-"}
-              </p>
-              <p className="mt-1 text-sm text-gray-600">
-                Intrare:{" "}
-                {new Date(entry.start_time).toLocaleTimeString("ro-RO", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  second: "2-digit",
-                })}
-              </p>
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Pontaje active</h2>
+              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                {activeEntries.length} activi
+              </span>
             </div>
-
-            <div className="rounded-lg bg-white px-4 py-3 shadow-sm">
-              <p className="text-xs font-medium text-gray-500">Cronometru</p>
-              <p className="mt-1 text-2xl font-bold text-green-700">
-                {formatDuration(entry.start_time)}
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleStopTimeEntry(entry.id)}
-              disabled={stoppingId === entry.id || submitting}
-              className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {stoppingId === entry.id ? "Se oprește..." : "Oprește pontajul"}
-            </button>
-          </div>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={handleStopAllTimeEntries}
-        disabled={submitting || activeEntries.length === 0}
-        className="w-full rounded-lg bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-      >
-        {submitting ? "Se procesează..." : "Oprește pontajul pentru toți"}
-      </button>
-    </div>
-  )}
-</div>
 
             {activeEntries.length === 0 ? (
               <p className="text-sm text-gray-500">
@@ -370,10 +309,10 @@ const handleStopAllTimeEntries = async () => {
                     key={entry.id}
                     className="rounded-xl border border-green-200 bg-green-50 p-4"
                   >
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="space-y-3">
                       <div>
                         <p className="text-base font-semibold text-gray-900">
-                          {entry.workers?.[0]?.full_name || "-"}
+                          {entry.worker_name || "-"}
                         </p>
                         <p className="mt-1 text-sm text-gray-600">
                           Intrare:{" "}
@@ -385,37 +324,44 @@ const handleStopAllTimeEntries = async () => {
                         </p>
                       </div>
 
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                        <div className="rounded-lg bg-white px-4 py-2 text-center shadow-sm">
-                          <p className="text-xs font-medium text-gray-500">
-                            Cronometru
-                          </p>
-                          <p className="text-lg font-bold text-green-700">
-                            {formatDuration(entry.start_time)}
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleStopTimeEntry(entry.id)}
-                          disabled={stoppingId === entry.id}
-                          className="rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                        >
-                          {stoppingId === entry.id
-                            ? "Se oprește..."
-                            : "Oprește pontajul"}
-                        </button>
+                      <div className="rounded-lg bg-white px-4 py-3 shadow-sm">
+                        <p className="text-xs font-medium text-gray-500">
+                          Cronometru
+                        </p>
+                        <p className="mt-1 text-2xl font-bold text-green-700">
+                          {formatDuration(entry.start_time)}
+                        </p>
                       </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleStopTimeEntry(entry.id)}
+                        disabled={stoppingId === entry.id || submitting}
+                        className="w-full rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                      >
+                        {stoppingId === entry.id
+                          ? "Se oprește..."
+                          : "Oprește pontajul"}
+                      </button>
                     </div>
                   </div>
                 ))}
+
+                <button
+                  type="button"
+                  onClick={handleStopAllTimeEntries}
+                  disabled={submitting || activeEntries.length === 0}
+                  className="w-full rounded-lg bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {submitting ? "Se procesează..." : "Oprește pontajul pentru toți"}
+                </button>
               </div>
             )}
           </div>
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Echipa disponibilă</h2>
+              <h2 className="text-lg font-semibold">Toți muncitorii activi</h2>
 
               <button
                 type="button"
@@ -430,7 +376,7 @@ const handleStopAllTimeEntries = async () => {
               <div className="space-y-3">
                 {availableWorkers.length === 0 ? (
                   <p className="text-sm text-gray-500">
-                    Nu există muncitori disponibili pentru pontare pe acest șantier.
+                    Nu există muncitori disponibili pentru pontare.
                   </p>
                 ) : (
                   availableWorkers.map((worker) => (
