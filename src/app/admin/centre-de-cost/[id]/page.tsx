@@ -273,7 +273,7 @@ export default function CentruDeCostDetaliuPage() {
                 </p>
               </div>
 
-              <span> className="inline-flex w-fit rounded-full bg-[#0196ff]/10 px-3 py-1 text-sm font-semibold text-[#0196ff]">
+              <span className="inline-flex w-fit rounded-full bg-[#0196ff]/10 px-3 py-1 text-sm font-semibold text-[#0196ff]">
                 {getProjectStatusLabel(project.status)}
               </span>
             </div>
