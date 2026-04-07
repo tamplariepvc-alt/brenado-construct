@@ -25,8 +25,6 @@ export default function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          
-          {/* CENTRE DE COST */}
           <button
             onClick={() => router.push("/admin/centre-de-cost")}
             className="rounded-2xl bg-white p-6 text-left shadow transition hover:shadow-md"
@@ -37,6 +35,15 @@ export default function AdminPage() {
             </p>
           </button>
 
+          <button
+            onClick={() => router.push("/admin/muncitori")}
+            className="rounded-2xl bg-white p-6 text-left shadow transition hover:shadow-md"
+          >
+            <h2 className="text-lg font-semibold">Muncitori</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Gestionează muncitorii și salariile lunare.
+            </p>
+          </button>
         </div>
       </div>
     </div>
