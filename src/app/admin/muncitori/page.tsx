@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -42,7 +41,7 @@ export default function MuncitoriPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
+      <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Muncitori</h1>
@@ -59,19 +58,18 @@ export default function MuncitoriPage() {
               Înapoi la panou admin
             </button>
 
-            <Link
-              href="/admin/muncitori/adauga"
-              className="rounded-lg bg-[#0196ff] px-4 py-2 text-center text-sm font-semibold text-white"
+            <button
+              onClick={() => router.push("/admin/muncitori/adauga")}
+              className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
             >
               + Adaugă muncitor
-            </Link>
+            </button>
           </div>
         </div>
 
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-          <div className="grid grid-cols-[1.3fr_1fr_.9fr_auto] border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+          <div className="grid grid-cols-[1fr_auto] border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
             <div>Nume</div>
-            <div>Status</div>
             <div className="text-right">Acțiune</div>
           </div>
 
@@ -83,11 +81,28 @@ export default function MuncitoriPage() {
             workers.map((worker) => (
               <div
                 key={worker.id}
-                className="grid-cols-[1fr_.7fr_auto] items-center gap-3 border-b px-4 py-3 text-sm last:border-b-0"
+                className="grid grid-cols-[1fr_auto] items-start gap-4 border-b px-4 py-4 last:border-b-0"
               >
-                <div className="font-medium break-words">{worker.full_name}</div>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-gray-900 break-words">
+                    {worker.full_name}
+                  </p>
 
-                <div>
+                  <p className="mt-1 text-sm text-gray-500 break-words">
+                    {worker.job_title || "-"}
+                  </p>
+
+                  <p className="mt-1 text-sm text-gray-500">
+                    Salariu:{" "}
+                    <span className="font-medium text-gray-700">
+                      {worker.monthly_salary != null
+                        ? `${Number(worker.monthly_salary).toFixed(2)} lei`
+                        : "-"}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 flex-col items-end gap-2">
                   <span
                     className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
                       worker.is_active
@@ -97,15 +112,16 @@ export default function MuncitoriPage() {
                   >
                     {worker.is_active ? "Activ" : "Inactiv"}
                   </span>
-                </div>
 
-                <div className="text-right">
-                  <Link
-                    href={`/admin/muncitori/${worker.id}/edit`}
-                    className="inline-flex whitespace-nowrap rounded-md border border-gray-300 bg-white px-2 py-1 text-[11px] font-medium text-gray-700 transition hover:bg-gray-50"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push(`/admin/muncitori/${worker.id}/edit`)
+                    }
+                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50"
                   >
                     Editează
-                  </Link>
+                  </button>
                 </div>
               </div>
             ))
