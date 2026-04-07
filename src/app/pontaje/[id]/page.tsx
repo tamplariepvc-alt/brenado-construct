@@ -77,6 +77,12 @@ export default function PontajSantierPage() {
   const [selectedHistoryDate, setSelectedHistoryDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [selectedHistoryMonth, setSelectedHistoryMonth] = useState(
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`
+  );
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -89,6 +95,7 @@ export default function PontajSantierPage() {
   const getPauseWindowForDate = (dateLike: string | Date) => {
     const d =
       typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
+
     const year = d.getFullYear();
     const month = d.getMonth();
     const day = d.getDate();
@@ -487,8 +494,6 @@ export default function PontajSantierPage() {
 
   const filteredHistoryGrouped = useMemo(() => {
     const today = new Date().toISOString().split("T")[0];
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
 
     if (historyFilter === "azi") {
       return historyGrouped.filter((item) => item.work_date === today);
@@ -501,16 +506,13 @@ export default function PontajSantierPage() {
     }
 
     if (historyFilter === "lunar") {
-      return historyGrouped.filter((item) => {
-        const d = new Date(item.work_date);
-        return (
-          d.getMonth() === currentMonth && d.getFullYear() === currentYear
-        );
-      });
+      return historyGrouped.filter((item) =>
+        item.work_date.startsWith(selectedHistoryMonth)
+      );
     }
 
     return historyGrouped;
-  }, [historyGrouped, historyFilter, selectedHistoryDate]);
+  }, [historyGrouped, historyFilter, selectedHistoryDate, selectedHistoryMonth]);
 
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
@@ -749,8 +751,8 @@ export default function PontajSantierPage() {
       </div>
 
       {showHistoryModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 md:items-center">
-          <div className="max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
+          <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Istoric pontaje</h2>
@@ -832,6 +834,20 @@ export default function PontajSantierPage() {
                   />
                 </div>
               )}
+
+              {historyFilter === "lunar" && (
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Selectează luna
+                  </label>
+                  <input
+                    type="month"
+                    value={selectedHistoryMonth}
+                    onChange={(e) => setSelectedHistoryMonth(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="max-h-[55vh] overflow-y-auto px-5 py-4">
@@ -899,7 +915,7 @@ export default function PontajSantierPage() {
                           </div>
                         </div>
 
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs font-medium text-red-600">
                           Pauza 12:00 - 13:00 este exclusă automat din calcul.
                         </p>
                       </div>
