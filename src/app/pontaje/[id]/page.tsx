@@ -38,7 +38,7 @@ export default function PontajSantierPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
-  const [showWorkersList, setShowWorkersList] = useState(true);
+  const [showWorkersList, setShowWorkersList] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveTimeEntry[]>([]);
@@ -397,15 +397,17 @@ export default function PontajSantierPage() {
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Toți muncitorii activi</h2>
+              <h2 className="text-sm font-semibold">Toți muncitorii activi</h2>
 
-              <button
-                type="button"
-                onClick={() => setShowWorkersList((prev) => !prev)}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-              >
-                {showWorkersList ? "Ascunde lista" : "Arată lista"}
-              </button>
+<button
+  type="button"
+  onClick={() => setShowWorkersList((prev) => !prev)}
+  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 ${
+    showWorkersList ? "bg-gray-600" : "bg-[#0196ff]"
+  }`}
+>
+  {showWorkersList ? "Ascunde lista" : "Arată lista"}
+</button>
             </div>
 
             <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
