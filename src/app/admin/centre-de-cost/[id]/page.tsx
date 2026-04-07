@@ -340,24 +340,33 @@ export default function CentruDeCostDetaliuPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {categoryCards.map((card) => (
-                <button
-                  key={card.key}
-                  type="button"
-                  onClick={() => handleCategoryClick(card.key)}
-                  className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
-                >
-                  <h3 className="text-lg font-semibold">{card.title}</h3>
-                  <p className={`mt-1 text-sm ${card.subColor}`}>
-                    {card.description}
-                  </p>
-                  <p className="mt-4 text-2xl font-bold">
-                    {card.value.toFixed(2)} lei
-                  </p>
-                  <p className={`mt-2 text-xs ${card.subColor}`}>
-                    {card.active ? "Funcție activă" : "În dezvoltare"}
-                  </p>
-                </button>
+{categoryCards.map((card) => (
+  <button
+    key={card.key}
+    type="button"
+    onClick={() => handleCategoryClick(card.key)}
+    className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
+  >
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex-1">
+        <h3 className="text-lg font-semibold">{card.title}</h3>
+        <p className={`mt-1 text-sm ${card.subColor}`}>
+          {card.description}
+        </p>
+        <p className="mt-4 text-2xl font-bold">
+          {card.value.toFixed(2)} lei
+        </p>
+        <p className={`mt-2 text-xs ${card.subColor}`}>
+          {card.active ? "Funcție activă" : "În dezvoltare"}
+        </p>
+      </div>
+
+      <div className="shrink-0 text-4xl font-light text-gray-400">
+        ›
+      </div>
+    </div>
+  </button>
+))}
               ))}
 
               <div className="rounded-2xl bg-[#0196ff] p-5 text-left text-white shadow">
