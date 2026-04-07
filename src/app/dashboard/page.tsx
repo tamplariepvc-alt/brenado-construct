@@ -164,7 +164,7 @@ const inCurs = projectsData.filter(
   className="rounded-2xl bg-white p-5 text-left shadow"
 >
   PONTAJE
-</button
+</button>
 
       <button
         onClick={() => router.push("/admin")}
