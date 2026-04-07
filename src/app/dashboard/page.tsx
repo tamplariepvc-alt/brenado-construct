@@ -188,11 +188,11 @@ const inCurs = projectsData.filter(
 </button>
 <button
   onClick={() => router.push("/pontaje")}
-  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-white shadow"
+  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
 >
   PONTAJE
 </button>
-      <button className="mb-4 rounded-2xl bg-black px-4 py-3 text-left shadow">
+      <button className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow">
         CERERE TRANSFER DE BANI
       </button>
     </div>
