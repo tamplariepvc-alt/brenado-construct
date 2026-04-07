@@ -132,23 +132,52 @@ export default function CentruDeCostDetaliuPage() {
     return status;
   };
 
+  const handleCategoryClick = (key: string) => {
+    if (key === "comenzi") {
+      router.push(`/admin/centre-de-cost/${projectId}/comenzi`);
+      return;
+    }
+
+    if (key === "bonuri") {
+      router.push(`/admin/centre-de-cost/${projectId}/bonuri`);
+      return;
+    }
+
+    if (key === "facturi") {
+      router.push(`/admin/centre-de-cost/${projectId}/facturi`);
+      return;
+    }
+
+    if (key === "transport") {
+      router.push(`/admin/centre-de-cost/${projectId}/transport`);
+      return;
+    }
+
+    if (key === "manopera") {
+      router.push(`/admin/centre-de-cost/${projectId}/manopera`);
+      return;
+    }
+
+    if (key === "nedeductibile") {
+      router.push(`/admin/centre-de-cost/${projectId}/nedeductibile`);
+    }
+  };
+
   const categoryCards = [
     {
       key: "comenzi",
       title: "Comenzi",
       value: categoryTotals.comenzi,
       description: "Comenzi aprobate din proiect",
-      onClick: () => {},
       active: true,
-      color: "bg-[#0196ff] text-white",
-      subColor: "text-white/80",
+      color: "bg-white text-gray-900",
+      subColor: "text-gray-500",
     },
     {
       key: "bonuri",
       title: "Bonuri",
       value: categoryTotals.bonuri,
       description: "Bonuri fiscale aferente proiectului",
-      onClick: () => {},
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
@@ -158,7 +187,6 @@ export default function CentruDeCostDetaliuPage() {
       title: "Facturi",
       value: categoryTotals.facturi,
       description: "Facturi aferente proiectului",
-      onClick: () => {},
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
@@ -168,7 +196,6 @@ export default function CentruDeCostDetaliuPage() {
       title: "Transport",
       value: categoryTotals.transport,
       description: "Cheltuieli de transport",
-      onClick: () => {},
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
@@ -178,7 +205,6 @@ export default function CentruDeCostDetaliuPage() {
       title: "Manoperă",
       value: categoryTotals.manopera,
       description: "Costuri cu manopera",
-      onClick: () => {},
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
@@ -188,7 +214,6 @@ export default function CentruDeCostDetaliuPage() {
       title: "Nedeductibile",
       value: categoryTotals.nedeductibile,
       description: "Cheltuieli nedeductibile",
-      onClick: () => {},
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
@@ -286,34 +311,6 @@ export default function CentruDeCostDetaliuPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm text-gray-500">Comenzi aprobate</p>
-              <p className="mt-2 text-2xl font-bold">{orders.length}</p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm text-gray-500">Subtotal comenzi</p>
-              <p className="mt-2 text-2xl font-bold">
-                {orderTotals.subtotal.toFixed(2)} lei
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm text-gray-500">TVA comenzi</p>
-              <p className="mt-2 text-2xl font-bold">
-                {orderTotals.vat.toFixed(2)} lei
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-[#0196ff] p-5 text-white shadow">
-              <p className="text-sm opacity-90">Total general proiect</p>
-              <p className="mt-2 text-2xl font-bold">
-                {projectGrandTotal.toFixed(2)} lei
-              </p>
-            </div>
-          </div>
-
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4">
               <h2 className="text-lg font-semibold">Categorii centru de cost</h2>
@@ -327,7 +324,7 @@ export default function CentruDeCostDetaliuPage() {
                 <button
                   key={card.key}
                   type="button"
-                  onClick={card.onClick}
+                  onClick={() => handleCategoryClick(card.key)}
                   className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
                 >
                   <h3 className="text-lg font-semibold">{card.title}</h3>
@@ -342,50 +339,19 @@ export default function CentruDeCostDetaliuPage() {
                   </p>
                 </button>
               ))}
-            </div>
-          </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Comenzi</h2>
-              <span className="rounded-full bg-[#0196ff]/10 px-3 py-1 text-xs font-semibold text-[#0196ff]">
-                Funcție activă
-              </span>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                <div>Nr. comandă</div>
-                <div>Data</div>
-                <div>Subtotal</div>
-                <div>Total</div>
+              <div className="rounded-2xl bg-[#0196ff] p-5 text-left text-white shadow">
+                <h3 className="text-lg font-semibold">Total general proiect</h3>
+                <p className="mt-1 text-sm text-white/80">
+                  Total cumulat din toate categoriile
+                </p>
+                <p className="mt-4 text-2xl font-bold">
+                  {projectGrandTotal.toFixed(2)} lei
+                </p>
+                <p className="mt-2 text-xs text-white/80">
+                  Sumar total centru de cost
+                </p>
               </div>
-
-              {orders.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-gray-500">
-                  Nu există comenzi aprobate pentru acest centru de cost.
-                </div>
-              ) : (
-                orders.map((order) => (
-                  <button
-                    key={order.id}
-                    type="button"
-                    onClick={() => router.push(`/comenzi/${order.id}`)}
-                    className="grid w-full grid-cols-4 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
-                  >
-                    <div className="font-semibold">
-                      {order.order_number || "-"}
-                    </div>
-                    <div>
-                      {new Date(order.order_date).toLocaleDateString("ro-RO")}
-                    </div>
-                    <div>{Number(order.subtotal).toFixed(2)} lei</div>
-                    <div className="font-semibold">
-                      {Number(order.total_with_vat).toFixed(2)} lei
-                    </div>
-                  </button>
-                ))
-              )}
             </div>
           </div>
         </div>
