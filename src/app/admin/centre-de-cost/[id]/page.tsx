@@ -29,24 +29,6 @@ type ApprovedOrder = {
   created_at: string;
 };
 
-type Worker = {
-  id: string;
-  full_name: string;
-  job_title: string | null;
-  is_active: boolean;
-};
-
-type ProjectWorker = {
-  id: string;
-  worker_id: string;
-  workers?: {
-    id: string;
-    full_name: string;
-    job_title: string | null;
-    is_active: boolean;
-  }[] | null;
-};
-
 export default function CentruDeCostDetaliuPage() {
   const router = useRouter();
   const params = useParams();
@@ -55,91 +37,57 @@ export default function CentruDeCostDetaliuPage() {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [orders, setOrders] = useState<ApprovedOrder[]>([]);
-  const [allWorkers, setAllWorkers] = useState<Worker[]>([]);
-  const [projectWorkers, setProjectWorkers] = useState<ProjectWorker[]>([]);
-  const [selectedWorkerId, setSelectedWorkerId] = useState("");
-  const [savingWorker, setSavingWorker] = useState(false);
-  const [removingWorkerId, setRemovingWorkerId] = useState<string | null>(null);
-
-  const loadData = async () => {
-    const { data: projectData, error: projectError } = await supabase
-      .from("projects")
-      .select(`
-        id,
-        name,
-        beneficiary,
-        project_location,
-        project_type,
-        project_group,
-        start_date,
-        execution_deadline,
-        status,
-        cost_center_code,
-        is_cost_center
-      `)
-      .eq("id", projectId)
-      .single();
-
-    if (projectError || !projectData) {
-      router.push("/admin/centre-de-cost");
-      return;
-    }
-
-    const { data: ordersData, error: ordersError } = await supabase
-      .from("orders")
-      .select(`
-        id,
-        order_number,
-        order_date,
-        status,
-        subtotal,
-        vat_total,
-        total_with_vat,
-        created_at
-      `)
-      .eq("project_id", projectId)
-      .eq("status", "aprobata")
-      .order("created_at", { ascending: false });
-
-    const { data: workersData, error: workersError } = await supabase
-      .from("workers")
-      .select("id, full_name, job_title, is_active")
-      .eq("is_active", true)
-      .order("full_name", { ascending: true });
-
-    const { data: projectWorkersData, error: projectWorkersError } = await supabase
-      .from("project_workers")
-      .select(`
-        id,
-        worker_id,
-        workers:worker_id (
-          id,
-          full_name,
-          job_title,
-          is_active
-        )
-      `)
-      .eq("project_id", projectId)
-      .order("created_at", { ascending: true });
-
-    setProject(projectData as ProjectDetails);
-
-    if (!ordersError && ordersData) {
-      setOrders(ordersData as ApprovedOrder[]);
-    }
-
-    if (!workersError && workersData) {
-      setAllWorkers(workersData as Worker[]);
-    }
-
-    if (!projectWorkersError && projectWorkersData) {
-      setProjectWorkers(projectWorkersData as ProjectWorker[]);
-    }
-
-    setLoading(false);
-  };
 
   useEffect(() => {
+    const loadData = async () => {
+      const { data: projectData, error: projectError } = await supabase
+        .from("projects")
+        .select(`
+          id,
+          name,
+          beneficiary,
+          project_location,
+          project_type,
+          project_group,
+          start_date,
+          execution_deadline,
+          status,
+          cost_center_code,
+          is_cost_center
+        `)
+        .eq("id", projectId)
+        .single();
+
+      if (projectError || !projectData) {
+        router.push("/admin/centre-de-cost");
+        return;
+      }
+
+      const { data: ordersData, error: ordersError } = await supabase
+        .from("orders")
+        .select(`
+          id,
+          order_number,
+          order_date,
+          status,
+          subtotal,
+          vat_total,
+          total_with_vat,
+          created_at
+        `)
+        .eq("project_id", projectId)
+        .eq("status", "aprobata")
+        .order("created_at", { ascending: false });
+
+      setProject(projectData as ProjectDetails);
+
+      if (!ordersError && ordersData) {
+        setOrders(ordersData as ApprovedOrder[]);
+      }
+
+      setLoading(false);
+    };
+
     loadData();
   }, [projectId, router]);
 
@@ -155,61 +103,11 @@ export default function CentruDeCostDetaliuPage() {
     );
   }, [orders]);
 
-  const assignedWorkerIds = useMemo(() => {
-    return projectWorkers.map((item) => item.worker_id);
-  }, [projectWorkers]);
-
-  const availableWorkers = useMemo(() => {
-    return allWorkers.filter((worker) => !assignedWorkerIds.includes(worker.id));
-  }, [allWorkers, assignedWorkerIds]);
-
   const getProjectStatusLabel = (status: string) => {
     if (status === "in_asteptare") return "În așteptare";
     if (status === "in_lucru") return "În lucru";
     if (status === "finalizat") return "Finalizat";
     return status;
-  };
-
-  const handleAddWorker = async () => {
-    if (!selectedWorkerId) {
-      alert("Selectează un muncitor.");
-      return;
-    }
-
-    setSavingWorker(true);
-
-    const { error } = await supabase.from("project_workers").insert({
-      project_id: projectId,
-      worker_id: selectedWorkerId,
-    });
-
-    if (error) {
-      alert("A apărut o eroare la alocarea muncitorului.");
-      setSavingWorker(false);
-      return;
-    }
-
-    setSelectedWorkerId("");
-    setSavingWorker(false);
-    await loadData();
-  };
-
-  const handleRemoveWorker = async (projectWorkerId: string) => {
-    setRemovingWorkerId(projectWorkerId);
-
-    const { error } = await supabase
-      .from("project_workers")
-      .delete()
-      .eq("id", projectWorkerId);
-
-    if (error) {
-      alert("A apărut o eroare la eliminarea muncitorului.");
-      setRemovingWorkerId(null);
-      return;
-    }
-
-    setRemovingWorkerId(null);
-    await loadData();
   };
 
   if (loading) {
@@ -227,7 +125,7 @@ export default function CentruDeCostDetaliuPage() {
           <div>
             <h1 className="text-2xl font-bold">Detaliu centru de cost</h1>
             <p className="text-sm text-gray-600">
-              Vezi informațiile proiectului, comenzile aprobate și muncitorii alocați.
+              Vezi informațiile proiectului și comenzile aprobate.
             </p>
           </div>
 
@@ -257,90 +155,49 @@ export default function CentruDeCostDetaliuPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="text-xs font-medium text-gray-500">Beneficiar</p>
-                <p className="mt-1 text-sm font-semibold">{project.beneficiary || "-"}</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.beneficiary || "-"}
+                </p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Locație</p>
-                <p className="mt-1 text-sm font-semibold">{project.project_location || "-"}</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.project_location || "-"}
+                </p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Tip proiect</p>
-                <p className="mt-1 text-sm font-semibold">{project.project_type || "-"}</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.project_type || "-"}
+                </p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Grupă</p>
-                <p className="mt-1 text-sm font-semibold">{project.project_group || "-"}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end">
-              <div className="flex-1">
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Adaugă muncitor la proiect
-                </label>
-                <select
-                  value={selectedWorkerId}
-                  onChange={(e) => setSelectedWorkerId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                >
-                  <option value="">Selectează muncitor</option>
-                  {availableWorkers.map((worker) => (
-                    <option key={worker.id} value={worker.id}>
-                      {worker.full_name}{worker.job_title ? ` - ${worker.job_title}` : ""}
-                    </option>
-                  ))}
-                </select>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.project_group || "-"}
+                </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddWorker}
-                disabled={savingWorker || !selectedWorkerId}
-                className="rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white disabled:opacity-60"
-              >
-                {savingWorker ? "Se adaugă..." : "Adaugă muncitor"}
-              </button>
-            </div>
-
-            <div className="overflow-hidden rounded-2xl border border-gray-200">
-              <div className="grid grid-cols-3 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-                <div>Nume</div>
-                <div>Funcție</div>
-                <div>Acțiune</div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Data început</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.start_date
+                    ? new Date(project.start_date).toLocaleDateString("ro-RO")
+                    : "-"}
+                </p>
               </div>
 
-              {projectWorkers.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-gray-500">
-                  Nu există muncitori alocați acestui proiect.
-                </div>
-              ) : (
-                projectWorkers.map((item) => (
-                  <div
-                    key={item.id}
-                    className="grid grid-cols-3 items-center border-b px-4 py-3 text-sm last:border-b-0"
-                  >
-                    <div className="font-medium">
-                      {item.workers?.[0]?.full_name || "-"}
-                    </div>
-                    <div>{item.workers?.[0]?.job_title || "-"}</div>
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveWorker(item.id)}
-                        disabled={removingWorkerId === item.id}
-                        className="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-600"
-                      >
-                        {removingWorkerId === item.id ? "Se elimină..." : "Elimină"}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+              <div>
+                <p className="text-xs font-medium text-gray-500">Termen execuție</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.execution_deadline
+                    ? new Date(project.execution_deadline).toLocaleDateString("ro-RO")
+                    : "-"}
+                </p>
+              </div>
             </div>
           </div>
 
@@ -352,17 +209,23 @@ export default function CentruDeCostDetaliuPage() {
 
             <div className="rounded-2xl bg-white p-5 shadow">
               <p className="text-sm text-gray-500">Subtotal</p>
-              <p className="mt-2 text-2xl font-bold">{totals.subtotal.toFixed(2)} lei</p>
+              <p className="mt-2 text-2xl font-bold">
+                {totals.subtotal.toFixed(2)} lei
+              </p>
             </div>
 
             <div className="rounded-2xl bg-white p-5 shadow">
               <p className="text-sm text-gray-500">TVA</p>
-              <p className="mt-2 text-2xl font-bold">{totals.vat.toFixed(2)} lei</p>
+              <p className="mt-2 text-2xl font-bold">
+                {totals.vat.toFixed(2)} lei
+              </p>
             </div>
 
             <div className="rounded-2xl bg-[#0196ff] p-5 text-white shadow">
               <p className="text-sm opacity-90">Total cu TVA</p>
-              <p className="mt-2 text-2xl font-bold">{totals.total.toFixed(2)} lei</p>
+              <p className="mt-2 text-2xl font-bold">
+                {totals.total.toFixed(2)} lei
+              </p>
             </div>
           </div>
 
@@ -386,10 +249,16 @@ export default function CentruDeCostDetaliuPage() {
                   onClick={() => router.push(`/comenzi/${order.id}`)}
                   className="grid w-full grid-cols-4 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
                 >
-                  <div className="font-semibold">{order.order_number || "-"}</div>
-                  <div>{new Date(order.order_date).toLocaleDateString("ro-RO")}</div>
+                  <div className="font-semibold">
+                    {order.order_number || "-"}
+                  </div>
+                  <div>
+                    {new Date(order.order_date).toLocaleDateString("ro-RO")}
+                  </div>
                   <div>{Number(order.subtotal).toFixed(2)} lei</div>
-                  <div className="font-semibold">{Number(order.total_with_vat).toFixed(2)} lei</div>
+                  <div className="font-semibold">
+                    {Number(order.total_with_vat).toFixed(2)} lei
+                  </div>
                 </button>
               ))
             )}
