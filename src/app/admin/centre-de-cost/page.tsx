@@ -46,12 +46,21 @@ export default function CentreDeCostPage() {
     loadCentres();
   }, []);
 
-  const getStatusLabel = (status: string) => {
-    if (status === "in_asteptare") return "În așteptare";
-    if (status === "in_lucru") return "În lucru";
-    if (status === "finalizat") return "Finalizat";
-    return status;
-  };
+const getStatusStyle = (status: string) => {
+  if (status === "in_asteptare") {
+    return "bg-blue-100 text-blue-800";
+  }
+
+  if (status === "in_lucru") {
+    return "bg-yellow-100 text-yellow-800";
+  }
+
+  if (status === "finalizat") {
+    return "bg-green-100 text-green-800";
+  }
+
+  return "bg-gray-100 text-gray-800";
+};
 
   if (loading) {
     return <div className="p-6">Se încarcă centrele de cost...</div>;
@@ -77,12 +86,11 @@ export default function CentreDeCostPage() {
         </div>
 
         <div className="overflow-hidden rounded-2xl bg-white shadow">
-          <div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
-            <div>Cod</div>
-            <div>Proiect</div>
-            <div>Beneficiar</div>
-            <div>Status</div>
-          </div>
+<div className="grid grid-cols-3 border-b bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+  <div>Cod proiect</div>
+  <div>Proiect</div>
+  <div>Status</div>
+</div>
 
 {centres.length === 0 ? (
   <div className="px-4 py-6 text-sm text-gray-500">
@@ -90,19 +98,18 @@ export default function CentreDeCostPage() {
   </div>
 ) : (
   centres.map((centre) => (
-    <button
-      key={centre.id}
-      type="button"
-      onClick={() => router.push(`/admin/centre-de-cost/${centre.id}`)}
-      className="grid w-full grid-cols-4 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
-    >
-      <div className="font-semibold">
-        {centre.cost_center_code || "-"}
-      </div>
-      <div>{centre.name}</div>
-      <div>{centre.beneficiary || "-"}</div>
-      <div>{getStatusLabel(centre.status)}</div>
-    </button>
+<button
+  key={centre.id}
+  type="button"
+  onClick={() => router.push(`/admin/centre-de-cost/${centre.id}`)}
+  className="grid w-full grid-cols-3 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
+>
+  <div className="font-semibold">
+    {centre.cost_center_code || "-"}
+  </div>
+  <div>{centre.name}</div>
+  <div>{getStatusLabel(centre.status)}</div>
+</button>
   ))
 )}
         </div>
