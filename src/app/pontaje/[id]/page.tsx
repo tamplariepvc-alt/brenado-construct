@@ -53,6 +53,11 @@ type DailyHistoryGroup = {
   total_ms: number;
 };
 
+type TodayWorkedWorker = {
+  id: string;
+  full_name: string;
+};
+
 export default function PontajSantierPage() {
   const router = useRouter();
   const params = useParams();
@@ -67,9 +72,11 @@ export default function PontajSantierPage() {
   const [stoppingId, setStoppingId] = useState<string | null>(null);
   const [activeEntries, setActiveEntries] = useState<ActiveTimeEntry[]>([]);
   const [historyEntries, setHistoryEntries] = useState<HistoryTimeEntry[]>([]);
+  const [todayWorkedWorkers, setTodayWorkedWorkers] = useState<TodayWorkedWorker[]>([]);
   const [now, setNow] = useState(Date.now());
   const [sameTeamAsYesterday, setSameTeamAsYesterday] = useState(false);
   const [yesterdayWorkerIds, setYesterdayWorkerIds] = useState<string[]>([]);
+
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<
     "azi" | "lunar" | "data" | "proiect"
@@ -83,6 +90,14 @@ export default function PontajSantierPage() {
       "0"
     )}`
   );
+
+  const [showExtraModal, setShowExtraModal] = useState(false);
+  const [extraHours, setExtraHours] = useState("");
+  const [applyExtraToAll, setApplyExtraToAll] = useState(true);
+  const [selectedExtraWorkers, setSelectedExtraWorkers] = useState<string[]>([]);
+  const [extraSaturday, setExtraSaturday] = useState(false);
+  const [extraSunday, setExtraSunday] = useState(false);
+  const [savingExtra, setSavingExtra] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -258,6 +273,18 @@ export default function PontajSantierPage() {
       .order("work_date", { ascending: false })
       .order("start_time", { ascending: false });
 
+    const { data: todayWorkedData, error: todayWorkedError } = await supabase
+      .from("time_entries")
+      .select(`
+        worker_id,
+        workers:worker_id (
+          id,
+          full_name
+        )
+      `)
+      .eq("project_id", projectId)
+      .eq("work_date", today);
+
     setProject(projectData as Project);
     setWorkers(parsedWorkers);
 
@@ -299,6 +326,34 @@ export default function PontajSantierPage() {
       setHistoryEntries([]);
     }
 
+    if (!todayWorkedError && todayWorkedData) {
+      const map = new Map<string, TodayWorkedWorker>();
+
+      (todayWorkedData as Array<{
+        worker_id: string;
+        workers?: { id: string; full_name: string }[] | null;
+      }>).forEach((item) => {
+        const workerFromRelation = item.workers?.[0];
+
+        if (workerFromRelation?.id) {
+          map.set(workerFromRelation.id, {
+            id: workerFromRelation.id,
+            full_name: workerFromRelation.full_name,
+          });
+        } else if (item.worker_id) {
+          const found = parsedWorkers.find((w) => w.id === item.worker_id);
+          map.set(item.worker_id, {
+            id: item.worker_id,
+            full_name: found?.full_name || "-",
+          });
+        }
+      });
+
+      setTodayWorkedWorkers(Array.from(map.values()));
+    } else {
+      setTodayWorkedWorkers([]);
+    }
+
     if (!yesterdayError && yesterdayData) {
       const uniqueYesterdayWorkerIds = Array.from(
         new Set(yesterdayData.map((item) => item.worker_id))
@@ -326,6 +381,14 @@ export default function PontajSantierPage() {
 
   const toggleWorker = (workerId: string) => {
     setSelectedWorkers((prev) =>
+      prev.includes(workerId)
+        ? prev.filter((id) => id !== workerId)
+        : [...prev, workerId]
+    );
+  };
+
+  const toggleExtraWorker = (workerId: string) => {
+    setSelectedExtraWorkers((prev) =>
       prev.includes(workerId)
         ? prev.filter((id) => id !== workerId)
         : [...prev, workerId]
@@ -514,6 +577,83 @@ export default function PontajSantierPage() {
     return historyGrouped;
   }, [historyGrouped, historyFilter, selectedHistoryDate, selectedHistoryMonth]);
 
+  const canOpenExtraModal =
+    activeEntries.length === 0 && todayWorkedWorkers.length > 0;
+
+  const handleOpenExtraModal = () => {
+    const ids = todayWorkedWorkers.map((worker) => worker.id);
+    const day = new Date().getDay();
+
+    setSelectedExtraWorkers(ids);
+    setApplyExtraToAll(true);
+    setExtraHours("");
+    setExtraSaturday(day === 6);
+    setExtraSunday(day === 0);
+    setShowExtraModal(true);
+  };
+
+  const handleSaveExtraWork = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const parsedExtraHours = Number(extraHours || 0);
+
+    if (!applyExtraToAll && selectedExtraWorkers.length === 0) {
+      alert("Selectează cel puțin un muncitor pentru ore extra.");
+      return;
+    }
+
+    if (parsedExtraHours < 0) {
+      alert("Orele extra nu pot fi negative.");
+      return;
+    }
+
+    if (
+      parsedExtraHours === 0 &&
+      !extraSaturday &&
+      !extraSunday
+    ) {
+      alert("Introdu ore extra sau bifează Sâmbătă / Duminică.");
+      return;
+    }
+
+    const workerIdsToSave = applyExtraToAll
+      ? todayWorkedWorkers.map((worker) => worker.id)
+      : selectedExtraWorkers;
+
+    if (workerIdsToSave.length === 0) {
+      alert("Nu există muncitori pentru salvare.");
+      return;
+    }
+
+    setSavingExtra(true);
+
+    const rows = workerIdsToSave.map((workerId) => ({
+      project_id: projectId,
+      worker_id: workerId,
+      work_date: today,
+      extra_hours: parsedExtraHours,
+      is_saturday: extraSaturday,
+      is_sunday: extraSunday,
+      extra_hours_paid: false,
+      weekend_paid: false,
+    }));
+
+    const { error } = await supabase
+      .from("extra_work")
+      .upsert(rows, {
+        onConflict: "project_id,worker_id,work_date",
+      });
+
+    if (error) {
+      alert("A apărut o eroare la salvarea orelor extra.");
+      setSavingExtra(false);
+      return;
+    }
+
+    setSavingExtra(false);
+    setShowExtraModal(false);
+    alert("Orele extra / weekend au fost salvate.");
+  };
+
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
   }
@@ -552,6 +692,18 @@ export default function PontajSantierPage() {
               Vezi istoric pontaje
             </button>
           </div>
+
+          {canOpenExtraModal && (
+            <div className="rounded-2xl bg-white p-5 shadow">
+              <button
+                type="button"
+                onClick={handleOpenExtraModal}
+                className="w-full rounded-lg bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Ore extra + Weekend
+              </button>
+            </div>
+          )}
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <h2 className="text-lg font-semibold">{project.name}</h2>
@@ -923,6 +1075,146 @@ export default function PontajSantierPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showExtraModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">Ore extra + Weekend</h2>
+                <p className="text-sm text-gray-500">
+                  Adaugă ore extra sau marchează muncă în weekend pentru muncitorii pontați azi.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowExtraModal(false)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+              >
+                Închide
+              </button>
+            </div>
+
+            <div className="max-h-[75vh] overflow-y-auto px-5 py-4">
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Ore extra
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={extraHours}
+                    onChange={(e) => setExtraHours(e.target.value)}
+                    placeholder="Ex: 2"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={applyExtraToAll}
+                      onChange={(e) => setApplyExtraToAll(e.target.checked)}
+                      className="h-5 w-5"
+                    />
+                    <span className="text-sm font-medium text-gray-800">
+                      Aplică pentru toți muncitorii pontați azi
+                    </span>
+                  </label>
+                </div>
+
+                {!applyExtraToAll && (
+                  <div>
+                    <p className="mb-3 text-sm font-medium text-gray-700">
+                      Selectează muncitorii
+                    </p>
+
+                    <div className="space-y-2">
+                      {todayWorkedWorkers.map((worker) => (
+                        <label
+                          key={worker.id}
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedExtraWorkers.includes(worker.id)}
+                            onChange={() => toggleExtraWorker(worker.id)}
+                            className="h-5 w-5"
+                          />
+                          <span className="text-sm font-medium text-gray-800">
+                            {worker.full_name}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <p className="mb-3 text-sm font-medium text-gray-700">
+                    Weekend
+                  </p>
+
+                  <div className="space-y-2">
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={extraSaturday}
+                        onChange={(e) => setExtraSaturday(e.target.checked)}
+                        className="h-5 w-5"
+                      />
+                      <span className="text-sm font-medium text-gray-800">
+                        Sâmbătă
+                      </span>
+                    </label>
+
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={extraSunday}
+                        onChange={(e) => setExtraSunday(e.target.checked)}
+                        className="h-5 w-5"
+                      />
+                      <span className="text-sm font-medium text-gray-800">
+                        Duminică
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
+                  <p className="text-sm font-medium text-purple-800">
+                    Muncitori pontați azi: {todayWorkedWorkers.length}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <button
+                    type="button"
+                    onClick={handleSaveExtraWork}
+                    disabled={savingExtra}
+                    className="w-full rounded-lg bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                  >
+                    {savingExtra ? "Se salvează..." : "Salvează"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowExtraModal(false)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                  >
+                    Renunță
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
