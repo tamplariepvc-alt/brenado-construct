@@ -251,7 +251,7 @@ export default function CentruDeCostManoperaPage() {
 
   const periodLabel = useMemo(() => {
     if (periodMode === "tot_proiectul") {
-      return "Tot proiectul";
+      return "De la inceputul proiectului";
     }
 
     return new Date(`${selectedMonth}-01`).toLocaleDateString("ro-RO", {
