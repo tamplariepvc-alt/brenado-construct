@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Project = {
   id: string;
@@ -76,6 +78,9 @@ type DailyDetailRow = {
 };
 
 type TabKey = "sumar" | "detaliu" | "muncitori";
+
+const formatMoney = (value: number) => `${value.toFixed(2)} lei`;
+const formatHours = (value: number) => `${value.toFixed(2)} h`;
 
 export default function CentruDeCostManoperaPage() {
   const router = useRouter();
@@ -493,9 +498,178 @@ export default function CentruDeCostManoperaPage() {
     return workerSummaryRows.slice(0, 5);
   }, [workerSummaryRows]);
 
-  const handleExportPdf = () => {
-    window.print();
+const handleExportPdf = () => {
+  if (!project) return;
+
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+  });
+
+  const monthLabel = new Date(`${selectedMonth}-01`).toLocaleDateString(
+    "ro-RO",
+    {
+      month: "long",
+      year: "numeric",
+    }
+  );
+
+  const titleMap: Record<TabKey, string> = {
+    sumar: "Raport manoperă - Sumar",
+    detaliu: "Raport manoperă - Detaliu pe zile",
+    muncitori: "Raport manoperă - Pe muncitori",
   };
+
+  doc.setFontSize(16);
+  doc.text(titleMap[activeTab], 14, 14);
+
+  doc.setFontSize(11);
+  doc.text(`Proiect: ${project.name}`, 14, 22);
+  doc.text(`Cod centru de cost: ${project.cost_center_code || "-"}`, 14, 28);
+  doc.text(`Beneficiar: ${project.beneficiary || "-"}`, 14, 34);
+  doc.text(`Locație: ${project.project_location || "-"}`, 14, 40);
+  doc.text(`Luna: ${monthLabel}`, 14, 46);
+
+  if (activeTab === "sumar") {
+    autoTable(doc, {
+      startY: 54,
+      head: [["Categorie", "Valoare"]],
+      body: [
+        ["Total manoperă", formatMoney(summaryCards.totalCost)],
+        ["Cost ore normale", formatMoney(summaryCards.normalCost)],
+        ["Cost ore extra", formatMoney(summaryCards.extraCost)],
+        ["Cost weekend", formatMoney(summaryCards.weekendCost)],
+        ["Ore normale", formatHours(summaryCards.normalHours)],
+        ["Ore extra", formatHours(summaryCards.extraHours)],
+        ["Zile weekend", String(summaryCards.weekendDays)],
+        ["Muncitori implicați", String(summaryCards.workersCount)],
+        ["Cost mediu / oră normală", formatMoney(summaryCards.averageHourlyCost)],
+        ["Zile lucrătoare lună", String(monthMeta.workingDays)],
+        ["Normă lunară", `${monthMeta.normHours} ore`],
+      ],
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [1, 150, 255],
+      },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 8;
+
+    const topRows = topWorkers.map((worker, index) => [
+      `#${index + 1}`,
+      worker.worker_name,
+      formatHours(worker.normal_hours),
+      formatHours(worker.extra_hours),
+      String(worker.weekend_days),
+      formatMoney(worker.total_cost),
+    ]);
+
+    autoTable(doc, {
+      startY: finalY,
+      head: [["Top", "Muncitor", "Ore normale", "Ore extra", "Weekend", "Cost total"]],
+      body: topRows,
+      styles: {
+        fontSize: 10,
+        cellPadding: 3,
+      },
+      headStyles: {
+        fillColor: [34, 197, 94],
+      },
+    });
+  }
+
+  if (activeTab === "detaliu") {
+    const detailRows = dailyDetailRows.map((row) => [
+      new Date(row.work_date).toLocaleDateString("ro-RO"),
+      row.worker_name,
+      formatMoney(row.hourly_rate),
+      formatHours(row.normal_hours),
+      formatMoney(row.normal_cost),
+      formatHours(row.extra_hours),
+      formatMoney(row.extra_cost),
+      String(row.weekend_days),
+      formatMoney(row.weekend_cost),
+      formatMoney(row.total_cost),
+    ]);
+
+    autoTable(doc, {
+      startY: 54,
+      head: [[
+        "Data",
+        "Muncitor",
+        "Cost/oră",
+        "Ore normale",
+        "Cost normale",
+        "Ore extra",
+        "Cost extra",
+        "Weekend",
+        "Cost weekend",
+        "Cost total",
+      ]],
+      body: detailRows,
+      styles: {
+        fontSize: 9,
+        cellPadding: 2.5,
+      },
+      headStyles: {
+        fillColor: [249, 115, 22],
+      },
+    });
+  }
+
+  if (activeTab === "muncitori") {
+    const workerRows = workerSummaryRows.map((row) => [
+      row.worker_name,
+      row.monthly_salary > 0 ? formatMoney(row.monthly_salary) : "Salariu lipsă",
+      String(row.working_days_in_month),
+      `${row.month_norm_hours} h`,
+      formatMoney(row.hourly_rate),
+      formatHours(row.normal_hours),
+      formatMoney(row.normal_cost),
+      formatHours(row.extra_hours),
+      formatMoney(row.extra_cost),
+      String(row.weekend_days),
+      formatMoney(row.weekend_cost),
+      formatMoney(row.total_cost),
+    ]);
+
+    autoTable(doc, {
+      startY: 54,
+      head: [[
+        "Muncitor",
+        "Salariu",
+        "Zile lucr.",
+        "Normă",
+        "Cost/oră",
+        "Ore normale",
+        "Cost normale",
+        "Ore extra",
+        "Cost extra",
+        "Weekend",
+        "Cost weekend",
+        "Cost total",
+      ]],
+      body: workerRows,
+      styles: {
+        fontSize: 9,
+        cellPadding: 2.5,
+      },
+      headStyles: {
+        fillColor: [1, 150, 255],
+      },
+    });
+  }
+
+  const fileName = `manopera-${project.name
+    .toLowerCase()
+    .replace(/\s+/g, "-")}-${activeTab}-${selectedMonth}.pdf`;
+
+  doc.save(fileName);
+};
 
   const getTabClasses = (tab: TabKey) => {
     return activeTab === tab
@@ -576,57 +750,60 @@ export default function CentruDeCostManoperaPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow print-card">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">{project.name}</h2>
-                <p className="text-sm text-gray-500">
-                  Cod centru de cost: {project.cost_center_code || "-"}
-                </p>
-              </div>
+<div className="rounded-2xl bg-white p-4 shadow print-card md:p-5">
+  <div className="mb-3">
+    <h2 className="text-xl font-bold text-gray-900 md:text-lg">
+      {project.name}
+    </h2>
+    <p className="text-sm text-gray-500">
+      Cod centru de cost: {project.cost_center_code || "-"}
+    </p>
+    <p className="mt-1 text-sm text-gray-600">
+      {project.beneficiary || "-"} • {project.project_location || "-"}
+    </p>
+  </div>
 
-              <div className="text-sm text-gray-600">
-                {project.beneficiary || "-"} • {project.project_location || "-"}
-              </div>
-            </div>
+  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+      <p className="text-[11px] font-medium text-gray-500 md:text-xs">
+        Luna selectată
+      </p>
+      <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
+        {new Date(`${selectedMonth}-01`).toLocaleDateString("ro-RO", {
+          month: "long",
+          year: "numeric",
+        })}
+      </p>
+    </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">Luna selectată</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {new Date(`${selectedMonth}-01`).toLocaleDateString("ro-RO", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </p>
-              </div>
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+      <p className="text-[11px] font-medium text-gray-500 md:text-xs">
+        Zile lucrătoare
+      </p>
+      <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
+        {monthMeta.workingDays}
+      </p>
+    </div>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">
-                  Zile lucrătoare lună
-                </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {monthMeta.workingDays}
-                </p>
-              </div>
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+      <p className="text-[11px] font-medium text-gray-500 md:text-xs">
+        Normă lunară
+      </p>
+      <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
+        {monthMeta.normHours} ore
+      </p>
+    </div>
 
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">Normă lunară</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {monthMeta.normHours} ore
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">
-                  Muncitori implicați
-                </p>
-                <p className="mt-1 text-sm font-semibold">
-                  {summaryCards.workersCount}
-                </p>
-              </div>
-            </div>
-          </div>
+    <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+      <p className="text-[11px] font-medium text-gray-500 md:text-xs">
+        Muncitori
+      </p>
+      <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
+        {summaryCards.workersCount}
+      </p>
+    </div>
+  </div>
+</div>
 
           <div className="rounded-2xl bg-white p-5 shadow print-card print-hidden">
             <div className="mb-4">
