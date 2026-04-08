@@ -577,7 +577,7 @@ export default function CentruDeCostManoperaPage() {
           row.weekend_days > 0 ||
           row.total_cost > 0
       )
-      .sort((a, b) => b.total_cost - a.total_Cost);
+      .sort((a, b) => b.total_cost - a.total_cost);
   }, [workers, dailyDetailRows, selectedWorkerId, displayMeta]);
 
   const summaryCards = useMemo(() => {
