@@ -645,26 +645,26 @@ export default function CentruDeCostManoperaPage() {
 
     if (activeTab === "sumar") {
       const summaryBody = [
-        ["Total manoperă", formatMoney(summaryCards.totalCost)],
+        ["Total manopera", formatMoney(summaryCards.totalCost)],
         ["Cost ore normale", formatMoney(summaryCards.normalCost)],
         ["Cost ore extra", formatMoney(summaryCards.extraCost)],
         ["Cost weekend", formatMoney(summaryCards.weekendCost)],
         ["Ore normale", formatHours(summaryCards.normalHours)],
         ["Ore extra", formatHours(summaryCards.extraHours)],
         ["Zile weekend", String(summaryCards.weekendDays)],
-        ["Muncitori implicați", String(summaryCards.workersCount)],
-        ["Cost mediu / oră normală", formatMoney(summaryCards.averageHourlyCost)],
+        ["Muncitori implicati", String(summaryCards.workersCount)],
+        ["Cost mediu / ora normala", formatMoney(summaryCards.averageHourlyCost)],
         [
           periodMode === "tot_proiectul"
-            ? "Zile lucrătoare proiect"
-            : "Zile lucrătoare lună",
+            ? "Zile lucratoare proiect"
+            : "Zile lucratoare luna"
           String(displayMeta.workingDays),
         ],
         [
-          periodMode === "tot_proiectul" ? "Normă proiect" : "Normă lunară",
+          periodMode === "tot_proiectul" ? "Norma proiect" : "Norma lunara",
           `${displayMeta.normHours} ore`,
         ],
-        ["Sărbători legale", String(displayMeta.legalHolidays.length)],
+        ["Sarbatori legale", String(displayMeta.legalHolidays.length)],
       ];
 
       autoTable(doc, {
@@ -902,7 +902,7 @@ export default function CentruDeCostManoperaPage() {
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Sărbători legale
+                  Sarbatori legale
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
                   {displayMeta.legalHolidays.length}
@@ -1036,7 +1036,7 @@ export default function CentruDeCostManoperaPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-2xl bg-white p-5 shadow">
                   <p className="text-sm font-medium text-gray-500">
-                    Total manoperă
+                    Total manopera
                   </p>
                   <p className="mt-3 text-2xl font-bold text-gray-900">
                     {summaryCards.totalCost.toFixed(2)} lei
@@ -1101,7 +1101,7 @@ export default function CentruDeCostManoperaPage() {
 
                     <div className="flex items-center justify-between rounded-lg bg-[#0196ff] px-4 py-3 text-white">
                       <span className="text-sm font-semibold">
-                        Total manoperă
+                        Total manopera
                       </span>
                       <span className="text-sm font-bold">
                         {summaryCards.totalCost.toFixed(2)} lei
@@ -1116,7 +1116,7 @@ export default function CentruDeCostManoperaPage() {
                   <div className="mt-4 space-y-3">
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Muncitori implicați
+                        Muncitori implicati
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
                         {summaryCards.workersCount}
@@ -1125,7 +1125,7 @@ export default function CentruDeCostManoperaPage() {
 
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Cost mediu / oră normală
+                        Cost mediu / ora normala
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
                         {summaryCards.averageHourlyCost.toFixed(2)} lei
@@ -1154,7 +1154,7 @@ export default function CentruDeCostManoperaPage() {
 
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Sărbători legale
+                        Sarbatori legale
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
                         {displayMeta.legalHolidays.length}
@@ -1169,8 +1169,8 @@ export default function CentruDeCostManoperaPage() {
                   <div className="mb-4">
                     <h2 className="text-lg font-semibold">
                       {periodMode === "tot_proiectul"
-                        ? "Sărbători legale prinse în proiect"
-                        : "Sărbători legale din luna selectată"}
+                        ? "Sarbatori legale prinse în proiect"
+                        : "Sarbatori legale din luna selectată"}
                     </h2>
                     <p className="mt-1 text-sm text-gray-500">
                       Aceste zile nu sunt considerate zile lucrătoare la calcul.
