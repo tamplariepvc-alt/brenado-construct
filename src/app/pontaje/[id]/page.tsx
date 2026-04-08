@@ -15,6 +15,8 @@ type Worker = {
   id: string;
   full_name: string;
   is_active: boolean;
+  extra_hour_rate?: number | null;
+  weekend_day_rate?: number | null;
 };
 
 type ActiveTimeEntry = {
@@ -56,6 +58,8 @@ type DailyHistoryGroup = {
 type TodayWorkedWorker = {
   id: string;
   full_name: string;
+  extra_hour_rate: number;
+  weekend_day_rate: number;
 };
 
 export default function PontajSantierPage() {
@@ -213,7 +217,7 @@ export default function PontajSantierPage() {
 
     const { data: workersData, error: workersError } = await supabase
       .from("workers")
-      .select("id, full_name, is_active")
+      .select("id, full_name, is_active, extra_hour_rate, weekend_day_rate")
       .eq("is_active", true)
       .order("full_name", { ascending: true });
 
@@ -333,20 +337,18 @@ export default function PontajSantierPage() {
         worker_id: string;
         workers?: { id: string; full_name: string }[] | null;
       }>).forEach((item) => {
-        const workerFromRelation = item.workers?.[0];
+        if (!item.worker_id) return;
 
-        if (workerFromRelation?.id) {
-          map.set(workerFromRelation.id, {
-            id: workerFromRelation.id,
-            full_name: workerFromRelation.full_name,
-          });
-        } else if (item.worker_id) {
-          const found = parsedWorkers.find((w) => w.id === item.worker_id);
-          map.set(item.worker_id, {
-            id: item.worker_id,
-            full_name: found?.full_name || "-",
-          });
-        }
+        const workerFromRelation = item.workers?.[0];
+        const localWorker = parsedWorkers.find((w) => w.id === item.worker_id);
+
+        map.set(item.worker_id, {
+          id: item.worker_id,
+          full_name:
+            workerFromRelation?.full_name || localWorker?.full_name || "-",
+          extra_hour_rate: Number(localWorker?.extra_hour_rate || 0),
+          weekend_day_rate: Number(localWorker?.weekend_day_rate || 0),
+        });
       });
 
       setTodayWorkedWorkers(Array.from(map.values()));
@@ -592,6 +594,40 @@ export default function PontajSantierPage() {
     setShowExtraModal(true);
   };
 
+  const selectedExtraWorkersDetails = useMemo(() => {
+    const ids = applyExtraToAll
+      ? todayWorkedWorkers.map((worker) => worker.id)
+      : selectedExtraWorkers;
+
+    return todayWorkedWorkers.filter((worker) => ids.includes(worker.id));
+  }, [applyExtraToAll, selectedExtraWorkers, todayWorkedWorkers]);
+
+  const extraPreview = useMemo(() => {
+    const parsedExtraHours = Number(extraHours || 0);
+    const weekendDaysCount =
+      (extraSaturday ? 1 : 0) + (extraSunday ? 1 : 0);
+
+    const totalExtraValue = selectedExtraWorkersDetails.reduce((sum, worker) => {
+      return sum + parsedExtraHours * Number(worker.extra_hour_rate || 0);
+    }, 0);
+
+    const totalWeekendValue = selectedExtraWorkersDetails.reduce((sum, worker) => {
+      return sum + weekendDaysCount * Number(worker.weekend_day_rate || 0);
+    }, 0);
+
+    return {
+      weekendDaysCount,
+      totalExtraValue,
+      totalWeekendValue,
+      grandTotal: totalExtraValue + totalWeekendValue,
+    };
+  }, [
+    extraHours,
+    extraSaturday,
+    extraSunday,
+    selectedExtraWorkersDetails,
+  ]);
+
   const handleSaveExtraWork = async () => {
     const today = new Date().toISOString().split("T")[0];
     const parsedExtraHours = Number(extraHours || 0);
@@ -606,36 +642,50 @@ export default function PontajSantierPage() {
       return;
     }
 
-    if (
-      parsedExtraHours === 0 &&
-      !extraSaturday &&
-      !extraSunday
-    ) {
+    if (parsedExtraHours === 0 && !extraSaturday && !extraSunday) {
       alert("Introdu ore extra sau bifează Sâmbătă / Duminică.");
       return;
     }
 
-    const workerIdsToSave = applyExtraToAll
-      ? todayWorkedWorkers.map((worker) => worker.id)
-      : selectedExtraWorkers;
+    const workersToSave = applyExtraToAll
+      ? todayWorkedWorkers
+      : todayWorkedWorkers.filter((worker) =>
+          selectedExtraWorkers.includes(worker.id)
+        );
 
-    if (workerIdsToSave.length === 0) {
+    if (workersToSave.length === 0) {
       alert("Nu există muncitori pentru salvare.");
       return;
     }
 
+    const weekendDaysCount =
+      (extraSaturday ? 1 : 0) + (extraSunday ? 1 : 0);
+
     setSavingExtra(true);
 
-    const rows = workerIdsToSave.map((workerId) => ({
-      project_id: projectId,
-      worker_id: workerId,
-      work_date: today,
-      extra_hours: parsedExtraHours,
-      is_saturday: extraSaturday,
-      is_sunday: extraSunday,
-      extra_hours_paid: false,
-      weekend_paid: false,
-    }));
+    const rows = workersToSave.map((worker) => {
+      const extraHourRate = Number(worker.extra_hour_rate || 0);
+      const weekendDayRate = Number(worker.weekend_day_rate || 0);
+
+      const extraHoursValue = parsedExtraHours * extraHourRate;
+      const weekendValue = weekendDaysCount * weekendDayRate;
+      const totalValue = extraHoursValue + weekendValue;
+
+      return {
+        project_id: projectId,
+        worker_id: worker.id,
+        work_date: today,
+        extra_hours: parsedExtraHours,
+        is_saturday: extraSaturday,
+        is_sunday: extraSunday,
+        extra_hours_paid: false,
+        weekend_paid: false,
+        extra_hours_value: extraHoursValue,
+        weekend_days_count: weekendDaysCount,
+        weekend_value: weekendValue,
+        total_value: totalValue,
+      };
+    });
 
     const { error } = await supabase
       .from("extra_work")
@@ -1087,7 +1137,7 @@ export default function PontajSantierPage() {
               <div>
                 <h2 className="text-lg font-semibold">Ore extra + Weekend</h2>
                 <p className="text-sm text-gray-500">
-                  Adaugă ore extra sau marchează muncă în weekend pentru muncitorii pontați azi.
+                  Adaugă ore extra sau marchează weekend pentru muncitorii pontați azi.
                 </p>
               </div>
 
@@ -1192,7 +1242,16 @@ export default function PontajSantierPage() {
 
                 <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
                   <p className="text-sm font-medium text-purple-800">
-                    Muncitori pontați azi: {todayWorkedWorkers.length}
+                    Muncitori selectați: {selectedExtraWorkersDetails.length}
+                  </p>
+                  <p className="mt-1 text-sm text-purple-800">
+                    Valoare ore extra: {extraPreview.totalExtraValue.toFixed(2)} lei
+                  </p>
+                  <p className="mt-1 text-sm text-purple-800">
+                    Valoare weekend: {extraPreview.totalWeekendValue.toFixed(2)} lei
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-purple-900">
+                    Total: {extraPreview.grandTotal.toFixed(2)} lei
                   </p>
                 </div>
 
