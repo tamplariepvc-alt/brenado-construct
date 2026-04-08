@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { getRomanianLegalHolidays } from "@/lib/romanian-working-days";
 
 type ProjectDetails = {
   id: string;
@@ -58,6 +59,17 @@ type ExtraWork = {
   is_sunday?: boolean | null;
 };
 
+type HolidayInfo = {
+  date: string;
+  name: string;
+};
+
+type DisplayMeta = {
+  workingDays: number;
+  normHours: number;
+  legalHolidays: HolidayInfo[];
+};
+
 type ManoperaSummary = {
   normalHours: number;
   normalCost: number;
@@ -67,6 +79,69 @@ type ManoperaSummary = {
   weekendCost: number;
   totalCost: number;
   workersCount: number;
+  workingDays: number;
+  normHours: number;
+  legalHolidaysCount: number;
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const toDateKey = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+const getDateRangeInclusive = (start: Date, end: Date) => {
+  const dates: Date[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+  while (cursor.getTime() <= last.getTime()) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const getWorkingDaysAndHolidaysInRangeRomania = (
+  start: Date,
+  end: Date
+): DisplayMeta => {
+  const dates = getDateRangeInclusive(start, end);
+  const years = Array.from(new Set(dates.map((date) => date.getFullYear())));
+  const holidaysMap = new Map<string, string>();
+
+  years.forEach((year) => {
+    getRomanianLegalHolidays(year).forEach((holiday) => {
+      holidaysMap.set(holiday.date, holiday.name);
+    });
+  });
+
+  let workingDays = 0;
+  const legalHolidays: HolidayInfo[] = [];
+
+  dates.forEach((date) => {
+    const key = toDateKey(date);
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const holidayName = holidaysMap.get(key);
+
+    if (holidayName) {
+      legalHolidays.push({
+        date: key,
+        name: holidayName,
+      });
+    }
+
+    if (!isWeekend && !holidayName) {
+      workingDays += 1;
+    }
+  });
+
+  return {
+    workingDays,
+    normHours: workingDays * 8,
+    legalHolidays,
+  };
 };
 
 export default function CentruDeCostDetaliuPage() {
@@ -80,8 +155,6 @@ export default function CentruDeCostDetaliuPage() {
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [extraWorkRows, setExtraWorkRows] = useState<ExtraWork[]>([]);
-
-  const now = Date.now();
 
   const getPauseWindowForDate = (dateLike: string | Date) => {
     const d =
@@ -113,7 +186,7 @@ export default function CentruDeCostDetaliuPage() {
     endTime?: string | null
   ) => {
     const startMs = new Date(startTime).getTime();
-    const endMs = endTime ? new Date(endTime).getTime() : now;
+    const endMs = endTime ? new Date(endTime).getTime() : startMs;
 
     if (endMs <= startMs) return 0;
 
@@ -148,21 +221,6 @@ export default function CentruDeCostDetaliuPage() {
     }
 
     return Math.max(0, total);
-  };
-
-  const getWeekdaysInMonth = (year: number, monthIndex: number) => {
-    const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-    let weekdays = 0;
-
-    for (let day = 1; day <= lastDay; day += 1) {
-      const date = new Date(year, monthIndex, day);
-      const weekDay = date.getDay();
-      if (weekDay !== 0 && weekDay !== 6) {
-        weekdays += 1;
-      }
-    }
-
-    return weekdays;
   };
 
   useEffect(() => {
@@ -208,21 +266,6 @@ export default function CentruDeCostDetaliuPage() {
         .eq("status", "aprobata")
         .order("created_at", { ascending: false });
 
-      const currentDate = new Date();
-      const monthStart = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        1
-      );
-      const monthEnd = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth() + 1,
-        0
-      );
-
-      const monthStartString = monthStart.toISOString().split("T")[0];
-      const monthEndString = monthEnd.toISOString().split("T")[0];
-
       const { data: workersData } = await supabase
         .from("workers")
         .select("id, full_name, monthly_salary, is_active")
@@ -240,8 +283,7 @@ export default function CentruDeCostDetaliuPage() {
           status
         `)
         .eq("project_id", projectId)
-        .gte("work_date", monthStartString)
-        .lte("work_date", monthEndString)
+        .not("end_time", "is", null)
         .order("work_date", { ascending: false })
         .order("start_time", { ascending: false });
 
@@ -260,8 +302,6 @@ export default function CentruDeCostDetaliuPage() {
           is_sunday
         `)
         .eq("project_id", projectId)
-        .gte("work_date", monthStartString)
-        .lte("work_date", monthEndString)
         .order("work_date", { ascending: false });
 
       setProject(projectData as ProjectDetails);
@@ -287,14 +327,31 @@ export default function CentruDeCostDetaliuPage() {
     );
   }, [orders]);
 
+  const projectMeta = useMemo<DisplayMeta>(() => {
+    const allProjectDates = [
+      ...timeEntries.map((entry) => entry.work_date),
+      ...extraWorkRows.map((row) => row.work_date),
+    ]
+      .filter(Boolean)
+      .sort();
+
+    if (allProjectDates.length === 0) {
+      return {
+        workingDays: 0,
+        normHours: 0,
+        legalHolidays: [],
+      };
+    }
+
+    const startDate = new Date(`${allProjectDates[0]}T00:00:00`);
+    const endDate = new Date(
+      `${allProjectDates[allProjectDates.length - 1]}T00:00:00`
+    );
+
+    return getWorkingDaysAndHolidaysInRangeRomania(startDate, endDate);
+  }, [timeEntries, extraWorkRows]);
+
   const manoperaSummary = useMemo<ManoperaSummary>(() => {
-    const currentDate = new Date();
-    const year = currentDate.getFullYear();
-    const monthIndex = currentDate.getMonth();
-
-    const weekdaysInMonth = getWeekdaysInMonth(year, monthIndex);
-    const monthNormHours = weekdaysInMonth * 8;
-
     const workerSalaryMap = new Map<
       string,
       { monthlySalary: number; hourlyRate: number }
@@ -303,7 +360,7 @@ export default function CentruDeCostDetaliuPage() {
     workers.forEach((worker) => {
       const monthlySalary = Number(worker.monthly_salary || 0);
       const hourlyRate =
-        monthNormHours > 0 ? monthlySalary / monthNormHours : 0;
+        projectMeta.normHours > 0 ? monthlySalary / projectMeta.normHours : 0;
 
       workerSalaryMap.set(worker.id, {
         monthlySalary,
@@ -316,6 +373,8 @@ export default function CentruDeCostDetaliuPage() {
     const involvedWorkers = new Set<string>();
 
     timeEntries.forEach((entry) => {
+      if (!entry.end_time) return;
+
       const workedMs = getWorkedMsWithoutPause(entry.start_time, entry.end_time);
       const workedHours = workedMs / (1000 * 60 * 60);
 
@@ -364,8 +423,11 @@ export default function CentruDeCostDetaliuPage() {
       weekendCost,
       totalCost: normalCost + extraCost + weekendCost,
       workersCount: involvedWorkers.size,
+      workingDays: projectMeta.workingDays,
+      normHours: projectMeta.normHours,
+      legalHolidaysCount: projectMeta.legalHolidays.length,
     };
-  }, [workers, timeEntries, extraWorkRows, now]);
+  }, [workers, timeEntries, extraWorkRows, projectMeta]);
 
   const categoryTotals = useMemo(() => {
     return {

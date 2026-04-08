@@ -953,7 +953,7 @@ export default function CentruDeCostManoperaPage() {
                     onChange={(e) => setPeriodMode(e.target.value as PeriodMode)}
                     className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
                   >
-                    <option value="tot_proiectul">Tot proiectul</option>
+                    <option value="tot_proiectul">De la inceputul proiectului</option>
                     <option value="luna">Pe lună</option>
                   </select>
                 </div>
