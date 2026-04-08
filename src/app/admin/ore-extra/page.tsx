@@ -20,14 +20,6 @@ type ExtraWorkRow = {
   total_value: number;
   notes?: string | null;
   created_at: string;
-  workers?: {
-    id: string;
-    full_name: string;
-  }[] | null;
-  projects?: {
-    id: string;
-    name: string;
-  }[] | null;
 };
 
 type WorkerOption = {
@@ -48,9 +40,14 @@ export default function OreExtraPage() {
   const [workers, setWorkers] = useState<WorkerOption[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
 
-  const [filterType, setFilterType] = useState<"azi" | "saptamana" | "luna" | "toate">("azi");
+  const [filterType, setFilterType] = useState<
+    "azi" | "saptamana" | "luna" | "toate"
+  >("azi");
   const [selectedMonth, setSelectedMonth] = useState(
-    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`
+    `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`
   );
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -80,15 +77,7 @@ export default function OreExtraPage() {
         weekend_value,
         total_value,
         notes,
-        created_at,
-        workers:worker_id (
-          id,
-          full_name
-        ),
-        projects:project_id (
-          id,
-          name
-        )
+        created_at
       `)
       .order("work_date", { ascending: false })
       .order("created_at", { ascending: false });
@@ -117,6 +106,14 @@ export default function OreExtraPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  const workerMap = useMemo(() => {
+    return new Map(workers.map((worker) => [worker.id, worker.full_name]));
+  }, [workers]);
+
+  const projectMap = useMemo(() => {
+    return new Map(projects.map((project) => [project.id, project.name]));
+  }, [projects]);
 
   const filteredRows = useMemo(() => {
     const today = new Date();
@@ -193,11 +190,12 @@ export default function OreExtraPage() {
     );
   }, [filteredRows]);
 
-  const getWorkerName = (row: ExtraWorkRow) => row.workers?.[0]?.full_name || "-";
-  const getProjectName = (row: ExtraWorkRow) => row.projects?.[0]?.name || "-";
+  const getWorkerName = (row: ExtraWorkRow) => workerMap.get(row.worker_id) || "-";
+  const getProjectName = (row: ExtraWorkRow) => projectMap.get(row.project_id) || "-";
 
   const handleMarkExtraPaid = async (rowId: string) => {
     setProcessingId(rowId);
+
     const { error } = await supabase
       .from("extra_work")
       .update({ extra_hours_paid: true })
@@ -215,6 +213,7 @@ export default function OreExtraPage() {
 
   const handleMarkWeekendPaid = async (rowId: string) => {
     setProcessingId(rowId);
+
     const { error } = await supabase
       .from("extra_work")
       .update({ weekend_paid: true })
@@ -232,6 +231,7 @@ export default function OreExtraPage() {
 
   const handleMarkAllPaid = async (rowId: string) => {
     setProcessingId(rowId);
+
     const { error } = await supabase
       .from("extra_work")
       .update({
@@ -301,9 +301,10 @@ export default function OreExtraPage() {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     const now = new Date();
-    const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
-      now.getDate()
-    ).padStart(2, "0")}`;
+    const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-${String(now.getDate()).padStart(2, "0")}`;
     link.href = url;
     link.setAttribute("download", `raport_ore_extra_weekend_${stamp}.csv`);
     document.body.appendChild(link);
@@ -352,7 +353,9 @@ export default function OreExtraPage() {
               <select
                 value={filterType}
                 onChange={(e) =>
-                  setFilterType(e.target.value as "azi" | "saptamana" | "luna" | "toate")
+                  setFilterType(
+                    e.target.value as "azi" | "saptamana" | "luna" | "toate"
+                  )
                 }
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
               >
@@ -496,7 +499,10 @@ export default function OreExtraPage() {
                     </h3>
 
                     <p className="text-sm text-gray-500">
-                      Proiect: <span className="font-medium text-gray-700">{getProjectName(row)}</span>
+                      Proiect:{" "}
+                      <span className="font-medium text-gray-700">
+                        {getProjectName(row)}
+                      </span>
                     </p>
 
                     <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
@@ -511,7 +517,9 @@ export default function OreExtraPage() {
                       </div>
 
                       <div>
-                        <span className="font-medium text-gray-500">Valoare ore extra:</span>{" "}
+                        <span className="font-medium text-gray-500">
+                          Valoare ore extra:
+                        </span>{" "}
                         {Number(row.extra_hours_value || 0).toFixed(2)} lei
                       </div>
 
@@ -531,7 +539,9 @@ export default function OreExtraPage() {
                       </div>
 
                       <div>
-                        <span className="font-medium text-gray-500">Valoare weekend:</span>{" "}
+                        <span className="font-medium text-gray-500">
+                          Valoare weekend:
+                        </span>{" "}
                         {Number(row.weekend_value || 0).toFixed(2)} lei
                       </div>
 
