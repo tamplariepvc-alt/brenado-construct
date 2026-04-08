@@ -72,6 +72,7 @@ export default function PontajSantierPage() {
   const params = useParams();
   const projectId = params.id as string;
 
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -231,6 +232,22 @@ export default function PontajSantierPage() {
       router.push("/pontaje");
       return;
     }
+	
+	const {
+  data: { user },
+} = await supabase.auth.getUser();
+
+let currentUserRole: string | null = null;
+
+if (user) {
+  const { data: profileData } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  currentUserRole = profileData?.role || null;
+}
 
     const { data: workersData, error: workersError } = await supabase
       .from("workers")
@@ -384,6 +401,8 @@ export default function PontajSantierPage() {
     } else {
       setYesterdayWorkerIds([]);
     }
+	
+	setUserRole(currentUserRole);
 
     setLoading(false);
   };
@@ -613,15 +632,17 @@ export default function PontajSantierPage() {
     return historyGrouped;
   }, [historyGrouped, historyFilter, selectedHistoryDate, selectedHistoryMonth]);
 
-  const isAfterFivePM = new Date(now).getHours() >= 17;
-  const isMonday = new Date(now).getDay() === 1;
+const isAdmin = userRole === "administrator" || userRole === "admin";
+const isAfterFivePM = new Date(now).getHours() >= 17;
+const isMonday = new Date(now).getDay() === 1;
 
-  const canOpenExtraModal =
-    isAfterFivePM &&
-    activeEntries.length === 0 &&
-    todayWorkedWorkers.length > 0;
+const canOpenExtraModal = isAdmin
+  ? todayWorkedWorkers.length > 0
+  : isAfterFivePM && activeEntries.length === 0 && todayWorkedWorkers.length > 0;
 
-  const canOpenWeekendModal = isMonday && workers.length > 0;
+const canOpenWeekendModal = isAdmin
+  ? workers.length > 0
+  : isMonday && workers.length > 0;
 
   const getLastWeekendDates = () => {
     const current = new Date(now);
