@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type ExtraWorkRow = {
   id: string;
@@ -267,6 +269,117 @@ export default function OreExtraWeekendPage() {
     await loadData();
   };
 
+  const exportPdf = () => {
+    if (filteredRows.length === 0) {
+      alert("Nu există date pentru export.");
+      return;
+    }
+
+    const doc = new jsPDF("p", "mm", "a4");
+    const now = new Date();
+
+    const title =
+      category === "extra" ? "Raport Ore Extra" : "Raport Zile Weekend";
+
+    const periodLabel =
+      periodFilter === "doua_saptamani"
+        ? "Ultimele 2 saptamani"
+        : periodFilter === "zi"
+        ? `Zi selectata: ${selectedDay || "-"}`
+        : periodFilter === "interval"
+        ? `Interval: ${startDate || "-"} - ${endDate || "-"}`
+        : "Toate";
+
+    doc.setFontSize(15);
+    doc.text(title, 14, 15);
+
+    doc.setFontSize(9);
+    doc.text(
+      `Export: ${now.toLocaleDateString("ro-RO")} ${now.toLocaleTimeString(
+        "ro-RO"
+      )}`,
+      14,
+      21
+    );
+    doc.text(`Perioada: ${periodLabel}`, 14, 26);
+    doc.text(`Nume: ${workerSearch || "-"}`, 14, 31);
+    doc.text(`Santier: ${projectSearch || "-"}`, 14, 36);
+
+    if (category === "extra") {
+      doc.text(
+        `Total valoare ore extra: ${totals.extraValue.toFixed(2)} lei`,
+        14,
+        41
+      );
+
+      autoTable(doc, {
+        startY: 46,
+        head: [["Nume", "Santier", "Data", "Ore", "Valoare", "Status"]],
+        body: filteredRows.map((row) => [
+          getWorkerName(row),
+          getProjectName(row),
+          new Date(row.work_date).toLocaleDateString("ro-RO"),
+          Number(row.extra_hours || 0).toFixed(2),
+          `${Number(row.extra_hours_value || 0).toFixed(2)} lei`,
+          row.extra_hours_paid ? "Achitat" : "Neachitat",
+        ]),
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.2,
+        },
+        headStyles: {
+          fillColor: [147, 51, 234],
+        },
+        theme: "grid",
+      });
+    } else {
+      doc.text(
+        `Total valoare weekend: ${totals.weekendValue.toFixed(2)} lei`,
+        14,
+        41
+      );
+
+      autoTable(doc, {
+        startY: 46,
+        head: [[
+          "Nume",
+          "Santier",
+          "Data",
+          "Sambata",
+          "Duminica",
+          "Zile",
+          "Valoare",
+          "Status",
+        ]],
+        body: filteredRows.map((row) => [
+          getWorkerName(row),
+          getProjectName(row),
+          new Date(row.work_date).toLocaleDateString("ro-RO"),
+          row.is_saturday ? "Da" : "Nu",
+          row.is_sunday ? "Da" : "Nu",
+          Number(row.weekend_days_count || 0).toFixed(2),
+          `${Number(row.weekend_value || 0).toFixed(2)} lei`,
+          row.weekend_paid ? "Achitat" : "Neachitat",
+        ]),
+        styles: {
+          fontSize: 8,
+          cellPadding: 2.2,
+        },
+        headStyles: {
+          fillColor: [234, 88, 12],
+        },
+        theme: "grid",
+      });
+    }
+
+    const fileName =
+      category === "extra"
+        ? "raport_ore_extra.pdf"
+        : "raport_zile_weekend.pdf";
+
+    doc.save(fileName);
+  };
+
   const activeTotal =
     category === "extra" ? totals.extraValue : totals.weekendValue;
 
@@ -277,14 +390,14 @@ export default function OreExtraWeekendPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Ore Extra & Weekend</h1>
           </div>
 
           <button
             onClick={() => router.push("/admin")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700"
           >
             Înapoi
           </button>
@@ -294,7 +407,7 @@ export default function OreExtraWeekendPage() {
           <button
             type="button"
             onClick={() => setCategory("extra")}
-            className={`rounded-xl px-6 py-3 text-lg font-semibold transition ${
+            className={`rounded-xl px-5 py-2.5 text-base font-semibold transition ${
               category === "extra"
                 ? "bg-gradient-to-b from-fuchsia-500 to-purple-600 text-white"
                 : "bg-gray-200 text-gray-800"
@@ -306,7 +419,7 @@ export default function OreExtraWeekendPage() {
           <button
             type="button"
             onClick={() => setCategory("weekend")}
-            className={`rounded-xl px-6 py-3 text-lg font-semibold transition ${
+            className={`rounded-xl px-5 py-2.5 text-base font-semibold transition ${
               category === "weekend"
                 ? "bg-gradient-to-b from-orange-500 to-orange-600 text-white"
                 : "bg-gray-200 text-gray-800"
@@ -316,7 +429,7 @@ export default function OreExtraWeekendPage() {
           </button>
         </div>
 
-        <div className="mb-5 rounded-2xl bg-white p-4 shadow">
+        <div className="mb-4 rounded-2xl bg-white p-4 shadow">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -327,7 +440,7 @@ export default function OreExtraWeekendPage() {
                 onChange={(e) =>
                   setPeriodFilter(e.target.value as PeriodFilterType)
                 }
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
               >
                 <option value="doua_saptamani">Ultimele 2 săptămâni</option>
                 <option value="zi">Caută după zi</option>
@@ -345,7 +458,7 @@ export default function OreExtraWeekendPage() {
                 value={workerSearch}
                 onChange={(e) => setWorkerSearch(e.target.value)}
                 placeholder="Ex: IONEL"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
               />
             </div>
 
@@ -358,7 +471,7 @@ export default function OreExtraWeekendPage() {
                 value={projectSearch}
                 onChange={(e) => setProjectSearch(e.target.value)}
                 placeholder="Ex: AMENAJARI DABULENI"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
               />
             </div>
 
@@ -371,7 +484,7 @@ export default function OreExtraWeekendPage() {
                   type="date"
                   value={selectedDay}
                   onChange={(e) => setSelectedDay(e.target.value)}
-                  className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
                 />
               </div>
             )}
@@ -386,7 +499,7 @@ export default function OreExtraWeekendPage() {
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
                   />
                 </div>
 
@@ -398,54 +511,64 @@ export default function OreExtraWeekendPage() {
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
                   />
                 </div>
               </>
             )}
           </div>
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={exportPdf}
+              className="rounded-xl bg-[#0196ff] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
 
-        <div className="mb-5 rounded-3xl bg-[#4d95eb] p-6 text-white shadow">
-          <p className="text-lg opacity-90">
+        <div className="mb-4 rounded-3xl bg-[#4d95eb] p-5 text-white shadow">
+          <p className="text-base opacity-90">
             {category === "extra" ? "Total ore extra" : "Total zile weekend"}
           </p>
-          <p className="mt-2 text-3xl font-bold">
+          <p className="mt-2 text-2xl font-bold">
             {activeTotal.toFixed(2)} lei
           </p>
         </div>
 
         <div className="space-y-4">
           {filteredRows.length === 0 ? (
-            <div className="rounded-3xl bg-white p-6 text-gray-500 shadow">
+            <div className="rounded-3xl bg-white p-5 text-sm text-gray-500 shadow">
               Nu există înregistrări pentru filtrele selectate.
             </div>
           ) : (
             filteredRows.map((row) => (
-              <div key={row.id} className="rounded-3xl bg-white p-6 shadow">
-                <h3 className="text-2xl font-bold text-gray-900">
+              <div key={row.id} className="rounded-3xl bg-white p-5 shadow">
+                <h3 className="text-xl font-bold text-gray-900">
                   {getWorkerName(row)}
                 </h3>
 
-                <p className="mt-3 text-xl text-gray-500">
+                <p className="mt-3 text-lg text-gray-500">
                   Proiect: {getProjectName(row)}
                 </p>
 
-                <p className="text-xl text-gray-900">
+                <p className="text-lg text-gray-900">
                   Data: {new Date(row.work_date).toLocaleDateString("ro-RO")}
                 </p>
 
                 {category === "extra" && (
                   <>
-                    <p className="mt-2 text-2xl text-gray-900">
+                    <p className="mt-2 text-xl text-gray-900">
                       Ore: {Number(row.extra_hours || 0).toFixed(0)}
                     </p>
-                    <p className="text-2xl text-gray-900">
+                    <p className="text-xl text-gray-900">
                       Valoare: {Number(row.extra_hours_value || 0).toFixed(0)} lei
                     </p>
 
                     <div className="mt-3">
-                      <span className="rounded-xl bg-yellow-100 px-4 py-2 text-xl text-gray-900">
+                      <span className="rounded-xl bg-yellow-100 px-3 py-1.5 text-base text-gray-900">
                         {row.extra_hours_paid ? "Achitat" : "Neachitat"}
                       </span>
                     </div>
@@ -455,7 +578,7 @@ export default function OreExtraWeekendPage() {
                         type="button"
                         onClick={() => handleMarkExtraPaid(row)}
                         disabled={processingId === row.id}
-                        className="mt-4 w-full rounded-xl bg-gradient-to-b from-fuchsia-500 to-purple-600 px-4 py-4 text-2xl font-semibold text-white disabled:opacity-60"
+                        className="mt-4 w-full rounded-xl bg-gradient-to-b from-fuchsia-500 to-purple-600 px-4 py-3 text-xl font-semibold text-white disabled:opacity-60"
                       >
                         Achită ore
                       </button>
@@ -465,21 +588,21 @@ export default function OreExtraWeekendPage() {
 
                 {category === "weekend" && (
                   <>
-                    <p className="mt-2 text-2xl text-gray-900">
+                    <p className="mt-2 text-xl text-gray-900">
                       Sâmbătă: {row.is_saturday ? "Da" : "Nu"}
                     </p>
-                    <p className="text-2xl text-gray-900">
+                    <p className="text-xl text-gray-900">
                       Duminică: {row.is_sunday ? "Da" : "Nu"}
                     </p>
-                    <p className="text-2xl text-gray-900">
+                    <p className="text-xl text-gray-900">
                       Zile: {Number(row.weekend_days_count || 0).toFixed(0)}
                     </p>
-                    <p className="text-2xl text-gray-900">
+                    <p className="text-xl text-gray-900">
                       Valoare: {Number(row.weekend_value || 0).toFixed(0)} lei
                     </p>
 
                     <div className="mt-3">
-                      <span className="rounded-xl bg-yellow-100 px-4 py-2 text-xl text-gray-900">
+                      <span className="rounded-xl bg-yellow-100 px-3 py-1.5 text-base text-gray-900">
                         {row.weekend_paid ? "Achitat" : "Neachitat"}
                       </span>
                     </div>
@@ -489,7 +612,7 @@ export default function OreExtraWeekendPage() {
                         type="button"
                         onClick={() => handleMarkWeekendPaid(row)}
                         disabled={processingId === row.id}
-                        className="mt-4 w-full rounded-xl bg-orange-600 px-4 py-4 text-2xl font-semibold text-white disabled:opacity-60"
+                        className="mt-4 w-full rounded-xl bg-orange-600 px-4 py-3 text-xl font-semibold text-white disabled:opacity-60"
                       >
                         Achită zile weekend
                       </button>
