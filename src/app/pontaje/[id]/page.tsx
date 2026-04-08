@@ -628,81 +628,83 @@ export default function PontajSantierPage() {
     selectedExtraWorkersDetails,
   ]);
 
-  const handleSaveExtraWork = async () => {
-    const today = new Date().toISOString().split("T")[0];
-    const parsedExtraHours = Number(extraHours || 0);
+const handleSaveExtraWork = async () => {
+  const today = new Date().toISOString().split("T")[0];
+  const parsedExtraHours = Number(extraHours || 0);
 
-    if (!applyExtraToAll && selectedExtraWorkers.length === 0) {
-      alert("Selectează cel puțin un muncitor pentru ore extra.");
-      return;
-    }
+  if (!applyExtraToAll && selectedExtraWorkers.length === 0) {
+    alert("Selectează cel puțin un muncitor pentru ore extra.");
+    return;
+  }
 
-    if (parsedExtraHours < 0) {
-      alert("Orele extra nu pot fi negative.");
-      return;
-    }
+  if (parsedExtraHours < 0) {
+    alert("Orele extra nu pot fi negative.");
+    return;
+  }
 
-    if (parsedExtraHours === 0 && !extraSaturday && !extraSunday) {
-      alert("Introdu ore extra sau bifează Sâmbătă / Duminică.");
-      return;
-    }
+  if (parsedExtraHours === 0 && !extraSaturday && !extraSunday) {
+    alert("Introdu ore extra sau bifează Sâmbătă / Duminică.");
+    return;
+  }
 
-    const workersToSave = applyExtraToAll
-      ? todayWorkedWorkers
-      : todayWorkedWorkers.filter((worker) =>
-          selectedExtraWorkers.includes(worker.id)
-        );
+  const workersToSave = applyExtraToAll
+    ? todayWorkedWorkers
+    : todayWorkedWorkers.filter((worker) =>
+        selectedExtraWorkers.includes(worker.id)
+      );
 
-    if (workersToSave.length === 0) {
-      alert("Nu există muncitori pentru salvare.");
-      return;
-    }
+  if (workersToSave.length === 0) {
+    alert("Nu există muncitori pentru salvare.");
+    return;
+  }
 
-    const weekendDaysCount =
-      (extraSaturday ? 1 : 0) + (extraSunday ? 1 : 0);
+  const weekendDaysCount =
+    (extraSaturday ? 1 : 0) + (extraSunday ? 1 : 0);
 
-    setSavingExtra(true);
+  setSavingExtra(true);
 
-    const rows = workersToSave.map((worker) => {
-      const extraHourRate = Number(worker.extra_hour_rate || 0);
-      const weekendDayRate = Number(worker.weekend_day_rate || 0);
+  const rows = workersToSave.map((worker) => {
+    const extraHourRate = Number(worker.extra_hour_rate || 0);
+    const weekendDayRate = Number(worker.weekend_day_rate || 0);
 
-      const extraHoursValue = parsedExtraHours * extraHourRate;
-      const weekendValue = weekendDaysCount * weekendDayRate;
-      const totalValue = extraHoursValue + weekendValue;
+    const extraHoursValue = parsedExtraHours * extraHourRate;
+    const weekendValue = weekendDaysCount * weekendDayRate;
+    const totalValue = extraHoursValue + weekendValue;
 
-      return {
-        project_id: projectId,
-        worker_id: worker.id,
-        work_date: today,
-        extra_hours: parsedExtraHours,
-        is_saturday: extraSaturday,
-        is_sunday: extraSunday,
-        extra_hours_paid: false,
-        weekend_paid: false,
-        extra_hours_value: extraHoursValue,
-        weekend_days_count: weekendDaysCount,
-        weekend_value: weekendValue,
-        total_value: totalValue,
-      };
+    return {
+      project_id: projectId,
+      worker_id: worker.id,
+      work_date: today,
+      extra_hours: parsedExtraHours,
+      is_saturday: extraSaturday,
+      is_sunday: extraSunday,
+      extra_hours_paid: false,
+      weekend_paid: false,
+      extra_hours_value: extraHoursValue,
+      weekend_days_count: weekendDaysCount,
+      weekend_value: weekendValue,
+      total_value: totalValue,
+    };
+  });
+
+  const { error } = await supabase
+    .from("extra_work")
+    .upsert(rows, {
+      onConflict: "project_id,worker_id,work_date",
+      ignoreDuplicates: false,
     });
 
-    const { error } = await supabase
-      .from("extra_work")
-      .upsert(rows, {
-        onConflict: "project_id,worker_id,work_date",
-      });
-
-    if (error) {
-      alert("A apărut o eroare la salvarea orelor extra.");
-      setSavingExtra(false);
-      return;
-    }
-
+  if (error) {
+    console.error("Eroare extra_work:", error);
+    alert(`Eroare salvare ore extra: ${error.message}`);
     setSavingExtra(false);
-    setShowExtraModal(false);
-    alert("Orele extra / weekend au fost salvate.");
-  };
+    return;
+  }
+
+  setSavingExtra(false);
+  setShowExtraModal(false);
+  alert("Orele extra / weekend au fost salvate.");
+};
 
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
