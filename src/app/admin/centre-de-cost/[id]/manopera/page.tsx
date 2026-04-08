@@ -628,9 +628,9 @@ export default function CentruDeCostManoperaPage() {
     });
 
     const titleMap: Record<TabKey, string> = {
-      sumar: "Raport manoperă - Sumar",
-      detaliu: "Raport manoperă - Detaliu pe zile",
-      muncitori: "Raport manoperă - Pe muncitori",
+      sumar: "Raport manopera - Sumar",
+      detaliu: "Raport manopera - Detaliu pe zile",
+      muncitori: "Raport manopera - Pe muncitori",
     };
 
     doc.setFontSize(16);
@@ -640,8 +640,8 @@ export default function CentruDeCostManoperaPage() {
     doc.text(`Proiect: ${project.name}`, 14, 22);
     doc.text(`Cod centru de cost: ${project.cost_center_code || "-"}`, 14, 28);
     doc.text(`Beneficiar: ${project.beneficiary || "-"}`, 14, 34);
-    doc.text(`Locație: ${project.project_location || "-"}`, 14, 40);
-    doc.text(`Perioadă: ${periodLabel}`, 14, 46);
+    doc.text(`Locatie: ${project.project_location || "-"}`, 14, 40);
+    doc.text(`Perioada: ${periodLabel}`, 14, 46);
 
     if (activeTab === "sumar") {
       const summaryBody = [
@@ -1345,8 +1345,8 @@ export default function CentruDeCostManoperaPage() {
                         <th className="border-b px-4 py-3">Muncitor</th>
                         <th className="border-b px-4 py-3">Salariu</th>
                         <th className="border-b px-4 py-3">Zile lucr.</th>
-                        <th className="border-b px-4 py-3">Normă</th>
-                        <th className="border-b px-4 py-3">Cost/oră</th>
+                        <th className="border-b px-4 py-3">Norma</th>
+                        <th className="border-b px-4 py-3">Cost/ora</th>
                         <th className="border-b px-4 py-3">Ore normale</th>
                         <th className="border-b px-4 py-3">Ore extra</th>
                         <th className="border-b px-4 py-3">Weekend</th>
