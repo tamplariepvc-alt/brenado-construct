@@ -35,6 +35,7 @@ type ProjectOption = {
 
 type CategoryType = "extra" | "weekend";
 type PeriodFilterType = "doua_saptamani" | "zi" | "interval" | "toate";
+type PaymentFilterType = "toate" | "achitate" | "neachitate";
 
 export default function OreExtraWeekendPage() {
   const router = useRouter();
@@ -46,6 +47,8 @@ export default function OreExtraWeekendPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [category, setCategory] = useState<CategoryType>("extra");
+  const [paymentFilter, setPaymentFilter] =
+    useState<PaymentFilterType>("toate");
 
   const [periodFilter, setPeriodFilter] =
     useState<PeriodFilterType>("doua_saptamani");
@@ -157,6 +160,8 @@ export default function OreExtraWeekendPage() {
       const rowDate = new Date(`${row.work_date}T00:00:00`);
       const workerName = getWorkerName(row).toLowerCase();
       const projectName = getProjectName(row).toLowerCase();
+      const isPaid =
+        category === "extra" ? row.extra_hours_paid : row.weekend_paid;
 
       const isExtra =
         Number(row.extra_hours || 0) > 0 ||
@@ -170,6 +175,9 @@ export default function OreExtraWeekendPage() {
 
       if (category === "extra" && !isExtra) return false;
       if (category === "weekend" && !isWeekend) return false;
+
+      if (paymentFilter === "achitate" && !isPaid) return false;
+      if (paymentFilter === "neachitate" && isPaid) return false;
 
       if (periodFilter === "doua_saptamani") {
         if (rowDate < start || rowDate > end) return false;
@@ -212,6 +220,7 @@ export default function OreExtraWeekendPage() {
   }, [
     rows,
     category,
+    paymentFilter,
     periodFilter,
     selectedDay,
     startDate,
@@ -307,6 +316,13 @@ export default function OreExtraWeekendPage() {
         ? "Toate santierele"
         : projectMap.get(selectedProjectId) || "-";
 
+    const paymentLabel =
+      paymentFilter === "toate"
+        ? "Toate"
+        : paymentFilter === "achitate"
+        ? "Achitate"
+        : "Neachitate";
+
     doc.setFontSize(15);
     doc.text(title, 14, 15);
 
@@ -318,20 +334,21 @@ export default function OreExtraWeekendPage() {
       14,
       21
     );
-    doc.text(`Perioada: ${periodLabel}`, 14, 26);
-    doc.text(`Santier selectat: ${selectedProjectLabel}`, 14, 31);
-    doc.text(`Nume: ${workerSearch || "-"}`, 14, 36);
-    doc.text(`Cautare santier: ${projectSearch || "-"}`, 14, 41);
+    doc.text(`Status plata: ${paymentLabel}`, 14, 26);
+    doc.text(`Perioada: ${periodLabel}`, 14, 31);
+    doc.text(`Santier selectat: ${selectedProjectLabel}`, 14, 36);
+    doc.text(`Nume: ${workerSearch || "-"}`, 14, 41);
+    doc.text(`Cautare santier: ${projectSearch || "-"}`, 14, 46);
 
     if (category === "extra") {
       doc.text(
         `Total valoare ore extra: ${totals.extraValue.toFixed(2)} lei`,
         14,
-        46
+        51
       );
 
       autoTable(doc, {
-        startY: 51,
+        startY: 56,
         head: [["Nume", "Santier", "Data", "Ore", "Valoare", "Status"]],
         body: filteredRows.map((row) => [
           getWorkerName(row),
@@ -354,11 +371,11 @@ export default function OreExtraWeekendPage() {
       doc.text(
         `Total valoare weekend: ${totals.weekendValue.toFixed(2)} lei`,
         14,
-        46
+        51
       );
 
       autoTable(doc, {
-        startY: 51,
+        startY: 56,
         head: [[
           "Nume",
           "Santier",
@@ -449,6 +466,23 @@ export default function OreExtraWeekendPage() {
 
         <div className="mb-4 rounded-2xl bg-white p-4 shadow">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                Status plată
+              </label>
+              <select
+                value={paymentFilter}
+                onChange={(e) =>
+                  setPaymentFilter(e.target.value as PaymentFilterType)
+                }
+                className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-black"
+              >
+                <option value="toate">Toate</option>
+                <option value="achitate">Achitate</option>
+                <option value="neachitate">Neachitate</option>
+              </select>
+            </div>
+
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">
                 Filtru perioadă
