@@ -44,7 +44,7 @@ export default function OreExtraPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [filterType, setFilterType] = useState<
-    "azi" | "saptamana" | "luna" | "toate"
+    "azi" | "saptamana" | "doua_saptamani" | "luna" | "toate"
   >("azi");
   const [selectedMonth, setSelectedMonth] = useState(
     `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(
@@ -126,18 +126,37 @@ export default function OreExtraPage() {
   const getWorkerName = (row: ExtraWorkRow) => workerMap.get(row.worker_id) || "-";
   const getProjectName = (row: ExtraWorkRow) => projectMap.get(row.project_id) || "-";
 
+  const getWeekStartMonday = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  };
+
+  const getWeekEndSunday = (date: Date) => {
+    const monday = getWeekStartMonday(date);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return sunday;
+  };
+
   const filteredRows = useMemo(() => {
     const today = new Date();
     const todayString = today.toISOString().split("T")[0];
 
-    const startOfWeek = new Date(today);
-    const day = startOfWeek.getDay();
-    const diff = day === 0 ? 6 : day - 1;
-    startOfWeek.setDate(startOfWeek.getDate() - diff);
-    startOfWeek.setHours(0, 0, 0, 0);
+    const currentWeekMonday = getWeekStartMonday(today);
+    const currentWeekSunday = getWeekEndSunday(today);
+
+    const previousWeekMonday = new Date(currentWeekMonday);
+    previousWeekMonday.setDate(currentWeekMonday.getDate() - 7);
+    previousWeekMonday.setHours(0, 0, 0, 0);
 
     return rows.filter((row) => {
-      const rowDate = new Date(row.work_date);
+      const rowDate = new Date(`${row.work_date}T00:00:00`);
+
       const hasExtra =
         Number(row.extra_hours || 0) > 0 ||
         Number(row.extra_hours_value || 0) > 0;
@@ -153,9 +172,15 @@ export default function OreExtraPage() {
       }
 
       if (filterType === "saptamana") {
-        const temp = new Date(rowDate);
-        temp.setHours(0, 0, 0, 0);
-        if (temp < startOfWeek) return false;
+        if (rowDate < currentWeekMonday || rowDate > currentWeekSunday) {
+          return false;
+        }
+      }
+
+      if (filterType === "doua_saptamani") {
+        if (rowDate < previousWeekMonday || rowDate > currentWeekSunday) {
+          return false;
+        }
       }
 
       if (filterType === "luna" && !row.work_date.startsWith(selectedMonth)) {
@@ -242,9 +267,6 @@ export default function OreExtraPage() {
       .from("extra_work")
       .update({
         extra_hours_paid: true,
-        total_value:
-          Number(row.extra_hours_value || 0) +
-          Number(row.weekend_value || 0),
       })
       .eq("id", row.id);
 
@@ -265,14 +287,11 @@ export default function OreExtraPage() {
       .from("extra_work")
       .update({
         weekend_paid: true,
-        total_value:
-          Number(row.extra_hours_value || 0) +
-          Number(row.weekend_value || 0),
       })
       .eq("id", row.id);
 
     if (error) {
-      alert("A apărut o eroare la achitarea weekendului.");
+      alert("A apărut o eroare la achitarea zilelor de weekend.");
       setProcessingId(null);
       return;
     }
@@ -289,9 +308,6 @@ export default function OreExtraPage() {
       .update({
         extra_hours_paid: true,
         weekend_paid: true,
-        total_value:
-          Number(row.extra_hours_value || 0) +
-          Number(row.weekend_value || 0),
       })
       .eq("id", row.id);
 
@@ -379,10 +395,8 @@ export default function OreExtraPage() {
 
     doc.setFontSize(16);
     doc.text("Raport Ore Extra + Weekend", 14, 15);
-
     doc.setFontSize(10);
     doc.text(`Data export: ${stamp}`, 14, 21);
-
     doc.text(
       `Total ore extra: ${totals.extraHours.toFixed(2)} | Valoare ore extra: ${totals.extraValue.toFixed(
         2
@@ -487,13 +501,19 @@ export default function OreExtraPage() {
                 value={filterType}
                 onChange={(e) =>
                   setFilterType(
-                    e.target.value as "azi" | "saptamana" | "luna" | "toate"
+                    e.target.value as
+                      | "azi"
+                      | "saptamana"
+                      | "doua_saptamani"
+                      | "luna"
+                      | "toate"
                   )
                 }
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
               >
                 <option value="azi">Azi</option>
                 <option value="saptamana">Săptămâna curentă</option>
+                <option value="doua_saptamani">Ultimele 2 săptămâni</option>
                 <option value="luna">Luna selectată</option>
                 <option value="toate">Toate</option>
               </select>
@@ -650,6 +670,22 @@ export default function OreExtraPage() {
                 Number(row.weekend_days_count || 0) > 0 ||
                 Number(row.weekend_value || 0) > 0;
 
+              const showExtraSection =
+                entryTypeFilter === "toate"
+                  ? hasExtra
+                  : entryTypeFilter === "ore"
+                  ? hasExtra
+                  : false;
+
+              const showWeekendSection =
+                entryTypeFilter === "toate"
+                  ? hasWeekend
+                  : entryTypeFilter === "weekend"
+                  ? hasWeekend
+                  : false;
+
+              const showAllButton = entryTypeFilter === "toate";
+
               return (
                 <div
                   key={row.id}
@@ -674,7 +710,7 @@ export default function OreExtraPage() {
                       </p>
                     </div>
 
-                    {hasExtra && (
+                    {showExtraSection && (
                       <div className="rounded-xl border border-purple-200 bg-purple-50 p-4">
                         <h4 className="text-sm font-semibold text-purple-900">
                           Ore extra
@@ -709,7 +745,7 @@ export default function OreExtraPage() {
                       </div>
                     )}
 
-                    {hasWeekend && (
+                    {showWeekendSection && (
                       <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
                         <h4 className="text-sm font-semibold text-orange-900">
                           Weekend lucrat
@@ -762,7 +798,7 @@ export default function OreExtraPage() {
                     </div>
 
                     <div className="flex flex-col gap-2 lg:w-[260px]">
-                      {hasExtra && (
+                      {entryTypeFilter === "ore" && showExtraSection && (
                         <button
                           type="button"
                           onClick={() => handleMarkExtraPaid(row)}
@@ -773,29 +809,53 @@ export default function OreExtraPage() {
                         </button>
                       )}
 
-                      {hasWeekend && (
+                      {entryTypeFilter === "weekend" && showWeekendSection && (
                         <button
                           type="button"
                           onClick={() => handleMarkWeekendPaid(row)}
                           disabled={processingId === row.id || row.weekend_paid}
                           className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                         >
-                          Achită weekend
+                          Achită zile weekend
                         </button>
                       )}
 
-                      <button
-                        type="button"
-                        onClick={() => handleMarkAllPaid(row)}
-                        disabled={
-                          processingId === row.id ||
-                          ((!hasExtra || row.extra_hours_paid) &&
-                            (!hasWeekend || row.weekend_paid))
-                        }
-                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                      >
-                        Achită tot
-                      </button>
+                      {entryTypeFilter === "toate" && showExtraSection && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkExtraPaid(row)}
+                          disabled={processingId === row.id || row.extra_hours_paid}
+                          className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          Achită ore
+                        </button>
+                      )}
+
+                      {entryTypeFilter === "toate" && showWeekendSection && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkWeekendPaid(row)}
+                          disabled={processingId === row.id || row.weekend_paid}
+                          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          Achită zile weekend
+                        </button>
+                      )}
+
+                      {showAllButton && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAllPaid(row)}
+                          disabled={
+                            processingId === row.id ||
+                            ((!hasExtra || row.extra_hours_paid) &&
+                              (!hasWeekend || row.weekend_paid))
+                          }
+                          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          Achită tot
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
