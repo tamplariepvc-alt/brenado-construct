@@ -75,6 +75,8 @@ type DailyDetailRow = {
   missing_salary: boolean;
 };
 
+type TabKey = "sumar" | "detaliu" | "muncitori";
+
 export default function CentruDeCostManoperaPage() {
   const router = useRouter();
   const params = useParams();
@@ -92,6 +94,7 @@ export default function CentruDeCostManoperaPage() {
     )}`
   );
   const [selectedWorkerId, setSelectedWorkerId] = useState("toate");
+  const [activeTab, setActiveTab] = useState<TabKey>("sumar");
 
   const now = Date.now();
 
@@ -457,21 +460,27 @@ export default function CentruDeCostManoperaPage() {
       (acc, row) => {
         acc.totalCost += row.total_cost;
         acc.normalHours += row.normal_hours;
+        acc.normalCost += row.normal_cost;
         acc.extraHours += row.extra_hours;
+        acc.extraCost += row.extra_cost;
         acc.weekendDays += row.weekend_days;
+        acc.weekendCost += row.weekend_cost;
         return acc;
       },
       {
         totalCost: 0,
         normalHours: 0,
+        normalCost: 0,
         extraHours: 0,
+        extraCost: 0,
         weekendDays: 0,
+        weekendCost: 0,
       }
     );
 
     const workersCount = workerSummaryRows.length;
     const averageHourlyCost =
-      totals.normalHours > 0 ? totals.totalCost / totals.normalHours : 0;
+      totals.normalHours > 0 ? totals.normalCost / totals.normalHours : 0;
 
     return {
       ...totals,
@@ -479,6 +488,20 @@ export default function CentruDeCostManoperaPage() {
       averageHourlyCost,
     };
   }, [workerSummaryRows]);
+
+  const topWorkers = useMemo(() => {
+    return workerSummaryRows.slice(0, 5);
+  }, [workerSummaryRows]);
+
+  const handleExportPdf = () => {
+    window.print();
+  };
+
+  const getTabClasses = (tab: TabKey) => {
+    return activeTab === tab
+      ? "bg-[#0196ff] text-white"
+      : "bg-gray-100 text-gray-700";
+  };
 
   if (loading) {
     return <div className="p-6">Se încarcă manopera...</div>;
@@ -489,9 +512,45 @@ export default function CentruDeCostManoperaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-6 print:bg-white print:p-0">
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 12mm;
+          }
+
+          body {
+            background: white !important;
+          }
+
+          .print-hidden {
+            display: none !important;
+          }
+
+          .print-card {
+            box-shadow: none !important;
+            border: 1px solid #e5e7eb !important;
+            break-inside: avoid;
+          }
+
+          .print-table-wrap {
+            overflow: visible !important;
+          }
+
+          table {
+            width: 100% !important;
+          }
+
+          th,
+          td {
+            font-size: 11px !important;
+          }
+        }
+      `}</style>
+
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print-hidden">
           <div>
             <h1 className="text-2xl font-bold">Manoperă</h1>
             <p className="text-sm text-gray-600">
@@ -499,16 +558,25 @@ export default function CentruDeCostManoperaPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => router.push(`/admin/centre-de-cost/${projectId}`)}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-          >
-            Înapoi la centrul de cost
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => router.push(`/admin/centre-de-cost/${projectId}`)}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            >
+              Înapoi la centrul de cost
+            </button>
+
+            <button
+              onClick={handleExportPdf}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="rounded-2xl bg-white p-5 shadow print-card">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">{project.name}</h2>
@@ -560,7 +628,7 @@ export default function CentruDeCostManoperaPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="rounded-2xl bg-white p-5 shadow print-card print-hidden">
             <div className="mb-4">
               <h2 className="text-lg font-semibold">Filtre</h2>
               <p className="mt-1 text-sm text-gray-500">
@@ -601,210 +669,409 @@ export default function CentruDeCostManoperaPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm font-medium text-gray-500">Total manoperă</p>
-              <p className="mt-3 text-2xl font-bold text-gray-900">
-                {summaryCards.totalCost.toFixed(2)} lei
-              </p>
+          <div className="rounded-2xl bg-white p-5 shadow print-card print-hidden">
+            <div className="mb-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab("sumar")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
+                  "sumar"
+                )}`}
+              >
+                Sumar
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("detaliu")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
+                  "detaliu"
+                )}`}
+              >
+                Detaliu
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("muncitori")}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
+                  "muncitori"
+                )}`}
+              >
+                Pe muncitori
+              </button>
             </div>
 
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm font-medium text-gray-500">Ore normale</p>
-              <p className="mt-3 text-2xl font-bold text-gray-900">
-                {summaryCards.normalHours.toFixed(2)} h
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm font-medium text-gray-500">Ore extra</p>
-              <p className="mt-3 text-2xl font-bold text-gray-900">
-                {summaryCards.extraHours.toFixed(2)} h
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <p className="text-sm font-medium text-gray-500">Zile weekend</p>
-              <p className="mt-3 text-2xl font-bold text-gray-900">
-                {summaryCards.weekendDays}
-              </p>
-            </div>
+            <p className="text-sm text-gray-500">
+              La export PDF se va salva tabul selectat în acest moment.
+            </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Sumar pe muncitori</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Costul este calculat din salariul lunar raportat la zilele
-                lucrătoare reale din luna selectată.
+          {(activeTab === "sumar" || activeTab === "detaliu" || activeTab === "muncitori") && (
+            <div className="hidden print:block mb-2">
+              <h2 className="text-xl font-bold">
+                Raport manoperă -{" "}
+                {activeTab === "sumar"
+                  ? "Sumar"
+                  : activeTab === "detaliu"
+                  ? "Detaliu"
+                  : "Pe muncitori"}
+              </h2>
+              <p className="text-sm text-gray-600">
+                {project.name} •{" "}
+                {new Date(`${selectedMonth}-01`).toLocaleDateString("ro-RO", {
+                  month: "long",
+                  year: "numeric",
+                })}
               </p>
             </div>
+          )}
 
-            {workerSummaryRows.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există date de manoperă pentru filtrul selectat.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
-                      <th className="border-b px-4 py-3">Muncitor</th>
-                      <th className="border-b px-4 py-3">Salariu</th>
-                      <th className="border-b px-4 py-3">Zile lucr.</th>
-                      <th className="border-b px-4 py-3">Normă</th>
-                      <th className="border-b px-4 py-3">Cost/oră</th>
-                      <th className="border-b px-4 py-3">Ore normale</th>
-                      <th className="border-b px-4 py-3">Ore extra</th>
-                      <th className="border-b px-4 py-3">Weekend</th>
-                      <th className="border-b px-4 py-3">Cost total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workerSummaryRows.map((row) => (
-                      <tr key={row.worker_id} className="bg-white text-sm">
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {row.worker_name}
-                            </p>
-                            {row.missing_salary && (
-                              <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                                Salariu lipsă
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          {row.monthly_salary > 0
-                            ? `${row.monthly_salary.toFixed(2)} lei`
-                            : "-"}
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          {row.working_days_in_month}
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          {row.month_norm_hours} h
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          {row.hourly_rate.toFixed(2)} lei
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p>{row.normal_hours.toFixed(2)} h</p>
-                            <p className="text-xs text-gray-500">
-                              {row.normal_cost.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p>{row.extra_hours.toFixed(2)} h</p>
-                            <p className="text-xs text-gray-500">
-                              {row.extra_cost.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p>{row.weekend_days}</p>
-                            <p className="text-xs text-gray-500">
-                              {row.weekend_cost.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3 font-semibold text-gray-900">
-                          {row.total_cost.toFixed(2)} lei
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+          {activeTab === "sumar" && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                  <p className="text-sm font-medium text-gray-500">
+                    Total manoperă
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-gray-900">
+                    {summaryCards.totalCost.toFixed(2)} lei
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                  <p className="text-sm font-medium text-gray-500">Ore normale</p>
+                  <p className="mt-3 text-2xl font-bold text-gray-900">
+                    {summaryCards.normalHours.toFixed(2)} h
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                  <p className="text-sm font-medium text-gray-500">Ore extra</p>
+                  <p className="mt-3 text-2xl font-bold text-gray-900">
+                    {summaryCards.extraHours.toFixed(2)} h
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                  <p className="text-sm font-medium text-gray-500">
+                    Zile weekend
+                  </p>
+                  <p className="mt-3 text-2xl font-bold text-gray-900">
+                    {summaryCards.weekendDays}
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Detaliu pe zile</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Vezi manopera zilnică, inclusiv ore extra și weekend.
-              </p>
-            </div>
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                  <h2 className="text-lg font-semibold">Defalcare costuri</h2>
 
-            {dailyDetailRows.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există înregistrări pentru filtrul selectat.
-              </p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
-                  <thead>
-                    <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
-                      <th className="border-b px-4 py-3">Data</th>
-                      <th className="border-b px-4 py-3">Muncitor</th>
-                      <th className="border-b px-4 py-3">Cost/oră</th>
-                      <th className="border-b px-4 py-3">Ore normale</th>
-                      <th className="border-b px-4 py-3">Ore extra</th>
-                      <th className="border-b px-4 py-3">Weekend</th>
-                      <th className="border-b px-4 py-3">Cost zi</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dailyDetailRows.map((row) => (
-                      <tr key={row.key} className="bg-white text-sm">
-                        <td className="border-b px-4 py-3">
-                          {new Date(row.work_date).toLocaleDateString("ro-RO")}
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {row.worker_name}
-                            </p>
-                            {row.missing_salary && (
-                              <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                                Salariu lipsă
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          {row.hourly_rate.toFixed(2)} lei
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p>{row.normal_hours.toFixed(2)} h</p>
-                            <p className="text-xs text-gray-500">
-                              {row.normal_cost.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p>{row.extra_hours.toFixed(2)} h</p>
-                            <p className="text-xs text-gray-500">
-                              {row.extra_cost.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3">
-                          <div>
-                            <p>{row.weekend_days}</p>
-                            <p className="text-xs text-gray-500">
-                              {row.weekend_cost.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </td>
-                        <td className="border-b px-4 py-3 font-semibold text-gray-900">
-                          {row.total_cost.toFixed(2)} lei
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Cost ore normale
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {summaryCards.normalCost.toFixed(2)} lei
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Cost ore extra
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {summaryCards.extraCost.toFixed(2)} lei
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Cost weekend
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {summaryCards.weekendCost.toFixed(2)} lei
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg bg-[#0196ff] px-4 py-3 text-white">
+                      <span className="text-sm font-semibold">
+                        Total manoperă
+                      </span>
+                      <span className="text-sm font-bold">
+                        {summaryCards.totalCost.toFixed(2)} lei
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                  <h2 className="text-lg font-semibold">Indicatori rapizi</h2>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Muncitori implicați
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {summaryCards.workersCount}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Cost mediu / oră normală
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {summaryCards.averageHourlyCost.toFixed(2)} lei
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Zile lucrătoare lună
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {monthMeta.workingDays}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Normă lunară
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {monthMeta.normHours} ore
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+              <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold">
+                    Top muncitori după cost
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Primii 5 muncitori cu cea mai mare manoperă în luna selectată.
+                  </p>
+                </div>
+
+                {topWorkers.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    Nu există date pentru luna selectată.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {topWorkers.map((worker, index) => (
+                      <div
+                        key={worker.worker_id}
+                        className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4"
+                      >
+                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">
+                              #{index + 1} {worker.worker_name}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              Ore normale: {worker.normal_hours.toFixed(2)} h •
+                              Ore extra: {worker.extra_hours.toFixed(2)} h •
+                              Weekend: {worker.weekend_days}
+                            </p>
+                          </div>
+
+                          <div className="text-sm font-bold text-gray-900">
+                            {worker.total_cost.toFixed(2)} lei
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "detaliu" && (
+            <div className="rounded-2xl bg-white p-5 shadow print-card">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">Detaliu pe zile</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Vezi manopera zilnică, inclusiv ore extra și weekend.
+                </p>
+              </div>
+
+              {dailyDetailRows.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Nu există înregistrări pentru filtrul selectat.
+                </p>
+              ) : (
+                <div className="overflow-x-auto print-table-wrap">
+                  <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
+                        <th className="border-b px-4 py-3">Data</th>
+                        <th className="border-b px-4 py-3">Muncitor</th>
+                        <th className="border-b px-4 py-3">Cost/oră</th>
+                        <th className="border-b px-4 py-3">Ore normale</th>
+                        <th className="border-b px-4 py-3">Ore extra</th>
+                        <th className="border-b px-4 py-3">Weekend</th>
+                        <th className="border-b px-4 py-3">Cost zi</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailyDetailRows.map((row) => (
+                        <tr key={row.key} className="bg-white text-sm">
+                          <td className="border-b px-4 py-3">
+                            {new Date(row.work_date).toLocaleDateString("ro-RO")}
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {row.worker_name}
+                              </p>
+                              {row.missing_salary && (
+                                <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                                  Salariu lipsă
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            {row.hourly_rate.toFixed(2)} lei
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p>{row.normal_hours.toFixed(2)} h</p>
+                              <p className="text-xs text-gray-500">
+                                {row.normal_cost.toFixed(2)} lei
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p>{row.extra_hours.toFixed(2)} h</p>
+                              <p className="text-xs text-gray-500">
+                                {row.extra_cost.toFixed(2)} lei
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p>{row.weekend_days}</p>
+                              <p className="text-xs text-gray-500">
+                                {row.weekend_cost.toFixed(2)} lei
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3 font-semibold text-gray-900">
+                            {row.total_cost.toFixed(2)} lei
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "muncitori" && (
+            <div className="rounded-2xl bg-white p-5 shadow print-card">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">Sumar pe muncitori</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Costul este calculat din salariul lunar raportat la zilele
+                  lucrătoare reale din luna selectată.
+                </p>
+              </div>
+
+              {workerSummaryRows.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Nu există date de manoperă pentru filtrul selectat.
+                </p>
+              ) : (
+                <div className="overflow-x-auto print-table-wrap">
+                  <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
+                    <thead>
+                      <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
+                        <th className="border-b px-4 py-3">Muncitor</th>
+                        <th className="border-b px-4 py-3">Salariu</th>
+                        <th className="border-b px-4 py-3">Zile lucr.</th>
+                        <th className="border-b px-4 py-3">Normă</th>
+                        <th className="border-b px-4 py-3">Cost/oră</th>
+                        <th className="border-b px-4 py-3">Ore normale</th>
+                        <th className="border-b px-4 py-3">Ore extra</th>
+                        <th className="border-b px-4 py-3">Weekend</th>
+                        <th className="border-b px-4 py-3">Cost total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {workerSummaryRows.map((row) => (
+                        <tr key={row.worker_id} className="bg-white text-sm">
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {row.worker_name}
+                              </p>
+                              {row.missing_salary && (
+                                <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                                  Salariu lipsă
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            {row.monthly_salary > 0
+                              ? `${row.monthly_salary.toFixed(2)} lei`
+                              : "-"}
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            {row.working_days_in_month}
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            {row.month_norm_hours} h
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            {row.hourly_rate.toFixed(2)} lei
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p>{row.normal_hours.toFixed(2)} h</p>
+                              <p className="text-xs text-gray-500">
+                                {row.normal_cost.toFixed(2)} lei
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p>{row.extra_hours.toFixed(2)} h</p>
+                              <p className="text-xs text-gray-500">
+                                {row.extra_cost.toFixed(2)} lei
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3">
+                            <div>
+                              <p>{row.weekend_days}</p>
+                              <p className="text-xs text-gray-500">
+                                {row.weekend_cost.toFixed(2)} lei
+                              </p>
+                            </div>
+                          </td>
+                          <td className="border-b px-4 py-3 font-semibold text-gray-900">
+                            {row.total_cost.toFixed(2)} lei
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
