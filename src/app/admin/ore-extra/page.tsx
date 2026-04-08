@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type ExtraWorkRow = {
   id: string;
@@ -39,6 +41,7 @@ export default function OreExtraPage() {
   const [rows, setRows] = useState<ExtraWorkRow[]>([]);
   const [workers, setWorkers] = useState<WorkerOption[]>([]);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const [filterType, setFilterType] = useState<
     "azi" | "saptamana" | "luna" | "toate"
@@ -51,11 +54,16 @@ export default function OreExtraPage() {
   );
   const [selectedWorkerId, setSelectedWorkerId] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState<
-    "toate" | "neachitate" | "ore_neachitate" | "weekend_neachitat" | "tot_achitat"
+  const [entryTypeFilter, setEntryTypeFilter] = useState<
+    "toate" | "ore" | "weekend"
   >("toate");
-
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [paymentFilter, setPaymentFilter] = useState<
+    | "toate"
+    | "orice_neachitat"
+    | "ore_neachitate"
+    | "weekend_neachitat"
+    | "tot_achitat"
+  >("toate");
 
   const loadData = async () => {
     setLoading(true);
@@ -115,6 +123,9 @@ export default function OreExtraPage() {
     return new Map(projects.map((project) => [project.id, project.name]));
   }, [projects]);
 
+  const getWorkerName = (row: ExtraWorkRow) => workerMap.get(row.worker_id) || "-";
+  const getProjectName = (row: ExtraWorkRow) => projectMap.get(row.project_id) || "-";
+
   const filteredRows = useMemo(() => {
     const today = new Date();
     const todayString = today.toISOString().split("T")[0];
@@ -127,6 +138,15 @@ export default function OreExtraPage() {
 
     return rows.filter((row) => {
       const rowDate = new Date(row.work_date);
+      const hasExtra =
+        Number(row.extra_hours || 0) > 0 ||
+        Number(row.extra_hours_value || 0) > 0;
+
+      const hasWeekend =
+        Boolean(row.is_saturday) ||
+        Boolean(row.is_sunday) ||
+        Number(row.weekend_days_count || 0) > 0 ||
+        Number(row.weekend_value || 0) > 0;
 
       if (filterType === "azi" && row.work_date !== todayString) {
         return false;
@@ -150,25 +170,50 @@ export default function OreExtraPage() {
         return false;
       }
 
-      if (paymentFilter === "neachitate" && row.extra_hours_paid && row.weekend_paid) {
+      if (entryTypeFilter === "ore" && !hasExtra) {
         return false;
       }
 
-      if (paymentFilter === "ore_neachitate" && row.extra_hours_paid) {
+      if (entryTypeFilter === "weekend" && !hasWeekend) {
         return false;
       }
 
-      if (paymentFilter === "weekend_neachitat" && row.weekend_paid) {
+      if (
+        paymentFilter === "orice_neachitat" &&
+        row.extra_hours_paid &&
+        row.weekend_paid
+      ) {
         return false;
       }
 
-      if (paymentFilter === "tot_achitat" && !(row.extra_hours_paid && row.weekend_paid)) {
+      if (paymentFilter === "ore_neachitate" && (row.extra_hours_paid || !hasExtra)) {
         return false;
+      }
+
+      if (
+        paymentFilter === "weekend_neachitat" &&
+        (row.weekend_paid || !hasWeekend)
+      ) {
+        return false;
+      }
+
+      if (paymentFilter === "tot_achitat") {
+        const extraOk = !hasExtra || row.extra_hours_paid;
+        const weekendOk = !hasWeekend || row.weekend_paid;
+        if (!(extraOk && weekendOk)) return false;
       }
 
       return true;
     });
-  }, [rows, filterType, selectedMonth, selectedWorkerId, selectedProjectId, paymentFilter]);
+  }, [
+    rows,
+    filterType,
+    selectedMonth,
+    selectedWorkerId,
+    selectedProjectId,
+    entryTypeFilter,
+    paymentFilter,
+  ]);
 
   const totals = useMemo(() => {
     return filteredRows.reduce(
@@ -190,16 +235,18 @@ export default function OreExtraPage() {
     );
   }, [filteredRows]);
 
-  const getWorkerName = (row: ExtraWorkRow) => workerMap.get(row.worker_id) || "-";
-  const getProjectName = (row: ExtraWorkRow) => projectMap.get(row.project_id) || "-";
-
-  const handleMarkExtraPaid = async (rowId: string) => {
-    setProcessingId(rowId);
+  const handleMarkExtraPaid = async (row: ExtraWorkRow) => {
+    setProcessingId(row.id);
 
     const { error } = await supabase
       .from("extra_work")
-      .update({ extra_hours_paid: true })
-      .eq("id", rowId);
+      .update({
+        extra_hours_paid: true,
+        total_value:
+          Number(row.extra_hours_value || 0) +
+          Number(row.weekend_value || 0),
+      })
+      .eq("id", row.id);
 
     if (error) {
       alert("A apărut o eroare la achitarea orelor extra.");
@@ -211,13 +258,18 @@ export default function OreExtraPage() {
     await loadData();
   };
 
-  const handleMarkWeekendPaid = async (rowId: string) => {
-    setProcessingId(rowId);
+  const handleMarkWeekendPaid = async (row: ExtraWorkRow) => {
+    setProcessingId(row.id);
 
     const { error } = await supabase
       .from("extra_work")
-      .update({ weekend_paid: true })
-      .eq("id", rowId);
+      .update({
+        weekend_paid: true,
+        total_value:
+          Number(row.extra_hours_value || 0) +
+          Number(row.weekend_value || 0),
+      })
+      .eq("id", row.id);
 
     if (error) {
       alert("A apărut o eroare la achitarea weekendului.");
@@ -229,16 +281,19 @@ export default function OreExtraPage() {
     await loadData();
   };
 
-  const handleMarkAllPaid = async (rowId: string) => {
-    setProcessingId(rowId);
+  const handleMarkAllPaid = async (row: ExtraWorkRow) => {
+    setProcessingId(row.id);
 
     const { error } = await supabase
       .from("extra_work")
       .update({
         extra_hours_paid: true,
         weekend_paid: true,
+        total_value:
+          Number(row.extra_hours_value || 0) +
+          Number(row.weekend_value || 0),
       })
-      .eq("id", rowId);
+      .eq("id", row.id);
 
     if (error) {
       alert("A apărut o eroare la achitarea completă.");
@@ -262,13 +317,13 @@ export default function OreExtraPage() {
       "Proiect",
       "Ore extra",
       "Valoare ore extra",
+      "Ore achitate",
       "Sambata",
       "Duminica",
       "Zile weekend",
       "Valoare weekend",
-      "Total",
-      "Ore achitate",
       "Weekend achitat",
+      "Total",
     ];
 
     const csvRows = filteredRows.map((row) => [
@@ -277,20 +332,18 @@ export default function OreExtraPage() {
       getProjectName(row),
       Number(row.extra_hours || 0).toFixed(2),
       Number(row.extra_hours_value || 0).toFixed(2),
+      row.extra_hours_paid ? "Da" : "Nu",
       row.is_saturday ? "Da" : "Nu",
       row.is_sunday ? "Da" : "Nu",
       Number(row.weekend_days_count || 0).toFixed(2),
       Number(row.weekend_value || 0).toFixed(2),
-      Number(row.total_value || 0).toFixed(2),
-      row.extra_hours_paid ? "Da" : "Nu",
       row.weekend_paid ? "Da" : "Nu",
+      Number(row.total_value || 0).toFixed(2),
     ]);
 
     const csvContent = [headers, ...csvRows]
       .map((row) =>
-        row
-          .map((value) => `"${String(value).replace(/"/g, '""')}"`)
-          .join(",")
+        row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")
       )
       .join("\n");
 
@@ -312,6 +365,79 @@ export default function OreExtraPage() {
     document.body.removeChild(link);
   };
 
+  const exportPdf = () => {
+    if (filteredRows.length === 0) {
+      alert("Nu există date pentru export.");
+      return;
+    }
+
+    const doc = new jsPDF("l", "mm", "a4");
+    const now = new Date();
+    const stamp = `${String(now.getDate()).padStart(2, "0")}.${String(
+      now.getMonth() + 1
+    ).padStart(2, "0")}.${now.getFullYear()}`;
+
+    doc.setFontSize(16);
+    doc.text("Raport Ore Extra + Weekend", 14, 15);
+
+    doc.setFontSize(10);
+    doc.text(`Data export: ${stamp}`, 14, 21);
+
+    doc.text(
+      `Total ore extra: ${totals.extraHours.toFixed(2)} | Valoare ore extra: ${totals.extraValue.toFixed(
+        2
+      )} lei | Zile weekend: ${totals.weekendDays.toFixed(
+        2
+      )} | Valoare weekend: ${totals.weekendValue.toFixed(
+        2
+      )} lei | Total general: ${totals.total.toFixed(2)} lei`,
+      14,
+      27
+    );
+
+    autoTable(doc, {
+      startY: 32,
+      head: [[
+        "Data",
+        "Muncitor",
+        "Proiect",
+        "Ore extra",
+        "Val. ore",
+        "Ore achitate",
+        "Sâmbătă",
+        "Duminică",
+        "Zile weekend",
+        "Val. weekend",
+        "Weekend achitat",
+        "Total",
+      ]],
+      body: filteredRows.map((row) => [
+        new Date(row.work_date).toLocaleDateString("ro-RO"),
+        getWorkerName(row),
+        getProjectName(row),
+        Number(row.extra_hours || 0).toFixed(2),
+        `${Number(row.extra_hours_value || 0).toFixed(2)} lei`,
+        row.extra_hours_paid ? "Da" : "Nu",
+        row.is_saturday ? "Da" : "Nu",
+        row.is_sunday ? "Da" : "Nu",
+        Number(row.weekend_days_count || 0).toFixed(2),
+        `${Number(row.weekend_value || 0).toFixed(2)} lei`,
+        row.weekend_paid ? "Da" : "Nu",
+        `${Number(row.total_value || 0).toFixed(2)} lei`,
+      ]),
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+      },
+      headStyles: {
+        fillColor: [1, 150, 255],
+      },
+      theme: "grid",
+    });
+
+    doc.save(`raport_ore_extra_weekend_${stamp.replace(/\./g, "-")}.pdf`);
+  };
+
   if (loading) {
     return <div className="p-6">Se încarcă orele extra...</div>;
   }
@@ -323,7 +449,7 @@ export default function OreExtraPage() {
           <div>
             <h1 className="text-2xl font-bold">Ore Extra + Weekend</h1>
             <p className="text-sm text-gray-600">
-              Vezi, filtrează, achită și exportă rapoartele de ore extra și weekend.
+              Vezi separat orele extra și zilele lucrate în weekend.
             </p>
           </div>
 
@@ -337,15 +463,22 @@ export default function OreExtraPage() {
 
             <button
               onClick={exportCsv}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            >
+              Export CSV
+            </button>
+
+            <button
+              onClick={exportPdf}
               className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
             >
-              Export raport
+              Export PDF
             </button>
           </div>
         </div>
 
         <div className="mb-6 rounded-2xl bg-white p-5 shadow">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 Filtru perioadă
@@ -418,6 +551,25 @@ export default function OreExtraPage() {
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
+                Tip înregistrare
+              </label>
+              <select
+                value={entryTypeFilter}
+                onChange={(e) =>
+                  setEntryTypeFilter(
+                    e.target.value as "toate" | "ore" | "weekend"
+                  )
+                }
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              >
+                <option value="toate">Toate</option>
+                <option value="ore">Doar ore extra</option>
+                <option value="weekend">Doar weekend</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
                 Status plată
               </label>
               <select
@@ -426,7 +578,7 @@ export default function OreExtraPage() {
                   setPaymentFilter(
                     e.target.value as
                       | "toate"
-                      | "neachitate"
+                      | "orice_neachitat"
                       | "ore_neachitate"
                       | "weekend_neachitat"
                       | "tot_achitat"
@@ -435,7 +587,7 @@ export default function OreExtraPage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
               >
                 <option value="toate">Toate</option>
-                <option value="neachitate">Orice neachitat</option>
+                <option value="orice_neachitat">Orice neachitat</option>
                 <option value="ore_neachitate">Ore neachitate</option>
                 <option value="weekend_neachitat">Weekend neachitat</option>
                 <option value="tot_achitat">Tot achitat</option>
@@ -487,129 +639,168 @@ export default function OreExtraPage() {
               Nu există înregistrări pentru filtrele selectate.
             </div>
           ) : (
-            filteredRows.map((row) => (
-              <div
-                key={row.id}
-                className="rounded-2xl bg-white p-5 shadow"
-              >
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {getWorkerName(row)}
-                    </h3>
+            filteredRows.map((row) => {
+              const hasExtra =
+                Number(row.extra_hours || 0) > 0 ||
+                Number(row.extra_hours_value || 0) > 0;
 
-                    <p className="text-sm text-gray-500">
-                      Proiect:{" "}
-                      <span className="font-medium text-gray-700">
-                        {getProjectName(row)}
-                      </span>
-                    </p>
+              const hasWeekend =
+                Boolean(row.is_saturday) ||
+                Boolean(row.is_sunday) ||
+                Number(row.weekend_days_count || 0) > 0 ||
+                Number(row.weekend_value || 0) > 0;
 
-                    <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-4">
-                      <div>
-                        <span className="font-medium text-gray-500">Data:</span>{" "}
-                        {new Date(row.work_date).toLocaleDateString("ro-RO")}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">Ore extra:</span>{" "}
-                        {Number(row.extra_hours || 0).toFixed(2)}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">
-                          Valoare ore extra:
-                        </span>{" "}
-                        {Number(row.extra_hours_value || 0).toFixed(2)} lei
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">Zile weekend:</span>{" "}
-                        {Number(row.weekend_days_count || 0).toFixed(2)}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">Sâmbătă:</span>{" "}
-                        {row.is_saturday ? "Da" : "Nu"}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">Duminică:</span>{" "}
-                        {row.is_sunday ? "Da" : "Nu"}
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">
-                          Valoare weekend:
-                        </span>{" "}
-                        {Number(row.weekend_value || 0).toFixed(2)} lei
-                      </div>
-
-                      <div>
-                        <span className="font-medium text-gray-500">Total:</span>{" "}
-                        <span className="font-semibold text-gray-900">
-                          {Number(row.total_value || 0).toFixed(2)} lei
+              return (
+                <div
+                  key={row.id}
+                  className="rounded-2xl bg-white p-5 shadow"
+                >
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {getWorkerName(row)}
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Proiect:{" "}
+                        <span className="font-medium text-gray-700">
+                          {getProjectName(row)}
                         </span>
+                      </p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Data:{" "}
+                        <span className="font-medium text-gray-700">
+                          {new Date(row.work_date).toLocaleDateString("ro-RO")}
+                        </span>
+                      </p>
+                    </div>
+
+                    {hasExtra && (
+                      <div className="rounded-xl border border-purple-200 bg-purple-50 p-4">
+                        <h4 className="text-sm font-semibold text-purple-900">
+                          Ore extra
+                        </h4>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-purple-900 md:grid-cols-3">
+                          <div>
+                            <span className="font-medium">Ore:</span>{" "}
+                            {Number(row.extra_hours || 0).toFixed(2)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Valoare:</span>{" "}
+                            {Number(row.extra_hours_value || 0).toFixed(2)} lei
+                          </div>
+                          <div>
+                            <span className="font-medium">Status:</span>{" "}
+                            {row.extra_hours_paid ? "Achitate" : "Neachitate"}
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                              row.extra_hours_paid
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            Ore: {row.extra_hours_paid ? "Achitate" : "Neachitate"}
+                          </span>
+                        </div>
                       </div>
+                    )}
+
+                    {hasWeekend && (
+                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4">
+                        <h4 className="text-sm font-semibold text-orange-900">
+                          Weekend lucrat
+                        </h4>
+
+                        <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-orange-900 md:grid-cols-3">
+                          <div>
+                            <span className="font-medium">Sâmbătă:</span>{" "}
+                            {row.is_saturday ? "Da" : "Nu"}
+                          </div>
+                          <div>
+                            <span className="font-medium">Duminică:</span>{" "}
+                            {row.is_sunday ? "Da" : "Nu"}
+                          </div>
+                          <div>
+                            <span className="font-medium">Zile:</span>{" "}
+                            {Number(row.weekend_days_count || 0).toFixed(2)}
+                          </div>
+                          <div>
+                            <span className="font-medium">Valoare:</span>{" "}
+                            {Number(row.weekend_value || 0).toFixed(2)} lei
+                          </div>
+                          <div>
+                            <span className="font-medium">Status:</span>{" "}
+                            {row.weekend_paid ? "Achitat" : "Neachitat"}
+                          </div>
+                        </div>
+
+                        <div className="mt-3">
+                          <span
+                            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+                              row.weekend_paid
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                            }`}
+                          >
+                            Weekend: {row.weekend_paid ? "Achitat" : "Neachitat"}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-sm font-medium text-blue-900">
+                        Total înregistrare
+                      </p>
+                      <p className="mt-1 text-xl font-bold text-blue-900">
+                        {Number(row.total_value || 0).toFixed(2)} lei
+                      </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          row.extra_hours_paid
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
-                      >
-                        Ore: {row.extra_hours_paid ? "Achitate" : "Neachitate"}
-                      </span>
+                    <div className="flex flex-col gap-2 lg:w-[260px]">
+                      {hasExtra && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkExtraPaid(row)}
+                          disabled={processingId === row.id || row.extra_hours_paid}
+                          className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          Achită ore
+                        </button>
+                      )}
 
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          row.weekend_paid
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                        }`}
+                      {hasWeekend && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkWeekendPaid(row)}
+                          disabled={processingId === row.id || row.weekend_paid}
+                          className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                        >
+                          Achită weekend
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleMarkAllPaid(row)}
+                        disabled={
+                          processingId === row.id ||
+                          ((!hasExtra || row.extra_hours_paid) &&
+                            (!hasWeekend || row.weekend_paid))
+                        }
+                        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                       >
-                        Weekend: {row.weekend_paid ? "Achitat" : "Neachitat"}
-                      </span>
+                        Achită tot
+                      </button>
                     </div>
-                  </div>
-
-                  <div className="flex w-full flex-col gap-2 lg:w-[220px]">
-                    <button
-                      type="button"
-                      onClick={() => handleMarkExtraPaid(row.id)}
-                      disabled={processingId === row.id || row.extra_hours_paid}
-                      className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                    >
-                      Achită ore
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleMarkWeekendPaid(row.id)}
-                      disabled={processingId === row.id || row.weekend_paid}
-                      className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                    >
-                      Achită weekend
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleMarkAllPaid(row.id)}
-                      disabled={
-                        processingId === row.id ||
-                        (row.extra_hours_paid && row.weekend_paid)
-                      }
-                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                    >
-                      Achită tot
-                    </button>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

@@ -1,9 +1,39 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
 
 export default function AdminPage() {
   const router = useRouter();
+  const [unpaidCount, setUnpaidCount] = useState(0);
+
+  useEffect(() => {
+    const loadUnpaidCount = async () => {
+      const { data, error } = await supabase
+        .from("extra_work")
+        .select("id, extra_hours, weekend_days_count, extra_hours_paid, weekend_paid");
+
+      if (error || !data) {
+        setUnpaidCount(0);
+        return;
+      }
+
+      const count = data.filter((row) => {
+        const hasExtra = Number(row.extra_hours || 0) > 0;
+        const hasWeekend = Number(row.weekend_days_count || 0) > 0;
+
+        const extraUnpaid = hasExtra && !row.extra_hours_paid;
+        const weekendUnpaid = hasWeekend && !row.weekend_paid;
+
+        return extraUnpaid || weekendUnpaid;
+      }).length;
+
+      setUnpaidCount(count);
+    };
+
+    loadUnpaidCount();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
@@ -45,14 +75,17 @@ export default function AdminPage() {
             </p>
           </button>
 
-          {/* NOU */}
           <button
             onClick={() => router.push("/admin/ore-extra")}
-            className="rounded-2xl bg-[#0196ff] p-6 text-left text-white shadow transition hover:opacity-90"
+            className="relative rounded-2xl bg-[#0196ff] p-6 text-left text-white shadow transition hover:opacity-90"
           >
-            <h2 className="text-lg font-semibold">
-              Ore Extra + Weekend
-            </h2>
+            {unpaidCount > 0 && (
+              <span className="absolute right-4 top-4 inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
+                {unpaidCount}
+              </span>
+            )}
+
+            <h2 className="text-lg font-semibold">Ore Extra + Weekend</h2>
             <p className="mt-1 text-sm text-white/80">
               Vezi, filtrează, achită și exportă rapoartele pentru ore extra și weekend.
             </p>
