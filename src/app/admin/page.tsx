@@ -44,6 +44,19 @@ export default function AdminPage() {
               Gestionează muncitorii și salariile lunare.
             </p>
           </button>
+
+          {/* NOU */}
+          <button
+            onClick={() => router.push("/admin/ore-extra")}
+            className="rounded-2xl bg-[#0196ff] p-6 text-left text-white shadow transition hover:opacity-90"
+          >
+            <h2 className="text-lg font-semibold">
+              Ore Extra + Weekend
+            </h2>
+            <p className="mt-1 text-sm text-white/80">
+              Vezi, filtrează, achită și exportă rapoartele pentru ore extra și weekend.
+            </p>
+          </button>
         </div>
       </div>
     </div>
