@@ -62,6 +62,11 @@ type TodayWorkedWorker = {
   weekend_day_rate: number;
 };
 
+type WeekendSelection = {
+  saturday: boolean;
+  sunday: boolean;
+};
+
 export default function PontajSantierPage() {
   const router = useRouter();
   const params = useParams();
@@ -106,12 +111,9 @@ export default function PontajSantierPage() {
   const [savingExtra, setSavingExtra] = useState(false);
 
   const [showWeekendModal, setShowWeekendModal] = useState(false);
-  const [applyWeekendToAll, setApplyWeekendToAll] = useState(true);
-  const [selectedWeekendWorkers, setSelectedWeekendWorkers] = useState<
-    string[]
-  >([]);
-  const [weekendSaturday, setWeekendSaturday] = useState(false);
-  const [weekendSunday, setWeekendSunday] = useState(false);
+  const [weekendSelections, setWeekendSelections] = useState<
+    Record<string, WeekendSelection>
+  >({});
   const [savingWeekend, setSavingWeekend] = useState(false);
 
   useEffect(() => {
@@ -212,6 +214,10 @@ export default function PontajSantierPage() {
   const formatDuration = (startTime: string) => {
     const workedMs = getWorkedMsWithoutPause(startTime, null);
     return formatMsToHHMMSS(workedMs);
+  };
+
+  const formatDateLabel = (date: Date) => {
+    return date.toLocaleDateString("ro-RO");
   };
 
   const loadData = async () => {
@@ -410,12 +416,19 @@ export default function PontajSantierPage() {
     );
   };
 
-  const toggleWeekendWorker = (workerId: string) => {
-    setSelectedWeekendWorkers((prev) =>
-      prev.includes(workerId)
-        ? prev.filter((id) => id !== workerId)
-        : [...prev, workerId]
-    );
+  const updateWeekendSelection = (
+    workerId: string,
+    day: "saturday" | "sunday",
+    checked: boolean
+  ) => {
+    setWeekendSelections((prev) => ({
+      ...prev,
+      [workerId]: {
+        saturday: prev[workerId]?.saturday || false,
+        sunday: prev[workerId]?.sunday || false,
+        [day]: checked,
+      },
+    }));
   };
 
   const handleToggleSameTeamAsYesterday = (checked: boolean) => {
@@ -600,14 +613,48 @@ export default function PontajSantierPage() {
     return historyGrouped;
   }, [historyGrouped, historyFilter, selectedHistoryDate, selectedHistoryMonth]);
 
-  const isAfterFivePM = new Date().getHours() >= 17;
+  const isAfterFivePM = new Date(now).getHours() >= 17;
+  const isMonday = new Date(now).getDay() === 1;
 
   const canOpenExtraModal =
     isAfterFivePM &&
     activeEntries.length === 0 &&
     todayWorkedWorkers.length > 0;
 
-  const canOpenWeekendModal = todayWorkedWorkers.length > 0;
+  const canOpenWeekendModal = isMonday && workers.length > 0;
+
+  const getLastWeekendDates = () => {
+    const current = new Date(now);
+    const currentDay = current.getDay();
+    const daysSinceMonday = currentDay === 0 ? 6 : currentDay - 1;
+
+    const mondayThisWeek = new Date(current);
+    mondayThisWeek.setDate(current.getDate() - daysSinceMonday);
+    mondayThisWeek.setHours(0, 0, 0, 0);
+
+    const lastSaturday = new Date(mondayThisWeek);
+    lastSaturday.setDate(mondayThisWeek.getDate() - 2);
+    lastSaturday.setHours(0, 0, 0, 0);
+
+    const lastSunday = new Date(mondayThisWeek);
+    lastSunday.setDate(mondayThisWeek.getDate() - 1);
+    lastSunday.setHours(0, 0, 0, 0);
+
+    return { lastSaturday, lastSunday };
+  };
+
+  const { lastSaturday, lastSunday } = useMemo(
+    () => getLastWeekendDates(),
+    [now]
+  );
+
+  const saturdayDateString = useMemo(() => {
+    return lastSaturday.toISOString().split("T")[0];
+  }, [lastSaturday]);
+
+  const sundayDateString = useMemo(() => {
+    return lastSunday.toISOString().split("T")[0];
+  }, [lastSunday]);
 
   const handleOpenExtraModal = () => {
     const ids = todayWorkedWorkers.map((worker) => worker.id);
@@ -619,13 +666,16 @@ export default function PontajSantierPage() {
   };
 
   const handleOpenWeekendModal = () => {
-    const ids = todayWorkedWorkers.map((worker) => worker.id);
-    const day = new Date().getDay();
+    const initialSelections: Record<string, WeekendSelection> = {};
 
-    setSelectedWeekendWorkers(ids);
-    setApplyWeekendToAll(true);
-    setWeekendSaturday(day === 6);
-    setWeekendSunday(day === 0);
+    workers.forEach((worker) => {
+      initialSelections[worker.id] = {
+        saturday: false,
+        sunday: false,
+      };
+    });
+
+    setWeekendSelections(initialSelections);
     setShowWeekendModal(true);
   };
 
@@ -637,13 +687,42 @@ export default function PontajSantierPage() {
     return todayWorkedWorkers.filter((worker) => ids.includes(worker.id));
   }, [applyExtraToAll, selectedExtraWorkers, todayWorkedWorkers]);
 
-  const selectedWeekendWorkersDetails = useMemo(() => {
-    const ids = applyWeekendToAll
-      ? todayWorkedWorkers.map((worker) => worker.id)
-      : selectedWeekendWorkers;
+  const weekendSelectedWorkersCount = useMemo(() => {
+    return workers.filter((worker) => {
+      const selection = weekendSelections[worker.id];
+      return Boolean(selection?.saturday || selection?.sunday);
+    }).length;
+  }, [workers, weekendSelections]);
 
-    return todayWorkedWorkers.filter((worker) => ids.includes(worker.id));
-  }, [applyWeekendToAll, selectedWeekendWorkers, todayWorkedWorkers]);
+  const weekendPreview = useMemo(() => {
+    let saturdayCount = 0;
+    let sundayCount = 0;
+    let totalWeekendValue = 0;
+
+    workers.forEach((worker) => {
+      const selection = weekendSelections[worker.id];
+      if (!selection) return;
+
+      const rate = Number(worker.weekend_day_rate || 0);
+
+      if (selection.saturday) {
+        saturdayCount += 1;
+        totalWeekendValue += rate;
+      }
+
+      if (selection.sunday) {
+        sundayCount += 1;
+        totalWeekendValue += rate;
+      }
+    });
+
+    return {
+      saturdayCount,
+      sundayCount,
+      totalWeekendDays: saturdayCount + sundayCount,
+      totalWeekendValue,
+    };
+  }, [workers, weekendSelections]);
 
   const extraPreview = useMemo(() => {
     const parsedExtraHours = Number(extraHours || 0);
@@ -657,241 +736,266 @@ export default function PontajSantierPage() {
     };
   }, [extraHours, selectedExtraWorkersDetails]);
 
-  const weekendPreview = useMemo(() => {
-    const weekendDaysCount =
-      (weekendSaturday ? 1 : 0) + (weekendSunday ? 1 : 0);
+  const handleSaveExtraWork = async () => {
+    const today = new Date().toISOString().split("T")[0];
+    const parsedExtraHours = Number(extraHours || 0);
 
-    const totalWeekendValue = selectedWeekendWorkersDetails.reduce(
-      (sum, worker) => {
-        return sum + weekendDaysCount * Number(worker.weekend_day_rate || 0);
-      },
-      0
+    if (!applyExtraToAll && selectedExtraWorkers.length === 0) {
+      alert("Selectează cel puțin un muncitor pentru ore extra.");
+      return;
+    }
+
+    if (parsedExtraHours <= 0) {
+      alert("Introdu un număr valid de ore extra.");
+      return;
+    }
+
+    const workersToSave = applyExtraToAll
+      ? todayWorkedWorkers
+      : todayWorkedWorkers.filter((worker) =>
+          selectedExtraWorkers.includes(worker.id)
+        );
+
+    if (workersToSave.length === 0) {
+      alert("Nu există muncitori pentru salvare.");
+      return;
+    }
+
+    setSavingExtra(true);
+
+    const workerIds = workersToSave.map((worker) => worker.id);
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from("extra_work")
+      .select(`
+        id,
+        worker_id,
+        extra_hours,
+        is_saturday,
+        is_sunday,
+        extra_hours_paid,
+        weekend_paid,
+        extra_hours_value,
+        weekend_days_count,
+        weekend_value,
+        total_value
+      `)
+      .eq("project_id", projectId)
+      .eq("work_date", today)
+      .in("worker_id", workerIds);
+
+    if (existingError) {
+      alert(`Eroare citire date existente: ${existingError.message}`);
+      setSavingExtra(false);
+      return;
+    }
+
+    const existingMap = new Map(
+      (existingRows || []).map((row) => [row.worker_id, row])
     );
 
-    return {
-      weekendDaysCount,
-      totalWeekendValue,
-    };
-  }, [
-    weekendSaturday,
-    weekendSunday,
-    selectedWeekendWorkersDetails,
-  ]);
+    const rows = workersToSave.map((worker) => {
+      const existing = existingMap.get(worker.id);
+      const extraHourRate = Number(worker.extra_hour_rate || 0);
 
-const handleSaveExtraWork = async () => {
-  const today = new Date().toISOString().split("T")[0];
-  const parsedExtraHours = Number(extraHours || 0);
+      const extraHoursValue = parsedExtraHours * extraHourRate;
 
-  if (!applyExtraToAll && selectedExtraWorkers.length === 0) {
-    alert("Selectează cel puțin un muncitor pentru ore extra.");
-    return;
-  }
+      const existingWeekendDaysCount = Number(existing?.weekend_days_count || 0);
+      const existingWeekendValue = Number(existing?.weekend_value || 0);
+      const existingWeekendPaid = Boolean(existing?.weekend_paid || false);
+      const existingIsSaturday = Boolean(existing?.is_saturday || false);
+      const existingIsSunday = Boolean(existing?.is_sunday || false);
 
-  if (parsedExtraHours <= 0) {
-    alert("Introdu un număr valid de ore extra.");
-    return;
-  }
+      return {
+        project_id: projectId,
+        worker_id: worker.id,
+        work_date: today,
 
-  const workersToSave = applyExtraToAll
-    ? todayWorkedWorkers
-    : todayWorkedWorkers.filter((worker) =>
-        selectedExtraWorkers.includes(worker.id)
-      );
+        extra_hours: parsedExtraHours,
+        extra_hours_paid: false,
+        extra_hours_value: extraHoursValue,
 
-  if (workersToSave.length === 0) {
-    alert("Nu există muncitori pentru salvare.");
-    return;
-  }
+        is_saturday: existingIsSaturday,
+        is_sunday: existingIsSunday,
+        weekend_paid: existingWeekendPaid,
+        weekend_days_count: existingWeekendDaysCount,
+        weekend_value: existingWeekendValue,
 
-  setSavingExtra(true);
+        total_value: extraHoursValue + existingWeekendValue,
+      };
+    });
 
-  const workerIds = workersToSave.map((worker) => worker.id);
+    const { error } = await supabase.from("extra_work").upsert(rows, {
+      onConflict: "project_id,worker_id,work_date",
+      ignoreDuplicates: false,
+    });
 
-  const { data: existingRows, error: existingError } = await supabase
-    .from("extra_work")
-    .select(`
-      id,
-      worker_id,
-      extra_hours,
-      is_saturday,
-      is_sunday,
-      extra_hours_paid,
-      weekend_paid,
-      extra_hours_value,
-      weekend_days_count,
-      weekend_value,
-      total_value
-    `)
-    .eq("project_id", projectId)
-    .eq("work_date", today)
-    .in("worker_id", workerIds);
+    if (error) {
+      console.error("Eroare extra_work:", error);
+      alert(`Eroare salvare ore extra: ${error.message}`);
+      setSavingExtra(false);
+      return;
+    }
 
-  if (existingError) {
-    alert(`Eroare citire date existente: ${existingError.message}`);
     setSavingExtra(false);
-    return;
-  }
+    setShowExtraModal(false);
+    setExtraHours("");
+    await loadData();
+    alert("Orele extra au fost salvate.");
+  };
 
-  const existingMap = new Map(
-    (existingRows || []).map((row) => [row.worker_id, row])
-  );
+  const handleSaveWeekendWork = async () => {
+    const selectedSaturdayWorkers = workers.filter(
+      (worker) => weekendSelections[worker.id]?.saturday
+    );
+    const selectedSundayWorkers = workers.filter(
+      (worker) => weekendSelections[worker.id]?.sunday
+    );
 
-  const rows = workersToSave.map((worker) => {
-    const existing = existingMap.get(worker.id);
-    const extraHourRate = Number(worker.extra_hour_rate || 0);
+    if (
+      selectedSaturdayWorkers.length === 0 &&
+      selectedSundayWorkers.length === 0
+    ) {
+      alert("Bifează cel puțin o zi pentru cel puțin un muncitor.");
+      return;
+    }
 
-    const extraHoursValue = parsedExtraHours * extraHourRate;
+    setSavingWeekend(true);
 
-    const existingWeekendDaysCount = Number(existing?.weekend_days_count || 0);
-    const existingWeekendValue = Number(existing?.weekend_value || 0);
-    const existingWeekendPaid = Boolean(existing?.weekend_paid || false);
-    const existingIsSaturday = Boolean(existing?.is_saturday || false);
-    const existingIsSunday = Boolean(existing?.is_sunday || false);
+    const saturdayWorkerIds = selectedSaturdayWorkers.map((worker) => worker.id);
+    const sundayWorkerIds = selectedSundayWorkers.map((worker) => worker.id);
 
-    return {
-      project_id: projectId,
-      worker_id: worker.id,
-      work_date: today,
+    const allWeekendWorkerIds = Array.from(
+      new Set([...saturdayWorkerIds, ...sundayWorkerIds])
+    );
 
-      extra_hours: parsedExtraHours,
-      extra_hours_paid: false,
-      extra_hours_value: extraHoursValue,
+    const { data: saturdayExistingRows, error: saturdayExistingError } =
+      await supabase
+        .from("extra_work")
+        .select(`
+          id,
+          worker_id,
+          extra_hours,
+          extra_hours_paid,
+          extra_hours_value,
+          weekend_paid,
+          weekend_days_count,
+          weekend_value,
+          total_value
+        `)
+        .eq("project_id", projectId)
+        .eq("work_date", saturdayDateString)
+        .in("worker_id", allWeekendWorkerIds.length ? allWeekendWorkerIds : [""]);
 
-      is_saturday: existingIsSaturday,
-      is_sunday: existingIsSunday,
-      weekend_paid: existingWeekendPaid,
-      weekend_days_count: existingWeekendDaysCount,
-      weekend_value: existingWeekendValue,
+    if (saturdayExistingError) {
+      alert(`Eroare citire sâmbătă: ${saturdayExistingError.message}`);
+      setSavingWeekend(false);
+      return;
+    }
 
-      total_value: extraHoursValue + existingWeekendValue,
-    };
-  });
+    const { data: sundayExistingRows, error: sundayExistingError } =
+      await supabase
+        .from("extra_work")
+        .select(`
+          id,
+          worker_id,
+          extra_hours,
+          extra_hours_paid,
+          extra_hours_value,
+          weekend_paid,
+          weekend_days_count,
+          weekend_value,
+          total_value
+        `)
+        .eq("project_id", projectId)
+        .eq("work_date", sundayDateString)
+        .in("worker_id", allWeekendWorkerIds.length ? allWeekendWorkerIds : [""]);
 
-  const { error } = await supabase.from("extra_work").upsert(rows, {
-    onConflict: "project_id,worker_id,work_date",
-    ignoreDuplicates: false,
-  });
+    if (sundayExistingError) {
+      alert(`Eroare citire duminică: ${sundayExistingError.message}`);
+      setSavingWeekend(false);
+      return;
+    }
 
-  if (error) {
-    console.error("Eroare extra_work:", error);
-    alert(`Eroare salvare ore extra: ${error.message}`);
-    setSavingExtra(false);
-    return;
-  }
+    const saturdayExistingMap = new Map(
+      (saturdayExistingRows || []).map((row) => [row.worker_id, row])
+    );
 
-  setSavingExtra(false);
-  setShowExtraModal(false);
-  setExtraHours("");
-  alert("Orele extra au fost salvate.");
-};
+    const sundayExistingMap = new Map(
+      (sundayExistingRows || []).map((row) => [row.worker_id, row])
+    );
 
- const handleSaveWeekendWork = async () => {
-  const today = new Date().toISOString().split("T")[0];
+    const saturdayRows = selectedSaturdayWorkers.map((worker) => {
+      const existing = saturdayExistingMap.get(worker.id);
+      const weekendValue = Number(worker.weekend_day_rate || 0);
+      const existingExtraValue = Number(existing?.extra_hours_value || 0);
+      const existingExtraHours = Number(existing?.extra_hours || 0);
+      const existingExtraPaid = Boolean(existing?.extra_hours_paid || false);
 
-  if (!applyWeekendToAll && selectedWeekendWorkers.length === 0) {
-    alert("Selectează cel puțin un muncitor pentru weekend.");
-    return;
-  }
+      return {
+        project_id: projectId,
+        worker_id: worker.id,
+        work_date: saturdayDateString,
 
-  if (!weekendSaturday && !weekendSunday) {
-    alert("Bifează Sâmbătă și/sau Duminică.");
-    return;
-  }
+        extra_hours: existingExtraHours,
+        extra_hours_paid: existingExtraPaid,
+        extra_hours_value: existingExtraValue,
 
-  const workersToSave = applyWeekendToAll
-    ? todayWorkedWorkers
-    : todayWorkedWorkers.filter((worker) =>
-        selectedWeekendWorkers.includes(worker.id)
-      );
+        is_saturday: true,
+        is_sunday: false,
+        weekend_paid: false,
+        weekend_days_count: 1,
+        weekend_value: weekendValue,
 
-  if (workersToSave.length === 0) {
-    alert("Nu există muncitori pentru salvare.");
-    return;
-  }
+        total_value: existingExtraValue + weekendValue,
+      };
+    });
 
-  const weekendDaysCount =
-    (weekendSaturday ? 1 : 0) + (weekendSunday ? 1 : 0);
+    const sundayRows = selectedSundayWorkers.map((worker) => {
+      const existing = sundayExistingMap.get(worker.id);
+      const weekendValue = Number(worker.weekend_day_rate || 0);
+      const existingExtraValue = Number(existing?.extra_hours_value || 0);
+      const existingExtraHours = Number(existing?.extra_hours || 0);
+      const existingExtraPaid = Boolean(existing?.extra_hours_paid || false);
 
-  setSavingWeekend(true);
+      return {
+        project_id: projectId,
+        worker_id: worker.id,
+        work_date: sundayDateString,
 
-  const workerIds = workersToSave.map((worker) => worker.id);
+        extra_hours: existingExtraHours,
+        extra_hours_paid: existingExtraPaid,
+        extra_hours_value: existingExtraValue,
 
-  const { data: existingRows, error: existingError } = await supabase
-    .from("extra_work")
-    .select(`
-      id,
-      worker_id,
-      extra_hours,
-      is_saturday,
-      is_sunday,
-      extra_hours_paid,
-      weekend_paid,
-      extra_hours_value,
-      weekend_days_count,
-      weekend_value,
-      total_value
-    `)
-    .eq("project_id", projectId)
-    .eq("work_date", today)
-    .in("worker_id", workerIds);
+        is_saturday: false,
+        is_sunday: true,
+        weekend_paid: false,
+        weekend_days_count: 1,
+        weekend_value: weekendValue,
 
-  if (existingError) {
-    alert(`Eroare citire date existente: ${existingError.message}`);
+        total_value: existingExtraValue + weekendValue,
+      };
+    });
+
+    const allRows = [...saturdayRows, ...sundayRows];
+
+    const { error } = await supabase.from("extra_work").upsert(allRows, {
+      onConflict: "project_id,worker_id,work_date",
+      ignoreDuplicates: false,
+    });
+
+    if (error) {
+      console.error("Eroare weekend_work:", error);
+      alert(`Eroare salvare weekend: ${error.message}`);
+      setSavingWeekend(false);
+      return;
+    }
+
     setSavingWeekend(false);
-    return;
-  }
-
-  const existingMap = new Map(
-    (existingRows || []).map((row) => [row.worker_id, row])
-  );
-
-  const rows = workersToSave.map((worker) => {
-    const existing = existingMap.get(worker.id);
-    const weekendDayRate = Number(worker.weekend_day_rate || 0);
-
-    const weekendValue = weekendDaysCount * weekendDayRate;
-
-    const existingExtraHours = Number(existing?.extra_hours || 0);
-    const existingExtraHoursValue = Number(existing?.extra_hours_value || 0);
-    const existingExtraHoursPaid = Boolean(existing?.extra_hours_paid || false);
-
-    return {
-      project_id: projectId,
-      worker_id: worker.id,
-      work_date: today,
-
-      extra_hours: existingExtraHours,
-      extra_hours_paid: existingExtraHoursPaid,
-      extra_hours_value: existingExtraHoursValue,
-
-      is_saturday: weekendSaturday,
-      is_sunday: weekendSunday,
-      weekend_paid: false,
-      weekend_days_count: weekendDaysCount,
-      weekend_value: weekendValue,
-
-      total_value: existingExtraHoursValue + weekendValue,
-    };
-  });
-
-  const { error } = await supabase.from("extra_work").upsert(rows, {
-    onConflict: "project_id,worker_id,work_date",
-    ignoreDuplicates: false,
-  });
-
-  if (error) {
-    console.error("Eroare weekend_work:", error);
-    alert(`Eroare salvare weekend: ${error.message}`);
-    setSavingWeekend(false);
-    return;
-  }
-
-  setSavingWeekend(false);
-  setShowWeekendModal(false);
-  setWeekendSaturday(false);
-  setWeekendSunday(false);
-  alert("Zilele lucrate în weekend au fost salvate.");
-};
+    setShowWeekendModal(false);
+    await loadData();
+    alert("Zilele lucrate în weekend au fost salvate.");
+  };
 
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
@@ -1444,12 +1548,12 @@ const handleSaveExtraWork = async () => {
 
       {showWeekendModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Zile lucrate în weekend</h2>
                 <p className="text-sm text-gray-500">
-                  Marchează sâmbăta și/sau duminica pentru muncitorii selectați.
+                  Marchează prezența pentru weekendul trecut.
                 </p>
               </div>
 
@@ -1462,111 +1566,107 @@ const handleSaveExtraWork = async () => {
               </button>
             </div>
 
-            <div className="max-h-[75vh] overflow-y-auto px-5 py-4">
-              <div className="space-y-5">
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                  <label className="flex cursor-pointer items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={applyWeekendToAll}
-                      onChange={(e) => setApplyWeekendToAll(e.target.checked)}
-                      className="h-5 w-5"
-                    />
-                    <span className="text-sm font-medium text-gray-800">
-                      Aplică pentru toți muncitorii pontați azi
-                    </span>
-                  </label>
-                </div>
+            <div className="max-h-[78vh] overflow-y-auto px-5 py-4">
+              <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+                <p className="text-sm font-medium text-orange-800">
+                  Weekend selectat:
+                </p>
+                <p className="mt-1 text-sm text-orange-900">
+                  Sâmbătă: {formatDateLabel(lastSaturday)} | Duminică:{" "}
+                  {formatDateLabel(lastSunday)}
+                </p>
+              </div>
 
-                {!applyWeekendToAll && (
-                  <div>
-                    <p className="mb-3 text-sm font-medium text-gray-700">
-                      Selectează muncitorii
-                    </p>
-
-                    <div className="space-y-2">
-                      {todayWorkedWorkers.map((worker) => (
-                        <label
-                          key={worker.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedWeekendWorkers.includes(worker.id)}
-                            onChange={() => toggleWeekendWorker(worker.id)}
-                            className="h-5 w-5"
-                          />
-                          <span className="text-sm font-medium text-gray-800">
-                            {worker.full_name}
-                          </span>
-                        </label>
-                      ))}
+              <div className="overflow-hidden rounded-xl border border-gray-200">
+                <div className="grid grid-cols-[2fr_1fr_1fr] bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+                  <div>Nume</div>
+                  <div className="text-center">
+                    <div>Sâmbătă</div>
+                    <div className="mt-1 text-xs font-medium text-gray-500">
+                      {formatDateLabel(lastSaturday)}
                     </div>
                   </div>
-                )}
-
-                <div>
-                  <p className="mb-3 text-sm font-medium text-gray-700">
-                    Zile de weekend
-                  </p>
-
-                  <div className="space-y-2">
-                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={weekendSaturday}
-                        onChange={(e) => setWeekendSaturday(e.target.checked)}
-                        className="h-5 w-5"
-                      />
-                      <span className="text-sm font-medium text-gray-800">
-                        Sâmbătă
-                      </span>
-                    </label>
-
-                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={weekendSunday}
-                        onChange={(e) => setWeekendSunday(e.target.checked)}
-                        className="h-5 w-5"
-                      />
-                      <span className="text-sm font-medium text-gray-800">
-                        Duminică
-                      </span>
-                    </label>
+                  <div className="text-center">
+                    <div>Duminică</div>
+                    <div className="mt-1 text-xs font-medium text-gray-500">
+                      {formatDateLabel(lastSunday)}
+                    </div>
                   </div>
                 </div>
 
-                <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
-                  <p className="text-sm font-medium text-orange-800">
-                    Muncitori selectați: {selectedWeekendWorkersDetails.length}
-                  </p>
-                  <p className="mt-1 text-sm text-orange-800">
-                    Zile weekend: {weekendPreview.weekendDaysCount}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-orange-900">
-                    Valoare weekend: {weekendPreview.totalWeekendValue.toFixed(2)} lei
-                  </p>
-                </div>
+                <div className="divide-y divide-gray-200">
+                  {workers.map((worker) => (
+                    <div
+                      key={worker.id}
+                      className="grid grid-cols-[2fr_1fr_1fr] items-center px-4 py-3"
+                    >
+                      <div className="text-sm font-medium text-gray-800">
+                        {worker.full_name}
+                      </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={handleSaveWeekendWork}
-                    disabled={savingWeekend}
-                    className="w-full rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                  >
-                    {savingWeekend ? "Se salvează..." : "Salvează"}
-                  </button>
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(weekendSelections[worker.id]?.saturday)}
+                          onChange={(e) =>
+                            updateWeekendSelection(
+                              worker.id,
+                              "saturday",
+                              e.target.checked
+                            )
+                          }
+                          className="h-5 w-5"
+                        />
+                      </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setShowWeekendModal(false)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
-                  >
-                    Renunță
-                  </button>
+                      <div className="flex items-center justify-center">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(weekendSelections[worker.id]?.sunday)}
+                          onChange={(e) =>
+                            updateWeekendSelection(
+                              worker.id,
+                              "sunday",
+                              e.target.checked
+                            )
+                          }
+                          className="h-5 w-5"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
+
+              <div className="mt-5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+                <p className="text-sm font-medium text-orange-800">
+                  Muncitori selectați: {weekendSelectedWorkersCount}
+                </p>
+                <p className="mt-1 text-sm text-orange-800">
+                  Zile marcate: {weekendPreview.totalWeekendDays}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-orange-900">
+                  Valoare weekend: {weekendPreview.totalWeekendValue.toFixed(2)} lei
+                </p>
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleSaveWeekendWork}
+                  disabled={savingWeekend}
+                  className="w-full rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {savingWeekend ? "Se salvează..." : "Salvează"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowWeekendModal(false)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                >
+                  Renunță
+                </button>
               </div>
             </div>
           </div>
