@@ -10,6 +10,8 @@ export default function AdaugaMuncitorPage() {
   const [fullName, setFullName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [monthlySalary, setMonthlySalary] = useState("");
+  const [extraHourRate, setExtraHourRate] = useState("");
+  const [weekendDayRate, setWeekendDayRate] = useState("");
   const [notes, setNotes] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -33,6 +35,8 @@ export default function AdaugaMuncitorPage() {
       full_name: fullName.trim(),
       job_title: jobTitle.trim() || null,
       monthly_salary: Number(monthlySalary),
+      extra_hour_rate: extraHourRate ? Number(extraHourRate) : 0,
+      weekend_day_rate: weekendDayRate ? Number(weekendDayRate) : 0,
       notes: notes.trim() || null,
       is_active: isActive,
     });
@@ -55,7 +59,7 @@ export default function AdaugaMuncitorPage() {
           <div>
             <h1 className="text-2xl font-bold">Adaugă muncitor</h1>
             <p className="text-sm text-gray-600">
-              Completează datele de bază ale muncitorului.
+              Completează datele muncitorului și tarifele pentru calcule automate.
             </p>
           </div>
 
@@ -123,6 +127,36 @@ export default function AdaugaMuncitorPage() {
                     Muncitor activ
                   </span>
                 </label>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Tarif oră extra
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={extraHourRate}
+                  onChange={(e) => setExtraHourRate(e.target.value)}
+                  placeholder="Ex: 35"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Tarif zi weekend
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={weekendDayRate}
+                  onChange={(e) => setWeekendDayRate(e.target.value)}
+                  placeholder="Ex: 250"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                />
               </div>
             </div>
 

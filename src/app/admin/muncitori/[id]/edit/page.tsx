@@ -15,6 +15,8 @@ export default function EditMuncitorPage() {
   const [fullName, setFullName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [monthlySalary, setMonthlySalary] = useState("");
+  const [extraHourRate, setExtraHourRate] = useState("");
+  const [weekendDayRate, setWeekendDayRate] = useState("");
   const [notes, setNotes] = useState("");
   const [isActive, setIsActive] = useState(true);
 
@@ -22,7 +24,9 @@ export default function EditMuncitorPage() {
     const loadWorker = async () => {
       const { data, error } = await supabase
         .from("workers")
-        .select("id, full_name, job_title, monthly_salary, notes, is_active")
+        .select(
+          "id, full_name, job_title, monthly_salary, extra_hour_rate, weekend_day_rate, notes, is_active"
+        )
         .eq("id", workerId)
         .single();
 
@@ -37,6 +41,16 @@ export default function EditMuncitorPage() {
       setMonthlySalary(
         data.monthly_salary !== null && data.monthly_salary !== undefined
           ? String(data.monthly_salary)
+          : ""
+      );
+      setExtraHourRate(
+        data.extra_hour_rate !== null && data.extra_hour_rate !== undefined
+          ? String(data.extra_hour_rate)
+          : ""
+      );
+      setWeekendDayRate(
+        data.weekend_day_rate !== null && data.weekend_day_rate !== undefined
+          ? String(data.weekend_day_rate)
           : ""
       );
       setNotes(data.notes || "");
@@ -68,6 +82,8 @@ export default function EditMuncitorPage() {
         full_name: fullName.trim(),
         job_title: jobTitle.trim() || null,
         monthly_salary: Number(monthlySalary),
+        extra_hour_rate: extraHourRate ? Number(extraHourRate) : 0,
+        weekend_day_rate: weekendDayRate ? Number(weekendDayRate) : 0,
         notes: notes.trim() || null,
         is_active: isActive,
       })
@@ -95,7 +111,7 @@ export default function EditMuncitorPage() {
           <div>
             <h1 className="text-2xl font-bold">Editează muncitor</h1>
             <p className="text-sm text-gray-600">
-              Modifică datele muncitorului.
+              Modifică datele muncitorului și tarifele de calcul.
             </p>
           </div>
 
@@ -131,7 +147,7 @@ export default function EditMuncitorPage() {
                   type="text"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder="Ex: Muncitor, Șef de echipă, Montator"
+                  placeholder="Ex: Muncitor, Montator"
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
                 />
               </div>
@@ -163,6 +179,36 @@ export default function EditMuncitorPage() {
                     Muncitor activ
                   </span>
                 </label>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Tarif oră extra
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={extraHourRate}
+                  onChange={(e) => setExtraHourRate(e.target.value)}
+                  placeholder="Ex: 35"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Tarif zi weekend
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={weekendDayRate}
+                  onChange={(e) => setWeekendDayRate(e.target.value)}
+                  placeholder="Ex: 250"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                />
               </div>
             </div>
 
