@@ -84,8 +84,79 @@ type DailyDetailRow = {
 type TabKey = "sumar" | "detaliu" | "muncitori";
 type PeriodMode = "tot_proiectul" | "luna";
 
+type HolidayInfo = {
+  date: string;
+  name: string;
+};
+
+type DisplayMeta = {
+  workingDays: number;
+  normHours: number;
+  legalHolidays: HolidayInfo[];
+};
+
 const formatMoney = (value: number) => `${value.toFixed(2)} lei`;
 const formatHours = (value: number) => `${value.toFixed(2)} h`;
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const toDateKey = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+const getDateRangeInclusive = (start: Date, end: Date) => {
+  const dates: Date[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+  while (cursor.getTime() <= last.getTime()) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const getWorkingDaysAndHolidaysInRangeRomania = (
+  start: Date,
+  end: Date
+): DisplayMeta => {
+  const dates = getDateRangeInclusive(start, end);
+  const years = Array.from(new Set(dates.map((date) => date.getFullYear())));
+  const holidaysMap = new Map<string, string>();
+
+  years.forEach((year) => {
+    getRomanianLegalHolidays(year).forEach((holiday) => {
+      holidaysMap.set(holiday.date, holiday.name);
+    });
+  });
+
+  let workingDays = 0;
+  const legalHolidays: HolidayInfo[] = [];
+
+  dates.forEach((date) => {
+    const key = toDateKey(date);
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const holidayName = holidaysMap.get(key);
+
+    if (holidayName) {
+      legalHolidays.push({
+        date: key,
+        name: holidayName,
+      });
+    }
+
+    if (!isWeekend && !holidayName) {
+      workingDays += 1;
+    }
+  });
+
+  return {
+    workingDays,
+    normHours: workingDays * 8,
+    legalHolidays,
+  };
+};
 
 export default function CentruDeCostManoperaPage() {
   const router = useRouter();
@@ -228,6 +299,7 @@ export default function CentruDeCostManoperaPage() {
           status
         `)
         .eq("project_id", projectId)
+        .not("end_time", "is", null)
         .order("work_date", { ascending: false })
         .order("start_time", { ascending: false });
 
@@ -283,7 +355,7 @@ export default function CentruDeCostManoperaPage() {
     return map;
   }, [workers]);
 
-  const monthMeta = useMemo(() => {
+  const monthMeta = useMemo<DisplayMeta>(() => {
     const [year, month] = selectedMonth.split("-").map(Number);
     const workingDays = getWorkingDaysInMonthRomania(year, month - 1);
     const normHours = workingDays * 8;
@@ -292,37 +364,37 @@ export default function CentruDeCostManoperaPage() {
     );
 
     return {
-      year,
-      monthIndex: month - 1,
       workingDays,
       normHours,
       legalHolidays,
     };
   }, [selectedMonth]);
 
-  const defaultNormMeta = useMemo(() => {
-    const current = new Date();
-    const year = current.getFullYear();
-    const monthIndex = current.getMonth();
-    const monthKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
-    const workingDays = getWorkingDaysInMonthRomania(year, monthIndex);
-    const normHours = workingDays * 8;
-    const legalHolidays = getRomanianLegalHolidays(year).filter((holiday) =>
-      holiday.date.startsWith(monthKey)
+  const projectMeta = useMemo<DisplayMeta>(() => {
+    const allProjectDates = [
+      ...timeEntries.map((entry) => entry.work_date),
+      ...extraWorkRows.map((row) => row.work_date),
+    ]
+      .filter(Boolean)
+      .sort();
+
+    if (allProjectDates.length === 0) {
+      return {
+        workingDays: 0,
+        normHours: 0,
+        legalHolidays: [],
+      };
+    }
+
+    const startDate = new Date(`${allProjectDates[0]}T00:00:00`);
+    const endDate = new Date(
+      `${allProjectDates[allProjectDates.length - 1]}T00:00:00`
     );
 
-    return {
-      year,
-      monthIndex,
-      workingDays,
-      normHours,
-      legalHolidays,
-    };
-  }, []);
+    return getWorkingDaysAndHolidaysInRangeRomania(startDate, endDate);
+  }, [timeEntries, extraWorkRows]);
 
-  const normMetaForRate = periodMode === "luna" ? monthMeta : defaultNormMeta;
-
-  const displayMeta = periodMode === "luna" ? monthMeta : null;
+  const displayMeta = periodMode === "luna" ? monthMeta : projectMeta;
 
   const dailyDetailRows = useMemo<DailyDetailRow[]>(() => {
     const dailyNormalMap = new Map<
@@ -335,6 +407,8 @@ export default function CentruDeCostManoperaPage() {
     >();
 
     timeEntries.forEach((entry) => {
+      if (!entry.end_time) return;
+
       const workedMs = getWorkedMsWithoutPause(entry.start_time, entry.end_time);
       const workedHours = workedMs / (1000 * 60 * 60);
 
@@ -405,7 +479,7 @@ export default function CentruDeCostManoperaPage() {
 
       const monthlySalary = Number(worker?.monthly_salary || 0);
       const hourlyRate =
-        normMetaForRate.normHours > 0 ? monthlySalary / normMetaForRate.normHours : 0;
+        displayMeta.normHours > 0 ? monthlySalary / displayMeta.normHours : 0;
 
       const normalHours = Number(normal?.normal_hours || 0);
       const normalCost = normalHours * hourlyRate;
@@ -446,8 +520,8 @@ export default function CentruDeCostManoperaPage() {
     extraWorkRows,
     workerMap,
     selectedWorkerId,
+    displayMeta.normHours,
     now,
-    normMetaForRate.normHours,
   ]);
 
   const workerSummaryRows = useMemo<WorkerSummaryRow[]>(() => {
@@ -456,14 +530,14 @@ export default function CentruDeCostManoperaPage() {
     workers.forEach((worker) => {
       const monthlySalary = Number(worker.monthly_salary || 0);
       const hourlyRate =
-        normMetaForRate.normHours > 0 ? monthlySalary / normMetaForRate.normHours : 0;
+        displayMeta.normHours > 0 ? monthlySalary / displayMeta.normHours : 0;
 
       map.set(worker.id, {
         worker_id: worker.id,
         worker_name: worker.full_name,
         monthly_salary: monthlySalary,
-        working_days_in_month: normMetaForRate.workingDays,
-        month_norm_hours: normMetaForRate.normHours,
+        working_days_in_month: displayMeta.workingDays,
+        month_norm_hours: displayMeta.normHours,
         hourly_rate: hourlyRate,
         normal_hours: 0,
         normal_cost: 0,
@@ -504,7 +578,7 @@ export default function CentruDeCostManoperaPage() {
           row.total_cost > 0
       )
       .sort((a, b) => b.total_cost - a.total_cost);
-  }, [workers, dailyDetailRows, selectedWorkerId, normMetaForRate]);
+  }, [workers, dailyDetailRows, selectedWorkerId, displayMeta]);
 
   const summaryCards = useMemo(() => {
     const totals = workerSummaryRows.reduce(
@@ -580,15 +654,18 @@ export default function CentruDeCostManoperaPage() {
         ["Zile weekend", String(summaryCards.weekendDays)],
         ["Muncitori implicați", String(summaryCards.workersCount)],
         ["Cost mediu / oră normală", formatMoney(summaryCards.averageHourlyCost)],
+        [
+          periodMode === "tot_proiectul"
+            ? "Zile lucrătoare proiect"
+            : "Zile lucrătoare lună",
+          String(displayMeta.workingDays),
+        ],
+        [
+          periodMode === "tot_proiectul" ? "Normă proiect" : "Normă lunară",
+          `${displayMeta.normHours} ore`,
+        ],
+        ["Sărbători legale", String(displayMeta.legalHolidays.length)],
       ];
-
-      if (periodMode === "luna" && displayMeta) {
-        summaryBody.push(
-          ["Zile lucrătoare lună", String(displayMeta.workingDays)],
-          ["Normă lunară", `${displayMeta.normHours} ore`],
-          ["Sărbători legale în lună", String(displayMeta.legalHolidays.length)]
-        );
-      }
 
       autoTable(doc, {
         startY: 54,
@@ -605,7 +682,7 @@ export default function CentruDeCostManoperaPage() {
 
       let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-      if (periodMode === "luna" && displayMeta && displayMeta.legalHolidays.length > 0) {
+      if (displayMeta.legalHolidays.length > 0) {
         autoTable(doc, {
           startY: finalY,
           head: [["Data", "Sărbătoare legală"]],
@@ -752,7 +829,7 @@ export default function CentruDeCostManoperaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6 print:bg-white print:p-0">
+    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -805,19 +882,21 @@ export default function CentruDeCostManoperaPage() {
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Zile lucrătoare
+                  {periodMode === "tot_proiectul"
+                    ? "Zile lucrătoare"
+                    : "Zile lucrătoare"}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {periodMode === "luna" && displayMeta ? displayMeta.workingDays : "-"}
+                  {displayMeta.workingDays}
                 </p>
               </div>
 
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Normă lunară
+                  {periodMode === "tot_proiectul" ? "Normă proiect" : "Normă lunară"}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {periodMode === "luna" && displayMeta ? `${displayMeta.normHours} ore` : "-"}
+                  {displayMeta.normHours} ore
                 </p>
               </div>
 
@@ -826,7 +905,7 @@ export default function CentruDeCostManoperaPage() {
                   Sărbători legale
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {periodMode === "luna" && displayMeta ? displayMeta.legalHolidays.length : "-"}
+                  {displayMeta.legalHolidays.length}
                 </p>
               </div>
 
@@ -846,7 +925,9 @@ export default function CentruDeCostManoperaPage() {
               type="button"
               onClick={() => setShowFilters((prev) => !prev)}
               className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition ${
-                showFilters ? "bg-gray-500 hover:bg-gray-600" : "bg-[#0196ff] hover:opacity-90"
+                showFilters
+                  ? "bg-gray-500 hover:bg-gray-600"
+                  : "bg-[#0196ff] hover:opacity-90"
               }`}
             >
               {showFilters ? "ASCUNDE FILTRE MANOPERĂ" : "ARATĂ FILTRE MANOPERĂ"}
@@ -1053,55 +1134,66 @@ export default function CentruDeCostManoperaPage() {
 
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Perioadă
+                        {periodMode === "tot_proiectul"
+                          ? "Zile lucrătoare proiect"
+                          : "Zile lucrătoare lună"}
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {periodLabel}
+                        {displayMeta.workingDays}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Normă utilizată la calcul
+                        {periodMode === "tot_proiectul" ? "Normă proiect" : "Normă lunară"}
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {normMetaForRate.normHours} ore
+                        {displayMeta.normHours} ore
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Sărbători legale
+                      </span>
+                      <span className="text-sm font-semibold text-gray-900">
+                        {displayMeta.legalHolidays.length}
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {periodMode === "luna" &&
-                displayMeta &&
-                displayMeta.legalHolidays.length > 0 && (
-                  <div className="rounded-2xl bg-white p-5 shadow">
-                    <div className="mb-4">
-                      <h2 className="text-lg font-semibold">
-                        Sărbători legale din luna selectată
-                      </h2>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Aceste zile nu sunt considerate zile lucrătoare la calcul.
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                      {displayMeta.legalHolidays.map((holiday) => (
-                        <div
-                          key={holiday.date}
-                          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                        >
-                          <p className="text-sm font-semibold text-gray-900">
-                            {new Date(holiday.date).toLocaleDateString("ro-RO")}
-                          </p>
-                          <p className="mt-1 text-sm text-gray-600">
-                            {holiday.name}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
+              {displayMeta.legalHolidays.length > 0 && (
+                <div className="rounded-2xl bg-white p-5 shadow">
+                  <div className="mb-4">
+                    <h2 className="text-lg font-semibold">
+                      {periodMode === "tot_proiectul"
+                        ? "Sărbători legale prinse în proiect"
+                        : "Sărbători legale din luna selectată"}
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Aceste zile nu sunt considerate zile lucrătoare la calcul.
+                    </p>
                   </div>
-                )}
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {displayMeta.legalHolidays.map((holiday) => (
+                      <div
+                        key={`${holiday.date}-${holiday.name}`}
+                        className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+                      >
+                        <p className="text-sm font-semibold text-gray-900">
+                          {new Date(holiday.date).toLocaleDateString("ro-RO")}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-600">
+                          {holiday.name}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="rounded-2xl bg-white p-5 shadow">
                 <div className="mb-4">
