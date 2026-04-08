@@ -171,21 +171,7 @@ export default function CentruDeCostManoperaPage() {
     return Math.max(0, total);
   };
 
-  const getWeekdaysInMonth = (year: number, monthIndex: number) => {
-    const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-    let weekdays = 0;
-
-    for (let day = 1; day <= lastDay; day += 1) {
-      const date = new Date(year, monthIndex, day);
-      const dayOfWeek = date.getDay();
-
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        weekdays += 1;
-      }
-    }
-
-    return weekdays;
-  };
+import { getWorkingDaysInMonthRomania } from "@/lib/romanian-working-days";
 
   useEffect(() => {
     const loadData = async () => {
@@ -272,10 +258,7 @@ export default function CentruDeCostManoperaPage() {
     return map;
   }, [workers]);
 
-  const monthMeta = useMemo(() => {
-    const [year, month] = selectedMonth.split("-").map(Number);
-    const workingDays = getWeekdaysInMonth(year, month - 1);
-    const normHours = workingDays * 8;
+import { getWorkingDaysInMonthRomania } from "@/lib/romanian-working-days";
 
     return {
       year,
