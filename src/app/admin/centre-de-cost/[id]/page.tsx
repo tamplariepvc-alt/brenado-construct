@@ -29,6 +29,46 @@ type ApprovedOrder = {
   created_at: string;
 };
 
+type Worker = {
+  id: string;
+  full_name: string;
+  monthly_salary: number | null;
+  is_active: boolean;
+};
+
+type TimeEntry = {
+  id: string;
+  worker_id: string;
+  start_time: string;
+  end_time: string | null;
+  work_date: string;
+  status: string;
+};
+
+type ExtraWork = {
+  id?: string;
+  worker_id: string;
+  work_date: string;
+  extra_hours: number | null;
+  extra_hours_value: number | null;
+  weekend_days_count: number | null;
+  weekend_value: number | null;
+  total_value: number | null;
+  is_saturday?: boolean | null;
+  is_sunday?: boolean | null;
+};
+
+type ManoperaSummary = {
+  normalHours: number;
+  normalCost: number;
+  extraHours: number;
+  extraCost: number;
+  weekendDays: number;
+  weekendCost: number;
+  totalCost: number;
+  workersCount: number;
+};
+
 export default function CentruDeCostDetaliuPage() {
   const router = useRouter();
   const params = useParams();
@@ -37,9 +77,98 @@ export default function CentruDeCostDetaliuPage() {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [orders, setOrders] = useState<ApprovedOrder[]>([]);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
+  const [extraWorkRows, setExtraWorkRows] = useState<ExtraWork[]>([]);
+
+  const now = Date.now();
+
+  const getPauseWindowForDate = (dateLike: string | Date) => {
+    const d =
+      typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
+
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const day = d.getDate();
+
+    const pauseStart = new Date(year, month, day, 12, 0, 0, 0).getTime();
+    const pauseEnd = new Date(year, month, day, 13, 0, 0, 0).getTime();
+
+    return { pauseStart, pauseEnd };
+  };
+
+  const getOverlapMs = (
+    startMs: number,
+    endMs: number,
+    overlapStart: number,
+    overlapEnd: number
+  ) => {
+    const start = Math.max(startMs, overlapStart);
+    const end = Math.min(endMs, overlapEnd);
+    return Math.max(0, end - start);
+  };
+
+  const getWorkedMsWithoutPause = (
+    startTime: string,
+    endTime?: string | null
+  ) => {
+    const startMs = new Date(startTime).getTime();
+    const endMs = endTime ? new Date(endTime).getTime() : now;
+
+    if (endMs <= startMs) return 0;
+
+    let total = endMs - startMs;
+
+    const startDate = new Date(startMs);
+    const endDate = new Date(endMs);
+
+    const cursor = new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      startDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const last = new Date(
+      endDate.getFullYear(),
+      endDate.getMonth(),
+      endDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    while (cursor.getTime() <= last.getTime()) {
+      const { pauseStart, pauseEnd } = getPauseWindowForDate(cursor);
+      total -= getOverlapMs(startMs, endMs, pauseStart, pauseEnd);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return Math.max(0, total);
+  };
+
+  const getWeekdaysInMonth = (year: number, monthIndex: number) => {
+    const lastDay = new Date(year, monthIndex + 1, 0).getDate();
+    let weekdays = 0;
+
+    for (let day = 1; day <= lastDay; day += 1) {
+      const date = new Date(year, monthIndex, day);
+      const weekDay = date.getDay();
+      if (weekDay !== 0 && weekDay !== 6) {
+        weekdays += 1;
+      }
+    }
+
+    return weekdays;
+  };
 
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
+
       const { data: projectData, error: projectError } = await supabase
         .from("projects")
         .select(`
@@ -63,7 +192,7 @@ export default function CentruDeCostDetaliuPage() {
         return;
       }
 
-      const { data: ordersData, error: ordersError } = await supabase
+      const { data: ordersData } = await supabase
         .from("orders")
         .select(`
           id,
@@ -79,12 +208,67 @@ export default function CentruDeCostDetaliuPage() {
         .eq("status", "aprobata")
         .order("created_at", { ascending: false });
 
+      const currentDate = new Date();
+      const monthStart = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        1
+      );
+      const monthEnd = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        0
+      );
+
+      const monthStartString = monthStart.toISOString().split("T")[0];
+      const monthEndString = monthEnd.toISOString().split("T")[0];
+
+      const { data: workersData } = await supabase
+        .from("workers")
+        .select("id, full_name, monthly_salary, is_active")
+        .eq("is_active", true)
+        .order("full_name", { ascending: true });
+
+      const { data: timeEntriesData } = await supabase
+        .from("time_entries")
+        .select(`
+          id,
+          worker_id,
+          start_time,
+          end_time,
+          work_date,
+          status
+        `)
+        .eq("project_id", projectId)
+        .gte("work_date", monthStartString)
+        .lte("work_date", monthEndString)
+        .order("work_date", { ascending: false })
+        .order("start_time", { ascending: false });
+
+      const { data: extraWorkData } = await supabase
+        .from("extra_work")
+        .select(`
+          id,
+          worker_id,
+          work_date,
+          extra_hours,
+          extra_hours_value,
+          weekend_days_count,
+          weekend_value,
+          total_value,
+          is_saturday,
+          is_sunday
+        `)
+        .eq("project_id", projectId)
+        .gte("work_date", monthStartString)
+        .lte("work_date", monthEndString)
+        .order("work_date", { ascending: false });
+
       setProject(projectData as ProjectDetails);
-
-      if (!ordersError && ordersData) {
-        setOrders(ordersData as ApprovedOrder[]);
-      }
-
+      setOrders((ordersData as ApprovedOrder[]) || []);
+      setWorkers((workersData as Worker[]) || []);
+      setTimeEntries((timeEntriesData as TimeEntry[]) || []);
+      setExtraWorkRows((extraWorkData as ExtraWork[]) || []);
       setLoading(false);
     };
 
@@ -103,16 +287,96 @@ export default function CentruDeCostDetaliuPage() {
     );
   }, [orders]);
 
+  const manoperaSummary = useMemo<ManoperaSummary>(() => {
+    const currentDate = new Date();
+    const year = currentDate.getFullYear();
+    const monthIndex = currentDate.getMonth();
+
+    const weekdaysInMonth = getWeekdaysInMonth(year, monthIndex);
+    const monthNormHours = weekdaysInMonth * 8;
+
+    const workerSalaryMap = new Map<
+      string,
+      { monthlySalary: number; hourlyRate: number }
+    >();
+
+    workers.forEach((worker) => {
+      const monthlySalary = Number(worker.monthly_salary || 0);
+      const hourlyRate =
+        monthNormHours > 0 ? monthlySalary / monthNormHours : 0;
+
+      workerSalaryMap.set(worker.id, {
+        monthlySalary,
+        hourlyRate,
+      });
+    });
+
+    let normalHours = 0;
+    let normalCost = 0;
+    const involvedWorkers = new Set<string>();
+
+    timeEntries.forEach((entry) => {
+      const workedMs = getWorkedMsWithoutPause(entry.start_time, entry.end_time);
+      const workedHours = workedMs / (1000 * 60 * 60);
+
+      if (workedHours <= 0) return;
+
+      const salaryInfo = workerSalaryMap.get(entry.worker_id);
+      const hourlyRate = Number(salaryInfo?.hourlyRate || 0);
+
+      normalHours += workedHours;
+      normalCost += workedHours * hourlyRate;
+      involvedWorkers.add(entry.worker_id);
+    });
+
+    let extraHours = 0;
+    let extraCost = 0;
+    let weekendDays = 0;
+    let weekendCost = 0;
+
+    extraWorkRows.forEach((row) => {
+      const rowExtraHours = Number(row.extra_hours || 0);
+      const rowExtraCost = Number(row.extra_hours_value || 0);
+      const rowWeekendDays = Number(row.weekend_days_count || 0);
+      const rowWeekendCost = Number(row.weekend_value || 0);
+
+      extraHours += rowExtraHours;
+      extraCost += rowExtraCost;
+      weekendDays += rowWeekendDays;
+      weekendCost += rowWeekendCost;
+
+      if (
+        rowExtraHours > 0 ||
+        rowExtraCost > 0 ||
+        rowWeekendDays > 0 ||
+        rowWeekendCost > 0
+      ) {
+        involvedWorkers.add(row.worker_id);
+      }
+    });
+
+    return {
+      normalHours,
+      normalCost,
+      extraHours,
+      extraCost,
+      weekendDays,
+      weekendCost,
+      totalCost: normalCost + extraCost + weekendCost,
+      workersCount: involvedWorkers.size,
+    };
+  }, [workers, timeEntries, extraWorkRows, now]);
+
   const categoryTotals = useMemo(() => {
     return {
       comenzi: orderTotals.total,
       bonuri: 0,
       facturi: 0,
       transport: 0,
-      manopera: 0,
+      manopera: manoperaSummary.totalCost,
       nedeductibile: 0,
     };
-  }, [orderTotals]);
+  }, [orderTotals, manoperaSummary]);
 
   const projectGrandTotal = useMemo(() => {
     return (
@@ -131,22 +395,22 @@ export default function CentruDeCostDetaliuPage() {
     if (status === "finalizat") return "Finalizat";
     return status;
   };
-  
+
   const getProjectStatusStyle = (status: string) => {
-  if (status === "in_asteptare") {
-    return "bg-blue-100 text-blue-800";
-  }
+    if (status === "in_asteptare") {
+      return "bg-blue-100 text-blue-800";
+    }
 
-  if (status === "in_lucru") {
-    return "bg-yellow-100 text-yellow-800";
-  }
+    if (status === "in_lucru") {
+      return "bg-yellow-100 text-yellow-800";
+    }
 
-  if (status === "finalizat") {
-    return "bg-green-100 text-green-800";
-  }
+    if (status === "finalizat") {
+      return "bg-green-100 text-green-800";
+    }
 
-  return "bg-gray-100 text-gray-800";
-};
+    return "bg-gray-100 text-gray-800";
+  };
 
   const handleCategoryClick = (key: string) => {
     if (key === "comenzi") {
@@ -188,6 +452,7 @@ export default function CentruDeCostDetaliuPage() {
       active: true,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
+      details: [] as string[],
     },
     {
       key: "bonuri",
@@ -197,6 +462,7 @@ export default function CentruDeCostDetaliuPage() {
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
+      details: [] as string[],
     },
     {
       key: "facturi",
@@ -206,6 +472,7 @@ export default function CentruDeCostDetaliuPage() {
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
+      details: [] as string[],
     },
     {
       key: "transport",
@@ -215,15 +482,22 @@ export default function CentruDeCostDetaliuPage() {
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
+      details: [] as string[],
     },
     {
       key: "manopera",
       title: "Manoperă",
       value: categoryTotals.manopera,
-      description: "Costuri cu manopera",
-      active: false,
+      description: "Costuri reale din ore lucrate, extra și weekend",
+      active: true,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
+      details: [
+        `Ore normale: ${manoperaSummary.normalHours.toFixed(2)} h`,
+        `Ore extra: ${manoperaSummary.extraHours.toFixed(2)} h`,
+        `Zile weekend: ${manoperaSummary.weekendDays}`,
+        `Muncitori implicați: ${manoperaSummary.workersCount}`,
+      ],
     },
     {
       key: "nedeductibile",
@@ -233,6 +507,7 @@ export default function CentruDeCostDetaliuPage() {
       active: false,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
+      details: [] as string[],
     },
   ];
 
@@ -273,13 +548,13 @@ export default function CentruDeCostDetaliuPage() {
                 </p>
               </div>
 
-<span
-  className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getProjectStatusStyle(
-    project.status
-  )}`}
->
-  {getProjectStatusLabel(project.status)}
-</span>
+              <span
+                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getProjectStatusStyle(
+                  project.status
+                )}`}
+              >
+                {getProjectStatusLabel(project.status)}
+              </span>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -321,10 +596,14 @@ export default function CentruDeCostDetaliuPage() {
               </div>
 
               <div>
-                <p className="text-xs font-medium text-gray-500">Termen execuție</p>
+                <p className="text-xs font-medium text-gray-500">
+                  Termen execuție
+                </p>
                 <p className="mt-1 text-sm font-semibold">
                   {project.execution_deadline
-                    ? new Date(project.execution_deadline).toLocaleDateString("ro-RO")
+                    ? new Date(project.execution_deadline).toLocaleDateString(
+                        "ro-RO"
+                      )
                     : "-"}
                 </p>
               </div>
@@ -340,33 +619,48 @@ export default function CentruDeCostDetaliuPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-{categoryCards.map((card) => (
-  <button
-    key={card.key}
-    type="button"
-    onClick={() => handleCategoryClick(card.key)}
-    className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
-  >
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex-1">
-        <h3 className="text-lg font-semibold">{card.title}</h3>
-        <p className={`mt-1 text-sm ${card.subColor}`}>
-          {card.description}
-        </p>
-        <p className="mt-4 text-2xl font-bold">
-          {card.value.toFixed(2)} lei
-        </p>
-        <p className={`mt-2 text-xs ${card.subColor}`}>
-          {card.active ? "Funcție activă" : "În dezvoltare"}
-        </p>
-      </div>
+              {categoryCards.map((card) => (
+                <button
+                  key={card.key}
+                  type="button"
+                  onClick={() => handleCategoryClick(card.key)}
+                  className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
+                >
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold">{card.title}</h3>
+                      <p className={`mt-1 text-sm ${card.subColor}`}>
+                        {card.description}
+                      </p>
 
-      <div className="shrink-0 text-4xl font-light text-gray-400">
-        →
-      </div>
-    </div>
-  </button>
-))}
+                      <p className="mt-4 text-2xl font-bold">
+                        {card.value.toFixed(2)} lei
+                      </p>
+
+                      {card.details.length > 0 && (
+                        <div className="mt-3 space-y-1">
+                          {card.details.map((detail) => (
+                            <p
+                              key={detail}
+                              className={`text-xs font-medium ${card.subColor}`}
+                            >
+                              {detail}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+
+                      <p className={`mt-3 text-xs ${card.subColor}`}>
+                        {card.active ? "Funcție activă" : "În dezvoltare"}
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-4xl font-light text-gray-400">
+                      →
+                    </div>
+                  </div>
+                </button>
+              ))}
 
               <div className="rounded-2xl bg-[#0196ff] p-5 text-left text-white shadow">
                 <h3 className="text-lg font-semibold">Total general proiect</h3>
@@ -374,8 +668,9 @@ export default function CentruDeCostDetaliuPage() {
                   Total cumulat din toate categoriile
                 </p>
                 <p className="mt-4 text-2xl font-bold">
-                  {projectGrandTotal.toFixed(2)} lei<p className="mt-2 text-xl font-bold">(TVA Inclus)</p>
+                  {projectGrandTotal.toFixed(2)} lei
                 </p>
+                <p className="mt-2 text-xl font-bold">(TVA Inclus)</p>
                 <p className="mt-2 text-xs text-white/80">
                   Sumar total centru de cost
                 </p>
