@@ -82,6 +82,7 @@ type DailyDetailRow = {
 };
 
 type TabKey = "sumar" | "detaliu" | "muncitori";
+type PeriodMode = "tot_proiectul" | "luna";
 
 const formatMoney = (value: number) => `${value.toFixed(2)} lei`;
 const formatHours = (value: number) => `${value.toFixed(2)} h`;
@@ -104,6 +105,8 @@ export default function CentruDeCostManoperaPage() {
   );
   const [selectedWorkerId, setSelectedWorkerId] = useState("toate");
   const [activeTab, setActiveTab] = useState<TabKey>("sumar");
+  const [periodMode, setPeriodMode] = useState<PeriodMode>("tot_proiectul");
+  const [showFilters, setShowFilters] = useState(false);
 
   const now = Date.now();
 
@@ -175,13 +178,20 @@ export default function CentruDeCostManoperaPage() {
     return Math.max(0, total);
   };
 
+  const periodLabel = useMemo(() => {
+    if (periodMode === "tot_proiectul") {
+      return "Tot proiectul";
+    }
+
+    return new Date(`${selectedMonth}-01`).toLocaleDateString("ro-RO", {
+      month: "long",
+      year: "numeric",
+    });
+  }, [periodMode, selectedMonth]);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
-
-      const [year, month] = selectedMonth.split("-").map(Number);
-      const monthStart = `${selectedMonth}-01`;
-      const monthEnd = new Date(year, month, 0).toISOString().split("T")[0];
 
       const { data: projectData, error: projectError } = await supabase
         .from("projects")
@@ -207,7 +217,7 @@ export default function CentruDeCostManoperaPage() {
         .eq("is_active", true)
         .order("full_name", { ascending: true });
 
-      const { data: timeEntriesData } = await supabase
+      let timeEntriesQuery = supabase
         .from("time_entries")
         .select(`
           id,
@@ -218,12 +228,10 @@ export default function CentruDeCostManoperaPage() {
           status
         `)
         .eq("project_id", projectId)
-        .gte("work_date", monthStart)
-        .lte("work_date", monthEnd)
         .order("work_date", { ascending: false })
         .order("start_time", { ascending: false });
 
-      const { data: extraWorkData } = await supabase
+      let extraWorkQuery = supabase
         .from("extra_work")
         .select(`
           id,
@@ -238,9 +246,24 @@ export default function CentruDeCostManoperaPage() {
           is_sunday
         `)
         .eq("project_id", projectId)
-        .gte("work_date", monthStart)
-        .lte("work_date", monthEnd)
         .order("work_date", { ascending: false });
+
+      if (periodMode === "luna") {
+        const [year, month] = selectedMonth.split("-").map(Number);
+        const monthStart = `${selectedMonth}-01`;
+        const monthEnd = new Date(year, month, 0).toISOString().split("T")[0];
+
+        timeEntriesQuery = timeEntriesQuery
+          .gte("work_date", monthStart)
+          .lte("work_date", monthEnd);
+
+        extraWorkQuery = extraWorkQuery
+          .gte("work_date", monthStart)
+          .lte("work_date", monthEnd);
+      }
+
+      const [{ data: timeEntriesData }, { data: extraWorkData }] =
+        await Promise.all([timeEntriesQuery, extraWorkQuery]);
 
       setProject(projectData as Project);
       setWorkers((workersData as Worker[]) || []);
@@ -250,7 +273,7 @@ export default function CentruDeCostManoperaPage() {
     };
 
     loadData();
-  }, [projectId, router, selectedMonth]);
+  }, [projectId, router, selectedMonth, periodMode]);
 
   const workerMap = useMemo(() => {
     const map = new Map<string, Worker>();
@@ -276,6 +299,30 @@ export default function CentruDeCostManoperaPage() {
       legalHolidays,
     };
   }, [selectedMonth]);
+
+  const defaultNormMeta = useMemo(() => {
+    const current = new Date();
+    const year = current.getFullYear();
+    const monthIndex = current.getMonth();
+    const monthKey = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+    const workingDays = getWorkingDaysInMonthRomania(year, monthIndex);
+    const normHours = workingDays * 8;
+    const legalHolidays = getRomanianLegalHolidays(year).filter((holiday) =>
+      holiday.date.startsWith(monthKey)
+    );
+
+    return {
+      year,
+      monthIndex,
+      workingDays,
+      normHours,
+      legalHolidays,
+    };
+  }, []);
+
+  const normMetaForRate = periodMode === "luna" ? monthMeta : defaultNormMeta;
+
+  const displayMeta = periodMode === "luna" ? monthMeta : null;
 
   const dailyDetailRows = useMemo<DailyDetailRow[]>(() => {
     const dailyNormalMap = new Map<
@@ -358,7 +405,7 @@ export default function CentruDeCostManoperaPage() {
 
       const monthlySalary = Number(worker?.monthly_salary || 0);
       const hourlyRate =
-        monthMeta.normHours > 0 ? monthlySalary / monthMeta.normHours : 0;
+        normMetaForRate.normHours > 0 ? monthlySalary / normMetaForRate.normHours : 0;
 
       const normalHours = Number(normal?.normal_hours || 0);
       const normalCost = normalHours * hourlyRate;
@@ -394,7 +441,14 @@ export default function CentruDeCostManoperaPage() {
         if (dateDiff !== 0) return dateDiff;
         return a.worker_name.localeCompare(b.worker_name, "ro");
       });
-  }, [timeEntries, extraWorkRows, workerMap, monthMeta, selectedWorkerId, now]);
+  }, [
+    timeEntries,
+    extraWorkRows,
+    workerMap,
+    selectedWorkerId,
+    now,
+    normMetaForRate.normHours,
+  ]);
 
   const workerSummaryRows = useMemo<WorkerSummaryRow[]>(() => {
     const map = new Map<string, WorkerSummaryRow>();
@@ -402,14 +456,14 @@ export default function CentruDeCostManoperaPage() {
     workers.forEach((worker) => {
       const monthlySalary = Number(worker.monthly_salary || 0);
       const hourlyRate =
-        monthMeta.normHours > 0 ? monthlySalary / monthMeta.normHours : 0;
+        normMetaForRate.normHours > 0 ? monthlySalary / normMetaForRate.normHours : 0;
 
       map.set(worker.id, {
         worker_id: worker.id,
         worker_name: worker.full_name,
         monthly_salary: monthlySalary,
-        working_days_in_month: monthMeta.workingDays,
-        month_norm_hours: monthMeta.normHours,
+        working_days_in_month: normMetaForRate.workingDays,
+        month_norm_hours: normMetaForRate.normHours,
         hourly_rate: hourlyRate,
         normal_hours: 0,
         normal_cost: 0,
@@ -450,7 +504,7 @@ export default function CentruDeCostManoperaPage() {
           row.total_cost > 0
       )
       .sort((a, b) => b.total_cost - a.total_cost);
-  }, [workers, dailyDetailRows, monthMeta, selectedWorkerId]);
+  }, [workers, dailyDetailRows, selectedWorkerId, normMetaForRate]);
 
   const summaryCards = useMemo(() => {
     const totals = workerSummaryRows.reduce(
@@ -499,14 +553,6 @@ export default function CentruDeCostManoperaPage() {
       format: "a4",
     });
 
-    const monthLabel = new Date(`${selectedMonth}-01`).toLocaleDateString(
-      "ro-RO",
-      {
-        month: "long",
-        year: "numeric",
-      }
-    );
-
     const titleMap: Record<TabKey, string> = {
       sumar: "Raport manoperă - Sumar",
       detaliu: "Raport manoperă - Detaliu pe zile",
@@ -521,26 +567,33 @@ export default function CentruDeCostManoperaPage() {
     doc.text(`Cod centru de cost: ${project.cost_center_code || "-"}`, 14, 28);
     doc.text(`Beneficiar: ${project.beneficiary || "-"}`, 14, 34);
     doc.text(`Locație: ${project.project_location || "-"}`, 14, 40);
-    doc.text(`Luna: ${monthLabel}`, 14, 46);
+    doc.text(`Perioadă: ${periodLabel}`, 14, 46);
 
     if (activeTab === "sumar") {
+      const summaryBody = [
+        ["Total manoperă", formatMoney(summaryCards.totalCost)],
+        ["Cost ore normale", formatMoney(summaryCards.normalCost)],
+        ["Cost ore extra", formatMoney(summaryCards.extraCost)],
+        ["Cost weekend", formatMoney(summaryCards.weekendCost)],
+        ["Ore normale", formatHours(summaryCards.normalHours)],
+        ["Ore extra", formatHours(summaryCards.extraHours)],
+        ["Zile weekend", String(summaryCards.weekendDays)],
+        ["Muncitori implicați", String(summaryCards.workersCount)],
+        ["Cost mediu / oră normală", formatMoney(summaryCards.averageHourlyCost)],
+      ];
+
+      if (periodMode === "luna" && displayMeta) {
+        summaryBody.push(
+          ["Zile lucrătoare lună", String(displayMeta.workingDays)],
+          ["Normă lunară", `${displayMeta.normHours} ore`],
+          ["Sărbători legale în lună", String(displayMeta.legalHolidays.length)]
+        );
+      }
+
       autoTable(doc, {
         startY: 54,
         head: [["Categorie", "Valoare"]],
-        body: [
-          ["Total manoperă", formatMoney(summaryCards.totalCost)],
-          ["Cost ore normale", formatMoney(summaryCards.normalCost)],
-          ["Cost ore extra", formatMoney(summaryCards.extraCost)],
-          ["Cost weekend", formatMoney(summaryCards.weekendCost)],
-          ["Ore normale", formatHours(summaryCards.normalHours)],
-          ["Ore extra", formatHours(summaryCards.extraHours)],
-          ["Zile weekend", String(summaryCards.weekendDays)],
-          ["Muncitori implicați", String(summaryCards.workersCount)],
-          ["Cost mediu / oră normală", formatMoney(summaryCards.averageHourlyCost)],
-          ["Zile lucrătoare lună", String(monthMeta.workingDays)],
-          ["Normă lunară", `${monthMeta.normHours} ore`],
-          ["Sărbători legale în lună", String(monthMeta.legalHolidays.length)],
-        ],
+        body: summaryBody,
         styles: {
           fontSize: 10,
           cellPadding: 3,
@@ -552,11 +605,11 @@ export default function CentruDeCostManoperaPage() {
 
       let finalY = (doc as any).lastAutoTable.finalY + 8;
 
-      if (monthMeta.legalHolidays.length > 0) {
+      if (periodMode === "luna" && displayMeta && displayMeta.legalHolidays.length > 0) {
         autoTable(doc, {
           startY: finalY,
           head: [["Data", "Sărbătoare legală"]],
-          body: monthMeta.legalHolidays.map((holiday) => [
+          body: displayMeta.legalHolidays.map((holiday) => [
             holiday.date,
             holiday.name,
           ]),
@@ -679,7 +732,7 @@ export default function CentruDeCostManoperaPage() {
 
     const fileName = `manopera-${project.name
       .toLowerCase()
-      .replace(/\s+/g, "-")}-${activeTab}-${selectedMonth}.pdf`;
+      .replace(/\s+/g, "-")}-${activeTab}-${periodMode === "tot_proiectul" ? "tot-proiectul" : selectedMonth}.pdf`;
 
     doc.save(fileName);
   };
@@ -700,44 +753,8 @@ export default function CentruDeCostManoperaPage() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6 print:bg-white print:p-0">
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: A4 landscape;
-            margin: 12mm;
-          }
-
-          body {
-            background: white !important;
-          }
-
-          .print-hidden {
-            display: none !important;
-          }
-
-          .print-card {
-            box-shadow: none !important;
-            border: 1px solid #e5e7eb !important;
-            break-inside: avoid;
-          }
-
-          .print-table-wrap {
-            overflow: visible !important;
-          }
-
-          table {
-            width: 100% !important;
-          }
-
-          th,
-          td {
-            font-size: 11px !important;
-          }
-        }
-      `}</style>
-
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print-hidden">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Manoperă</h1>
             <p className="text-sm text-gray-600">
@@ -763,7 +780,7 @@ export default function CentruDeCostManoperaPage() {
         </div>
 
         <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-4 shadow print-card md:p-5">
+          <div className="rounded-2xl bg-white p-4 shadow md:p-5">
             <div className="mb-3">
               <h2 className="text-xl font-bold text-gray-900 md:text-lg">
                 {project.name}
@@ -779,13 +796,10 @@ export default function CentruDeCostManoperaPage() {
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
               <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
                 <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Luna selectată
+                  Perioadă
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {new Date(`${selectedMonth}-01`).toLocaleDateString("ro-RO", {
-                    month: "long",
-                    year: "numeric",
-                  })}
+                  {periodLabel}
                 </p>
               </div>
 
@@ -794,7 +808,7 @@ export default function CentruDeCostManoperaPage() {
                   Zile lucrătoare
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {monthMeta.workingDays}
+                  {periodMode === "luna" && displayMeta ? displayMeta.workingDays : "-"}
                 </p>
               </div>
 
@@ -803,7 +817,7 @@ export default function CentruDeCostManoperaPage() {
                   Normă lunară
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {monthMeta.normHours} ore
+                  {periodMode === "luna" && displayMeta ? `${displayMeta.normHours} ore` : "-"}
                 </p>
               </div>
 
@@ -812,7 +826,7 @@ export default function CentruDeCostManoperaPage() {
                   Sărbători legale
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {monthMeta.legalHolidays.length}
+                  {periodMode === "luna" && displayMeta ? displayMeta.legalHolidays.length : "-"}
                 </p>
               </div>
 
@@ -827,48 +841,78 @@ export default function CentruDeCostManoperaPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow print-card print-hidden">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Filtre</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Filtrează manopera după lună și muncitor.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Lună
-                </label>
-                <input
-                  type="month"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Muncitor
-                </label>
-                <select
-                  value={selectedWorkerId}
-                  onChange={(e) => setSelectedWorkerId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-                >
-                  <option value="toate">Toți muncitorii</option>
-                  {workers.map((worker) => (
-                    <option key={worker.id} value={worker.id}>
-                      {worker.full_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <button
+              type="button"
+              onClick={() => setShowFilters((prev) => !prev)}
+              className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition ${
+                showFilters ? "bg-gray-500 hover:bg-gray-600" : "bg-[#0196ff] hover:opacity-90"
+              }`}
+            >
+              {showFilters ? "ASCUNDE FILTRE MANOPERĂ" : "ARATĂ FILTRE MANOPERĂ"}
+            </button>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow print-card print-hidden">
+          {showFilters && (
+            <div className="rounded-2xl bg-white p-5 shadow">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">Filtre</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Filtrează manopera după perioadă și muncitor.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Tip perioadă
+                  </label>
+                  <select
+                    value={periodMode}
+                    onChange={(e) => setPeriodMode(e.target.value as PeriodMode)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                  >
+                    <option value="tot_proiectul">Tot proiectul</option>
+                    <option value="luna">Pe lună</option>
+                  </select>
+                </div>
+
+                {periodMode === "luna" && (
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Lună
+                    </label>
+                    <input
+                      type="month"
+                      value={selectedMonth}
+                      onChange={(e) => setSelectedMonth(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Muncitor
+                  </label>
+                  <select
+                    value={selectedWorkerId}
+                    onChange={(e) => setSelectedWorkerId(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                  >
+                    <option value="toate">Toți muncitorii</option>
+                    {workers.map((worker) => (
+                      <option key={worker.id} value={worker.id}>
+                        {worker.full_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex flex-wrap gap-3">
               <button
                 type="button"
@@ -902,14 +946,14 @@ export default function CentruDeCostManoperaPage() {
             </div>
 
             <p className="text-sm text-gray-500">
-              La export PDF se va salva tabul selectat în acest moment.
+              La export PDF se va salva tabul selectat și perioada curentă.
             </p>
           </div>
 
           {activeTab === "sumar" && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="rounded-2xl bg-white p-5 shadow">
                   <p className="text-sm font-medium text-gray-500">
                     Total manoperă
                   </p>
@@ -918,21 +962,21 @@ export default function CentruDeCostManoperaPage() {
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="rounded-2xl bg-white p-5 shadow">
                   <p className="text-sm font-medium text-gray-500">Ore normale</p>
                   <p className="mt-3 text-2xl font-bold text-gray-900">
                     {summaryCards.normalHours.toFixed(2)} h
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="rounded-2xl bg-white p-5 shadow">
                   <p className="text-sm font-medium text-gray-500">Ore extra</p>
                   <p className="mt-3 text-2xl font-bold text-gray-900">
                     {summaryCards.extraHours.toFixed(2)} h
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="rounded-2xl bg-white p-5 shadow">
                   <p className="text-sm font-medium text-gray-500">
                     Zile weekend
                   </p>
@@ -943,7 +987,7 @@ export default function CentruDeCostManoperaPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="rounded-2xl bg-white p-5 shadow">
                   <h2 className="text-lg font-semibold">Defalcare costuri</h2>
 
                   <div className="mt-4 space-y-3">
@@ -985,7 +1029,7 @@ export default function CentruDeCostManoperaPage() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
+                <div className="rounded-2xl bg-white p-5 shadow">
                   <h2 className="text-lg font-semibold">Indicatori rapizi</h2>
 
                   <div className="mt-4 space-y-3">
@@ -1009,76 +1053,69 @@ export default function CentruDeCostManoperaPage() {
 
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Zile lucrătoare lună
+                        Perioadă
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {monthMeta.workingDays}
+                        {periodLabel}
                       </span>
                     </div>
 
                     <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
                       <span className="text-sm font-medium text-gray-700">
-                        Sărbători legale în lună
+                        Normă utilizată la calcul
                       </span>
                       <span className="text-sm font-semibold text-gray-900">
-                        {monthMeta.legalHolidays.length}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Normă lunară
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {monthMeta.normHours} ore
+                        {normMetaForRate.normHours} ore
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {monthMeta.legalHolidays.length > 0 && (
-                <div className="rounded-2xl bg-white p-5 shadow print-card">
-                  <div className="mb-4">
-                    <h2 className="text-lg font-semibold">
-                      Sărbători legale din luna selectată
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Aceste zile nu sunt considerate zile lucrătoare la calcul.
-                    </p>
-                  </div>
+              {periodMode === "luna" &&
+                displayMeta &&
+                displayMeta.legalHolidays.length > 0 && (
+                  <div className="rounded-2xl bg-white p-5 shadow">
+                    <div className="mb-4">
+                      <h2 className="text-lg font-semibold">
+                        Sărbători legale din luna selectată
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Aceste zile nu sunt considerate zile lucrătoare la calcul.
+                      </p>
+                    </div>
 
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {monthMeta.legalHolidays.map((holiday) => (
-                      <div
-                        key={holiday.date}
-                        className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                      >
-                        <p className="text-sm font-semibold text-gray-900">
-                          {new Date(holiday.date).toLocaleDateString("ro-RO")}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-600">
-                          {holiday.name}
-                        </p>
-                      </div>
-                    ))}
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                      {displayMeta.legalHolidays.map((holiday) => (
+                        <div
+                          key={holiday.date}
+                          className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+                        >
+                          <p className="text-sm font-semibold text-gray-900">
+                            {new Date(holiday.date).toLocaleDateString("ro-RO")}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-600">
+                            {holiday.name}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="rounded-2xl bg-white p-5 shadow print-card">
+              <div className="rounded-2xl bg-white p-5 shadow">
                 <div className="mb-4">
                   <h2 className="text-lg font-semibold">
                     Top muncitori după cost
                   </h2>
                   <p className="mt-1 text-sm text-gray-500">
-                    Primii 5 muncitori cu cea mai mare manoperă în luna selectată.
+                    Primii 5 muncitori cu cea mai mare manoperă pentru perioada selectată.
                   </p>
                 </div>
 
                 {topWorkers.length === 0 ? (
                   <p className="text-sm text-gray-500">
-                    Nu există date pentru luna selectată.
+                    Nu există date pentru filtrul selectat.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -1112,7 +1149,7 @@ export default function CentruDeCostManoperaPage() {
           )}
 
           {activeTab === "detaliu" && (
-            <div className="rounded-2xl bg-white p-5 shadow print-card">
+            <div className="rounded-2xl bg-white p-5 shadow">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold">Detaliu pe zile</h2>
                 <p className="mt-1 text-sm text-gray-500">
@@ -1125,7 +1162,7 @@ export default function CentruDeCostManoperaPage() {
                   Nu există înregistrări pentru filtrul selectat.
                 </p>
               ) : (
-                <div className="overflow-x-auto print-table-wrap">
+                <div className="overflow-x-auto">
                   <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
                     <thead>
                       <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
@@ -1196,12 +1233,11 @@ export default function CentruDeCostManoperaPage() {
           )}
 
           {activeTab === "muncitori" && (
-            <div className="rounded-2xl bg-white p-5 shadow print-card">
+            <div className="rounded-2xl bg-white p-5 shadow">
               <div className="mb-4">
                 <h2 className="text-lg font-semibold">Sumar pe muncitori</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Costul este calculat din salariul lunar raportat la zilele
-                  lucrătoare reale din luna selectată.
+                  Costul este calculat din salariul lunar raportat la norma utilizată.
                 </p>
               </div>
 
@@ -1210,7 +1246,7 @@ export default function CentruDeCostManoperaPage() {
                   Nu există date de manoperă pentru filtrul selectat.
                 </p>
               ) : (
-                <div className="overflow-x-auto print-table-wrap">
+                <div className="overflow-x-auto">
                   <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
                     <thead>
                       <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
