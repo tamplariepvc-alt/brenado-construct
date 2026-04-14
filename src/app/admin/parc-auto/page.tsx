@@ -102,6 +102,8 @@ export default function ParcAutoPage() {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate());
   }, []);
 
+  const hasSearch = searchTerm.trim().length > 0;
+
   const parseDate = (value: string | null) => {
     if (!value) return null;
     const [year, month, day] = value.split("-").map(Number);
@@ -174,7 +176,7 @@ export default function ParcAutoPage() {
     }
 
     if (status === "doc_expirate") {
-      return "bg-red-100 text-red-700";
+      return "bg-yellow-100 text-yellow-800";
     }
 
     return "bg-gray-100 text-gray-700";
@@ -269,9 +271,8 @@ export default function ParcAutoPage() {
     return "Toate";
   };
 
-  const statCardBase =
-    "rounded-2xl p-4 text-left shadow transition hover:shadow-md";
-  const isFilterActive = (filter: FilterType) => activeFilter === filter;
+  const badgeButtonBase =
+    "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition";
 
   if (loading) {
     return <div className="p-6">Se incarca parcul auto...</div>;
@@ -305,110 +306,83 @@ export default function ParcAutoPage() {
           </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <button
-            type="button"
-            onClick={() => setActiveFilter("toate")}
-            className={`${statCardBase} ${
-              isFilterActive("toate")
-                ? "ring-2 ring-[#0196ff] bg-white"
-                : "bg-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Total vehicule</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-[#0196ff] px-3 py-1 text-sm font-bold text-white">
+        <div className="mb-4 rounded-2xl bg-white p-4 shadow">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("toate")}
+              className={`${badgeButtonBase} ${
+                activeFilter === "toate"
+                  ? "border-[#0196ff] bg-blue-50 text-[#0196ff]"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <span>Total vehicule</span>
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-[#0196ff] px-2 py-0.5 text-xs font-bold text-white">
                 {stats.total}
               </span>
-            </div>
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilter("active")}
-            className={`${statCardBase} ${
-              isFilterActive("active")
-                ? "ring-2 ring-green-500 bg-white"
-                : "bg-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Active</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">{stats.active}</p>
-              </div>
-              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-green-600 px-3 py-1 text-sm font-bold text-white">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("active")}
+              className={`${badgeButtonBase} ${
+                activeFilter === "active"
+                  ? "border-green-500 bg-green-50 text-green-700"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <span>Active</span>
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-green-600 px-2 py-0.5 text-xs font-bold text-white">
                 {stats.active}
               </span>
-            </div>
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilter("in_reparatie")}
-            className={`${statCardBase} ${
-              isFilterActive("in_reparatie")
-                ? "ring-2 ring-orange-500 bg-white"
-                : "bg-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-500">In reparatie</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">{stats.inRepair}</p>
-              </div>
-              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-orange-500 px-3 py-1 text-sm font-bold text-white">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("in_reparatie")}
+              className={`${badgeButtonBase} ${
+                activeFilter === "in_reparatie"
+                  ? "border-orange-500 bg-orange-50 text-orange-700"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <span>In reparatie</span>
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
                 {stats.inRepair}
               </span>
-            </div>
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilter("doc_expirate")}
-            className={`${statCardBase} ${
-              isFilterActive("doc_expirate")
-                ? "ring-2 ring-yellow-500 bg-white"
-                : "bg-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Doc. expirate</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">
-                  {stats.expiredDocs}
-                </p>
-              </div>
-              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-yellow-500 px-3 py-1 text-sm font-bold text-white">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("doc_expirate")}
+              className={`${badgeButtonBase} ${
+                activeFilter === "doc_expirate"
+                  ? "border-yellow-500 bg-yellow-50 text-yellow-800"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <span>Doc. expirate</span>
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-yellow-500 px-2 py-0.5 text-xs font-bold text-white">
                 {stats.expiredDocs}
               </span>
-            </div>
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveFilter("urmeaza_sa_expire")}
-            className={`${statCardBase} ${
-              isFilterActive("urmeaza_sa_expire")
-                ? "ring-2 ring-gray-400 bg-white"
-                : "bg-white"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Urmeaza sa expire</p>
-                <p className="mt-1 text-xl font-bold text-gray-900">
-                  {stats.expiringSoon}
-                </p>
-              </div>
-              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-gray-500 px-3 py-1 text-sm font-bold text-white">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("urmeaza_sa_expire")}
+              className={`${badgeButtonBase} ${
+                activeFilter === "urmeaza_sa_expire"
+                  ? "border-gray-400 bg-gray-100 text-gray-800"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <span>Urmeaza sa expire</span>
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-gray-500 px-2 py-0.5 text-xs font-bold text-white">
                 {stats.expiringSoon}
               </span>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
 
         <div className="mb-6 rounded-2xl bg-white p-4 shadow">
@@ -416,17 +390,21 @@ export default function ParcAutoPage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Filtrare</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Tip filtru activ: <span className="font-semibold text-gray-800">{getFilterLabel()}</span>
+                Tip filtru activ:{" "}
+                <span className="font-semibold text-gray-800">{getFilterLabel()}</span>
               </p>
             </div>
 
-            {activeFilter !== "toate" && (
+            {(activeFilter !== "toate" || hasSearch) && (
               <button
                 type="button"
-                onClick={() => setActiveFilter("toate")}
+                onClick={() => {
+                  setActiveFilter("toate");
+                  setSearchTerm("");
+                }}
                 className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
               >
-                Reseteaza filtrul
+                Reseteaza filtrele
               </button>
             )}
           </div>
@@ -445,96 +423,162 @@ export default function ParcAutoPage() {
           </div>
         </div>
 
-        <div className="space-y-4">
-          {(Object.keys(categoryLabels) as SectionKey[]).map((sectionKey) => {
-            const sectionVehicles = groupedVehicles[sectionKey];
-            const isOpen = openSections[sectionKey];
+        {hasSearch ? (
+          <div className="rounded-2xl bg-white p-4 shadow">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Rezultate cautare</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                {filteredVehicles.length} vehicule gasite
+              </p>
+            </div>
 
-            return (
-              <div
-                key={sectionKey}
-                className="overflow-hidden rounded-2xl bg-white shadow"
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleSection(sectionKey)}
-                  className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50"
-                >
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900">
-                      {categoryLabels[sectionKey]}
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {sectionVehicles.length} vehicule
-                    </p>
-                  </div>
+            {filteredVehicles.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu exista vehicule care sa corespunda cautarii.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {filteredVehicles.map((vehicle) => {
+                  const computedStatus = getComputedStatus(vehicle);
+                  const warnings = getExpiryWarnings(vehicle);
 
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-700">
-                    {isOpen ? "−" : "+"}
-                  </span>
-                </button>
+                  return (
+                    <button
+                      key={vehicle.id}
+                      type="button"
+                      onClick={() => router.push(`/admin/parc-auto/${vehicle.id}`)}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:bg-gray-100"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-gray-900 break-words">
+                            {vehicle.brand} {vehicle.model}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500 break-words">
+                            Nr. inmatriculare: {vehicle.registration_number}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-400">
+                            Categoria: {categoryLabels[vehicle.category as SectionKey]}
+                          </p>
+                        </div>
 
-                {isOpen && (
-                  <div className="border-t border-gray-200">
-                    {sectionVehicles.length === 0 ? (
-                      <div className="px-5 py-6 text-sm text-gray-500">
-                        Nu exista vehicule in aceasta categorie pentru filtrul curent.
-                      </div>
-                    ) : (
-                      <div className="space-y-3 p-4">
-                        {sectionVehicles.map((vehicle) => {
-                          const computedStatus = getComputedStatus(vehicle);
-                          const warnings = getExpiryWarnings(vehicle);
+                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                          <span
+                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                              computedStatus
+                            )}`}
+                          >
+                            {getStatusLabel(computedStatus)}
+                          </span>
 
-                          return (
-                            <button
-                              key={vehicle.id}
-                              type="button"
-                              onClick={() =>
-                                router.push(`/admin/parc-auto/${vehicle.id}`)
-                              }
-                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:bg-gray-100"
+                          {warnings.map((warning) => (
+                            <span
+                              key={warning}
+                              className="inline-flex w-fit rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
                             >
-                              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-semibold text-gray-900 break-words">
-                                    {vehicle.brand} {vehicle.model}
-                                  </p>
-                                  <p className="mt-1 text-sm text-gray-500 break-words">
-                                    Nr. inmatriculare: {vehicle.registration_number}
-                                  </p>
-                                </div>
-
-                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                                  <span
-                                    className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                                      computedStatus
-                                    )}`}
-                                  >
-                                    {getStatusLabel(computedStatus)}
-                                  </span>
-
-                                  {warnings.map((warning) => (
-                                    <span
-                                      key={warning}
-                                      className="inline-flex w-fit rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
-                                    >
-                                      {warning}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
+                              {warning}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {(Object.keys(categoryLabels) as SectionKey[]).map((sectionKey) => {
+              const sectionVehicles = groupedVehicles[sectionKey];
+              const isOpen = openSections[sectionKey];
+
+              return (
+                <div
+                  key={sectionKey}
+                  className="overflow-hidden rounded-2xl bg-white shadow"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(sectionKey)}
+                    className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50"
+                  >
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900">
+                        {categoryLabels[sectionKey]}
+                      </h2>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {sectionVehicles.length} vehicule
+                      </p>
+                    </div>
+
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-700">
+                      {isOpen ? "−" : "+"}
+                    </span>
+                  </button>
+
+                  {isOpen && (
+                    <div className="border-t border-gray-200">
+                      {sectionVehicles.length === 0 ? (
+                        <div className="px-5 py-6 text-sm text-gray-500">
+                          Nu exista vehicule in aceasta categorie pentru filtrul curent.
+                        </div>
+                      ) : (
+                        <div className="space-y-3 p-4">
+                          {sectionVehicles.map((vehicle) => {
+                            const computedStatus = getComputedStatus(vehicle);
+                            const warnings = getExpiryWarnings(vehicle);
+
+                            return (
+                              <button
+                                key={vehicle.id}
+                                type="button"
+                                onClick={() =>
+                                  router.push(`/admin/parc-auto/${vehicle.id}`)
+                                }
+                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:bg-gray-100"
+                              >
+                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 break-words">
+                                      {vehicle.brand} {vehicle.model}
+                                    </p>
+                                    <p className="mt-1 text-sm text-gray-500 break-words">
+                                      Nr. inmatriculare: {vehicle.registration_number}
+                                    </p>
+                                  </div>
+
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                                    <span
+                                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                                        computedStatus
+                                      )}`}
+                                    >
+                                      {getStatusLabel(computedStatus)}
+                                    </span>
+
+                                    {warnings.map((warning) => (
+                                      <span
+                                        key={warning}
+                                        className="inline-flex w-fit rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
+                                      >
+                                        {warning}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
