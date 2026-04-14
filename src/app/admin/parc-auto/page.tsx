@@ -190,7 +190,7 @@ export default function ParcAutoPage() {
       expiring: vehicles.filter((v) => isExpiringSoon(v)).length,
       leasing: vehicles.filter((v) => v.is_leasing).length,
     };
-  }, [vehicles]);
+  }, [vehicles, today]);
 
   const filterCounts = {
     toate: stats.total,
@@ -285,7 +285,9 @@ export default function ParcAutoPage() {
   };
 
   const getFilterBadgeClasses = (type: FilterType) => {
-    if (type === "toate") return filter === type ? "bg-white/20 text-white" : "bg-[#0196ff] text-white";
+    if (type === "toate") {
+      return filter === type ? "bg-white/20 text-white" : "bg-[#0196ff] text-white";
+    }
     if (type === "active") return "bg-green-600 text-white";
     if (type === "inactive") return "bg-gray-500 text-white";
     if (type === "in_reparatie") return "bg-orange-500 text-white";
@@ -293,6 +295,60 @@ export default function ParcAutoPage() {
     if (type === "urmeaza_sa_expire") return "bg-yellow-500 text-white";
     if (type === "leasing") return "bg-purple-600 text-white";
     return "bg-gray-500 text-white";
+  };
+
+  const showSections = filter === "toate";
+
+  const renderVehicleCard = (v: Vehicle) => {
+    const status = getComputedStatus(v);
+    const warnings = getWarnings(v);
+
+    return (
+      <button
+        key={v.id}
+        onClick={() => router.push(`/admin/parc-auto/${v.id}`)}
+        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left shadow-sm transition hover:bg-gray-100"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-base font-semibold text-gray-900 break-words">
+              {v.brand} {v.model}
+            </p>
+
+            <p className="mt-0.5 text-lg text-gray-500 break-words">
+              {v.registration_number}
+            </p>
+
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                  status
+                )}`}
+              >
+                {getStatusLabel(status)}
+              </span>
+
+              {v.is_leasing && (
+                <span className="inline-flex rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                  Leasing
+                </span>
+              )}
+
+              {warnings.map((warning) => (
+                <span
+                  key={warning}
+                  className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
+                >
+                  {warning}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="shrink-0 text-3xl text-gray-400">›</div>
+        </div>
+      </button>
+    );
   };
 
   if (loading) {
@@ -447,101 +503,64 @@ export default function ParcAutoPage() {
           />
         </div>
 
-        <div className="space-y-4">
-          {(Object.keys(grouped) as SectionKey[]).map((sectionKey) => {
-            const list = grouped[sectionKey];
-            const isOpen = openSections[sectionKey];
+        {showSections ? (
+          <div className="space-y-4">
+            {(Object.keys(grouped) as SectionKey[]).map((sectionKey) => {
+              const list = grouped[sectionKey];
+              const isOpen = openSections[sectionKey];
 
-            return (
-              <div key={sectionKey} className="overflow-hidden rounded-3xl bg-white shadow">
-                <button
-                  type="button"
-                  onClick={() => toggleSection(sectionKey)}
-                  className="flex w-full items-center justify-between px-5 py-4 text-left"
+              return (
+                <div
+                  key={sectionKey}
+                  className="overflow-hidden rounded-3xl bg-white shadow"
                 >
-                  <div className="flex min-w-0 flex-1 flex-col">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      {categoryLabels[sectionKey]}
-                    </h2>
-                    <p className="mt-1 text-base text-gray-500">
-                      {list.length} vehicule
-                    </p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(sectionKey)}
+                    className="flex w-full items-center justify-between px-5 py-4 text-left"
+                  >
+                    <div className="flex min-w-0 flex-1 flex-col">
+                      <h2 className="text-xl font-bold text-gray-900">
+                        {categoryLabels[sectionKey]}
+                      </h2>
+                      <p className="mt-1 text-base text-gray-500">
+                        {list.length} vehicule
+                      </p>
+                    </div>
 
-                  <span className="ml-4 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-2xl font-medium text-gray-700">
-                    {isOpen ? "−" : "+"}
-                  </span>
-                </button>
+                    <span className="ml-4 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-2xl font-medium text-gray-700">
+                      {isOpen ? "−" : "+"}
+                    </span>
+                  </button>
 
-                {isOpen && (
-                  <div className="border-t border-gray-200 px-3 py-3">
-                    {list.length === 0 ? (
-                      <div className="px-2 py-4 text-base text-gray-500">
-                        Nu exista vehicule in aceasta categorie pentru filtrul curent.
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {list.map((v) => {
-                          const status = getComputedStatus(v);
-                          const warnings = getWarnings(v);
-
-                          return (
-                            <button
-                              key={v.id}
-                              onClick={() => router.push(`/admin/parc-auto/${v.id}`)}
-                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left shadow-sm transition hover:bg-gray-100"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-base font-semibold text-gray-900 break-words">
-                                    {v.brand} {v.model}
-                                  </p>
-
-                                  <p className="mt-0.5 text-lg text-gray-500 break-words">
-                                    {v.registration_number}
-                                  </p>
-
-                                  <div className="mt-2 flex flex-wrap gap-2">
-                                    <span
-                                      className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                                        status
-                                      )}`}
-                                    >
-                                      {getStatusLabel(status)}
-                                    </span>
-
-                                    {v.is_leasing && (
-                                      <span className="inline-flex rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
-                                        Leasing
-                                      </span>
-                                    )}
-
-                                    {warnings.map((warning) => (
-                                      <span
-                                        key={warning}
-                                        className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
-                                      >
-                                        {warning}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                <div className="shrink-0 text-3xl text-gray-400">
-                                  ›
-                                </div>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  {isOpen && (
+                    <div className="border-t border-gray-200 px-3 py-3">
+                      {list.length === 0 ? (
+                        <div className="px-2 py-4 text-base text-gray-500">
+                          Nu exista vehicule in aceasta categorie pentru filtrul curent.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {list.map((v) => renderVehicleCard(v))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filteredVehicles.length === 0 ? (
+              <div className="rounded-2xl bg-white px-4 py-5 text-sm text-gray-500 shadow">
+                Nu exista vehicule pentru filtrul selectat.
               </div>
-            );
-          })}
-        </div>
+            ) : (
+              filteredVehicles.map((v) => renderVehicleCard(v))
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
