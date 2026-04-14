@@ -38,7 +38,8 @@ type FilterType =
   | "active"
   | "in_reparatie"
   | "doc_expirate"
-  | "urmeaza_sa_expire";
+  | "urmeaza_sa_expire"
+  | "leasing";
 
 const categoryLabels: Record<SectionKey, string> = {
   camion: "Camioane",
@@ -176,7 +177,7 @@ export default function ParcAutoPage() {
     }
 
     if (status === "doc_expirate") {
-      return "bg-yellow-100 text-yellow-800";
+      return "bg-red-100 text-red-700";
     }
 
     return "bg-gray-100 text-gray-700";
@@ -196,6 +197,7 @@ export default function ParcAutoPage() {
     const expiringSoon = vehicles.filter((vehicle) =>
       isExpiringSoon(vehicle)
     ).length;
+    const leasing = vehicles.filter((vehicle) => vehicle.is_leasing).length;
 
     return {
       total,
@@ -203,6 +205,7 @@ export default function ParcAutoPage() {
       inRepair,
       expiredDocs,
       expiringSoon,
+      leasing,
     };
   }, [vehicles, today]);
 
@@ -225,6 +228,10 @@ export default function ParcAutoPage() {
       }
 
       if (activeFilter === "urmeaza_sa_expire" && !isExpiringSoon(vehicle)) {
+        return false;
+      }
+
+      if (activeFilter === "leasing" && !vehicle.is_leasing) {
         return false;
       }
 
@@ -268,6 +275,7 @@ export default function ParcAutoPage() {
     if (activeFilter === "in_reparatie") return "In reparatie";
     if (activeFilter === "doc_expirate") return "Doc. expirate";
     if (activeFilter === "urmeaza_sa_expire") return "Urmeaza sa expire";
+    if (activeFilter === "leasing") return "Leasing";
     return "Toate";
   };
 
@@ -358,12 +366,12 @@ export default function ParcAutoPage() {
               onClick={() => setActiveFilter("doc_expirate")}
               className={`${badgeButtonBase} ${
                 activeFilter === "doc_expirate"
-                  ? "border-yellow-500 bg-yellow-50 text-yellow-800"
+                  ? "border-red-500 bg-red-50 text-red-700"
                   : "border-gray-200 bg-white text-gray-700"
               }`}
             >
               <span>Doc. expirate</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-yellow-500 px-2 py-0.5 text-xs font-bold text-white">
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
                 {stats.expiredDocs}
               </span>
             </button>
@@ -380,6 +388,21 @@ export default function ParcAutoPage() {
               <span>Urmeaza sa expire</span>
               <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-gray-500 px-2 py-0.5 text-xs font-bold text-white">
                 {stats.expiringSoon}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveFilter("leasing")}
+              className={`${badgeButtonBase} ${
+                activeFilter === "leasing"
+                  ? "border-purple-500 bg-purple-50 text-purple-700"
+                  : "border-gray-200 bg-white text-gray-700"
+              }`}
+            >
+              <span>Leasing</span>
+              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-purple-600 px-2 py-0.5 text-xs font-bold text-white">
+                {stats.leasing}
               </span>
             </button>
           </div>
@@ -471,6 +494,12 @@ export default function ParcAutoPage() {
                             {getStatusLabel(computedStatus)}
                           </span>
 
+                          {vehicle.is_leasing && (
+                            <span className="inline-flex w-fit rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                              Leasing
+                            </span>
+                          )}
+
                           {warnings.map((warning) => (
                             <span
                               key={warning}
@@ -556,6 +585,12 @@ export default function ParcAutoPage() {
                                     >
                                       {getStatusLabel(computedStatus)}
                                     </span>
+
+                                    {vehicle.is_leasing && (
+                                      <span className="inline-flex w-fit rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                                        Leasing
+                                      </span>
+                                    )}
 
                                     {warnings.map((warning) => (
                                       <span
