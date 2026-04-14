@@ -46,10 +46,10 @@ export default function ParcAutoPage() {
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    camion: true,
-    autoutilitara: true,
-    microbuz: true,
-    masina_administrativa: true,
+    camion: false,
+    autoutilitara: false,
+    microbuz: false,
+    masina_administrativa: false,
   });
 
   useEffect(() => {
@@ -97,35 +97,6 @@ export default function ParcAutoPage() {
     if (!value) return null;
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
-  };
-
-  const formatDate = (value: string | null) => {
-    if (!value) return "-";
-    return new Date(value).toLocaleDateString("ro-RO");
-  };
-
-  const getMonthsRemaining = (lastRateDate: string | null) => {
-    if (!lastRateDate) return 0;
-
-    const lastDate = parseDate(lastRateDate);
-    if (!lastDate) return 0;
-
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
-    const lastYear = lastDate.getFullYear();
-    const lastMonth = lastDate.getMonth();
-
-    const diff = (lastYear - currentYear) * 12 + (lastMonth - currentMonth) + 1;
-
-    return Math.max(0, diff);
-  };
-
-  const getRemainingLeasingValue = (vehicle: Vehicle) => {
-    if (!vehicle.is_leasing) return 0;
-    const monthlyRate = Number(vehicle.monthly_rate || 0);
-    const monthsRemaining = getMonthsRemaining(vehicle.last_rate_date);
-    return monthlyRate * monthsRemaining;
   };
 
   const getComputedStatus = (vehicle: Vehicle) => {
@@ -228,7 +199,10 @@ export default function ParcAutoPage() {
             const isOpen = openSections[sectionKey];
 
             return (
-              <div key={sectionKey} className="overflow-hidden rounded-2xl bg-white shadow">
+              <div
+                key={sectionKey}
+                className="overflow-hidden rounded-2xl bg-white shadow"
+              >
                 <button
                   type="button"
                   onClick={() => toggleSection(sectionKey)}
@@ -243,7 +217,7 @@ export default function ParcAutoPage() {
                     </p>
                   </div>
 
-                  <span className="text-2xl text-gray-400">
+                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-700">
                     {isOpen ? "−" : "+"}
                   </span>
                 </button>
@@ -255,70 +229,46 @@ export default function ParcAutoPage() {
                         Nu exista vehicule in aceasta categorie.
                       </div>
                     ) : (
-                      <div className="divide-y divide-gray-200">
+                      <div className="space-y-3 p-4">
                         {sectionVehicles.map((vehicle) => {
                           const computedStatus = getComputedStatus(vehicle);
-                          const leasingValue = getRemainingLeasingValue(vehicle);
 
                           return (
-                            <button
+                            <div
                               key={vehicle.id}
-                              type="button"
-                              onClick={() =>
-                                router.push(`/admin/parc-auto/${vehicle.id}/edit`)
-                              }
-                              className="grid w-full grid-cols-1 gap-4 px-5 py-4 text-left transition hover:bg-gray-50 xl:grid-cols-[1.3fr_1fr_1fr_1fr_1fr_auto]"
+                              className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4"
                             >
-                              <div>
-                                <p className="text-base font-semibold text-gray-900">
-                                  {vehicle.brand} {vehicle.model}
-                                </p>
-                                <p className="mt-1 text-sm text-gray-500">
-                                  Nr. inmatriculare: {vehicle.registration_number}
-                                </p>
-                              </div>
-
-                              <div>
-                                <p className="text-xs font-medium text-gray-500">RCA</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900">
-                                  {formatDate(vehicle.rca_valid_until)}
-                                </p>
-                              </div>
-
-                              <div>
-                                <p className="text-xs font-medium text-gray-500">ITP</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900">
-                                  {formatDate(vehicle.itp_valid_until)}
-                                </p>
-                              </div>
-
-                              <div>
-                                <p className="text-xs font-medium text-gray-500">Leasing</p>
-                                <p className="mt-1 text-sm font-semibold text-gray-900">
-                                  {vehicle.is_leasing ? "Da" : "Nu"}
-                                </p>
-                                {vehicle.is_leasing && (
-                                  <p className="mt-1 text-xs text-gray-500">
-                                    Ramas: {leasingValue.toFixed(2)} lei
+                              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-gray-900 break-words">
+                                    {vehicle.brand} {vehicle.model}
                                   </p>
-                                )}
-                              </div>
+                                  <p className="mt-1 text-sm text-gray-500 break-words">
+                                    Nr. inmatriculare: {vehicle.registration_number}
+                                  </p>
+                                </div>
 
-                              <div>
-                                <p className="text-xs font-medium text-gray-500">Status</p>
-                                <span
-                                  className={`mt-1 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                                    computedStatus
-                                  )}`}
-                                >
-                                  {getStatusLabel(computedStatus)}
-                                </span>
-                              </div>
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                  <span
+                                    className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                                      computedStatus
+                                    )}`}
+                                  >
+                                    {getStatusLabel(computedStatus)}
+                                  </span>
 
-                              <div className="self-center text-3xl font-light text-gray-400">
-                                →
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      router.push(`/admin/parc-auto/${vehicle.id}/edit`)
+                                    }
+                                    className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                                  >
+                                    Actualizeaza
+                                  </button>
+                                </div>
                               </div>
-                            </button>
+                            </div>
                           );
                         })}
                       </div>
