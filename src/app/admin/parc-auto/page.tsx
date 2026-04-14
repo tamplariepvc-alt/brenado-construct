@@ -10,7 +10,10 @@ type VehicleCategory =
   | "microbuz"
   | "masina_administrativa";
 
-type VehicleStatus = "activa" | "inactiva" | "in_reparatie";
+type VehicleStatus =
+  | "activa"
+  | "inactiva"
+  | "in_reparatie";
 
 type Vehicle = {
   id: string;
@@ -20,139 +23,56 @@ type Vehicle = {
   registration_number: string;
   rca_valid_until: string | null;
   itp_valid_until: string | null;
-  is_leasing: boolean;
-  monthly_rate: number | null;
-  last_rate_date: string | null;
   status: VehicleStatus;
-  created_at: string;
-};
-
-type SectionKey =
-  | "camion"
-  | "autoutilitara"
-  | "microbuz"
-  | "masina_administrativa";
-
-type FilterType =
-  | "toate"
-  | "active"
-  | "in_reparatie"
-  | "doc_expirate"
-  | "urmeaza_sa_expire"
-  | "leasing";
-
-const categoryLabels: Record<SectionKey, string> = {
-  camion: "Camioane",
-  autoutilitara: "Autoutilitare",
-  microbuz: "Microbuze",
-  masina_administrativa: "Masini Administrative",
+  is_leasing: boolean;
 };
 
 export default function ParcAutoPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("toate");
-  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    camion: false,
-    autoutilitara: false,
-    microbuz: false,
-    masina_administrativa: false,
-  });
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("toate");
 
-  useEffect(() => {
-    const loadVehicles = async () => {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from("vehicles")
-        .select(`
-          id,
-          category,
-          brand,
-          model,
-          registration_number,
-          rca_valid_until,
-          itp_valid_until,
-          is_leasing,
-          monthly_rate,
-          last_rate_date,
-          status,
-          created_at
-        `)
-        .order("category", { ascending: true })
-        .order("brand", { ascending: true })
-        .order("model", { ascending: true });
-
-      if (!error && data) {
-        setVehicles(data as Vehicle[]);
-      } else {
-        setVehicles([]);
-      }
-
-      setLoading(false);
-    };
-
-    loadVehicles();
-  }, []);
-
-  const today = useMemo(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  }, []);
-
-  const hasSearch = searchTerm.trim().length > 0;
+  const today = new Date();
 
   const parseDate = (value: string | null) => {
     if (!value) return null;
-    const [year, month, day] = value.split("-").map(Number);
-    return new Date(year, month - 1, day);
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(y, m - 1, d);
   };
 
-  const getDaysUntil = (value: string | null) => {
-    const targetDate = parseDate(value);
-    if (!targetDate) return null;
-
-    const diffMs = targetDate.getTime() - today.getTime();
-    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const getDaysUntil = (date: string | null) => {
+    const d = parseDate(date);
+    if (!d) return null;
+    const diff = d.getTime() - today.getTime();
+    return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const getExpiryWarnings = (vehicle: Vehicle) => {
-    const warnings: string[] = [];
+  const loadVehicles = async () => {
+    setLoading(true);
 
-    const rcaDays = getDaysUntil(vehicle.rca_valid_until);
-    const itpDays = getDaysUntil(vehicle.itp_valid_until);
+    const { data } = await supabase
+      .from("vehicles")
+      .select("*")
+      .order("created_at", { ascending: false });
 
-    if (rcaDays !== null && rcaDays >= 0 && rcaDays <= 30) {
-      warnings.push(`Expira RCA in ${rcaDays} zile`);
-    }
-
-    if (itpDays !== null && itpDays >= 0 && itpDays <= 30) {
-      warnings.push(`Expira ITP in ${itpDays} zile`);
-    }
-
-    return warnings;
+    setVehicles((data as Vehicle[]) || []);
+    setLoading(false);
   };
 
-  const getComputedStatus = (vehicle: Vehicle) => {
-    const rcaDate = parseDate(vehicle.rca_valid_until);
-    const itpDate = parseDate(vehicle.itp_valid_until);
+  useEffect(() => {
+    loadVehicles();
+  }, []);
 
-    const rcaExpired = rcaDate ? rcaDate.getTime() < today.getTime() : false;
-    const itpExpired = itpDate ? itpDate.getTime() < today.getTime() : false;
+  const getComputedStatus = (v: Vehicle) => {
+    const rcaExpired = getDaysUntil(v.rca_valid_until) ?? 999 < 0;
+    const itpExpired = getDaysUntil(v.itp_valid_until) ?? 999 < 0;
 
-    if (rcaExpired || itpExpired) {
-      return "doc_expirate";
-    }
+    if (rcaExpired || itpExpired) return "doc_expirate";
 
-    return vehicle.status;
-  };
-
-  const isExpiringSoon = (vehicle: Vehicle) => {
-    if (getComputedStatus(vehicle) === "doc_expirate") return false;
-    return getExpiryWarnings(vehicle).length > 0;
+    return v.status;
   };
 
   const getStatusLabel = (status: string) => {
@@ -164,457 +84,157 @@ export default function ParcAutoPage() {
   };
 
   const getStatusClasses = (status: string) => {
-    if (status === "activa") {
-      return "bg-green-100 text-green-700";
-    }
-
-    if (status === "inactiva") {
-      return "bg-gray-100 text-gray-700";
-    }
-
-    if (status === "in_reparatie") {
-      return "bg-orange-100 text-orange-700";
-    }
-
-    if (status === "doc_expirate") {
-      return "bg-red-100 text-red-700";
-    }
-
+    if (status === "activa") return "bg-green-100 text-green-700";
+    if (status === "in_reparatie") return "bg-orange-100 text-orange-700";
+    if (status === "doc_expirate") return "bg-red-100 text-red-700";
     return "bg-gray-100 text-gray-700";
   };
 
-  const stats = useMemo(() => {
-    const total = vehicles.length;
-    const active = vehicles.filter(
-      (vehicle) => getComputedStatus(vehicle) === "activa"
-    ).length;
-    const inRepair = vehicles.filter(
-      (vehicle) => getComputedStatus(vehicle) === "in_reparatie"
-    ).length;
-    const expiredDocs = vehicles.filter(
-      (vehicle) => getComputedStatus(vehicle) === "doc_expirate"
-    ).length;
-    const expiringSoon = vehicles.filter((vehicle) =>
-      isExpiringSoon(vehicle)
-    ).length;
-    const leasing = vehicles.filter((vehicle) => vehicle.is_leasing).length;
+  const getWarnings = (v: Vehicle) => {
+    const list: string[] = [];
 
-    return {
-      total,
-      active,
-      inRepair,
-      expiredDocs,
-      expiringSoon,
-      leasing,
-    };
-  }, [vehicles, today]);
+    const rca = getDaysUntil(v.rca_valid_until);
+    const itp = getDaysUntil(v.itp_valid_until);
+
+    if (rca !== null && rca >= 0 && rca <= 30) {
+      list.push(`Expira RCA in ${rca} zile`);
+    }
+
+    if (itp !== null && itp >= 0 && itp <= 30) {
+      list.push(`Expira ITP in ${itp} zile`);
+    }
+
+    return list;
+  };
 
   const filteredVehicles = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
+    let list = [...vehicles];
 
-    return vehicles.filter((vehicle) => {
-      const computedStatus = getComputedStatus(vehicle);
-
-      if (activeFilter === "active" && computedStatus !== "activa") {
-        return false;
-      }
-
-      if (activeFilter === "in_reparatie" && computedStatus !== "in_reparatie") {
-        return false;
-      }
-
-      if (activeFilter === "doc_expirate" && computedStatus !== "doc_expirate") {
-        return false;
-      }
-
-      if (activeFilter === "urmeaza_sa_expire" && !isExpiringSoon(vehicle)) {
-        return false;
-      }
-
-      if (activeFilter === "leasing" && !vehicle.is_leasing) {
-        return false;
-      }
-
-      if (!normalizedSearch) {
-        return true;
-      }
-
-      const brandModel = `${vehicle.brand} ${vehicle.model}`.toLowerCase();
-      const registration = vehicle.registration_number.toLowerCase();
-
-      return (
-        brandModel.includes(normalizedSearch) ||
-        registration.includes(normalizedSearch)
+    if (search.trim()) {
+      return list.filter(
+        (v) =>
+          v.brand.toLowerCase().includes(search.toLowerCase()) ||
+          v.model.toLowerCase().includes(search.toLowerCase()) ||
+          v.registration_number.toLowerCase().includes(search.toLowerCase())
       );
-    });
-  }, [vehicles, activeFilter, searchTerm, today]);
+    }
 
-  const groupedVehicles = useMemo(() => {
-    return {
-      camion: filteredVehicles.filter((vehicle) => vehicle.category === "camion"),
-      autoutilitara: filteredVehicles.filter(
-        (vehicle) => vehicle.category === "autoutilitara"
-      ),
-      microbuz: filteredVehicles.filter((vehicle) => vehicle.category === "microbuz"),
-      masina_administrativa: filteredVehicles.filter(
-        (vehicle) => vehicle.category === "masina_administrativa"
-      ),
-    };
-  }, [filteredVehicles]);
+    if (filter === "leasing") {
+      list = list.filter((v) => v.is_leasing);
+    }
 
-  const toggleSection = (section: SectionKey) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
-  };
+    if (filter === "doc_expirate") {
+      list = list.filter((v) => getComputedStatus(v) === "doc_expirate");
+    }
 
-  const getFilterLabel = () => {
-    if (activeFilter === "toate") return "Toate";
-    if (activeFilter === "active") return "Active";
-    if (activeFilter === "in_reparatie") return "In reparatie";
-    if (activeFilter === "doc_expirate") return "Doc. expirate";
-    if (activeFilter === "urmeaza_sa_expire") return "Urmeaza sa expire";
-    if (activeFilter === "leasing") return "Leasing";
-    return "Toate";
-  };
+    if (filter === "expira") {
+      list = list.filter((v) => getWarnings(v).length > 0);
+    }
 
-  const badgeButtonBase =
-    "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm font-semibold transition";
+    if (filter === "activa") {
+      list = list.filter((v) => getComputedStatus(v) === "activa");
+    }
+
+    if (filter === "in_reparatie") {
+      list = list.filter((v) => getComputedStatus(v) === "in_reparatie");
+    }
+
+    return list;
+  }, [vehicles, search, filter]);
 
   if (loading) {
-    return <div className="p-6">Se incarca parcul auto...</div>;
+    return <div className="p-6">Se incarca...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Parc Auto</h1>
-            <p className="text-sm text-gray-600">
-              Gestioneaza vehiculele firmei, documentele si leasingul.
-            </p>
-          </div>
+    <div className="min-h-screen bg-gray-100 p-4">
+      <div className="mx-auto max-w-5xl space-y-6">
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <button
-              onClick={() => router.push("/admin")}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-            >
-              Inapoi la panou admin
-            </button>
-
-            <button
-              onClick={() => router.push("/admin/parc-auto/adauga")}
-              className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
-            >
-              + Adauga auto
-            </button>
-          </div>
+        <div>
+          <h1 className="text-2xl font-bold">Parc Auto</h1>
         </div>
 
-        <div className="mb-4 rounded-2xl bg-white p-4 shadow">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setActiveFilter("toate")}
-              className={`${badgeButtonBase} ${
-                activeFilter === "toate"
-                  ? "border-[#0196ff] bg-blue-50 text-[#0196ff]"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <span>Total vehicule</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-[#0196ff] px-2 py-0.5 text-xs font-bold text-white">
-                {stats.total}
-              </span>
-            </button>
+        <button
+          onClick={() => router.push("/admin/parc-auto/adauga")}
+          className="w-full rounded-xl bg-[#0196ff] py-3 text-white font-semibold"
+        >
+          + Adauga auto
+        </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveFilter("active")}
-              className={`${badgeButtonBase} ${
-                activeFilter === "active"
-                  ? "border-green-500 bg-green-50 text-green-700"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <span>Active</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-green-600 px-2 py-0.5 text-xs font-bold text-white">
-                {stats.active}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveFilter("in_reparatie")}
-              className={`${badgeButtonBase} ${
-                activeFilter === "in_reparatie"
-                  ? "border-orange-500 bg-orange-50 text-orange-700"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <span>In reparatie</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-orange-500 px-2 py-0.5 text-xs font-bold text-white">
-                {stats.inRepair}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveFilter("doc_expirate")}
-              className={`${badgeButtonBase} ${
-                activeFilter === "doc_expirate"
-                  ? "border-red-500 bg-red-50 text-red-700"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <span>Doc. expirate</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-red-600 px-2 py-0.5 text-xs font-bold text-white">
-                {stats.expiredDocs}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveFilter("urmeaza_sa_expire")}
-              className={`${badgeButtonBase} ${
-                activeFilter === "urmeaza_sa_expire"
-                  ? "border-gray-400 bg-gray-100 text-gray-800"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <span>Urmeaza sa expire</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-gray-500 px-2 py-0.5 text-xs font-bold text-white">
-                {stats.expiringSoon}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveFilter("leasing")}
-              className={`${badgeButtonBase} ${
-                activeFilter === "leasing"
-                  ? "border-purple-500 bg-purple-50 text-purple-700"
-                  : "border-gray-200 bg-white text-gray-700"
-              }`}
-            >
-              <span>Leasing</span>
-              <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-purple-600 px-2 py-0.5 text-xs font-bold text-white">
-                {stats.leasing}
-              </span>
-            </button>
-          </div>
+        {/* FILTRE */}
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setFilter("toate")} className="badge">Toate</button>
+          <button onClick={() => setFilter("activa")} className="badge bg-green-100">Active</button>
+          <button onClick={() => setFilter("in_reparatie")} className="badge bg-orange-100">In reparatie</button>
+          <button onClick={() => setFilter("doc_expirate")} className="badge bg-red-100">Doc expirate</button>
+          <button onClick={() => setFilter("expira")} className="badge bg-gray-200">Urmeaza sa expire</button>
+          <button onClick={() => setFilter("leasing")} className="badge bg-purple-100">Leasing</button>
         </div>
 
-        <div className="mb-6 rounded-2xl bg-white p-4 shadow">
-          <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">Filtrare</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Tip filtru activ:{" "}
-                <span className="font-semibold text-gray-800">{getFilterLabel()}</span>
-              </p>
-            </div>
+        {/* SEARCH */}
+        <input
+          placeholder="Cauta model sau nr..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-xl border px-4 py-3"
+        />
 
-            {(activeFilter !== "toate" || hasSearch) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveFilter("toate");
-                  setSearchTerm("");
-                }}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+        {/* LISTA */}
+        <div className="space-y-3">
+          {filteredVehicles.map((v) => {
+            const status = getComputedStatus(v);
+            const warnings = getWarnings(v);
+
+            return (
+              <div
+                key={v.id}
+                onClick={() => router.push(`/admin/parc-auto/${v.id}`)}
+                className="rounded-xl bg-white p-4 shadow flex items-center justify-between"
               >
-                Reseteaza filtrele
-              </button>
-            )}
-          </div>
+                <div className="flex-1">
+                  <p className="font-semibold">
+                    {v.brand} {v.model}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {v.registration_number}
+                  </p>
 
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              Cauta dupa model, nr de inmatriculare
-            </label>
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Ex: Transit sau B123ABC"
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-            />
-          </div>
-        </div>
-
-        {hasSearch ? (
-          <div className="rounded-2xl bg-white p-4 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Rezultate cautare</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                {filteredVehicles.length} vehicule gasite
-              </p>
-            </div>
-
-            {filteredVehicles.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu exista vehicule care sa corespunda cautarii.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {filteredVehicles.map((vehicle) => {
-                  const computedStatus = getComputedStatus(vehicle);
-                  const warnings = getExpiryWarnings(vehicle);
-
-                  return (
-                    <button
-                      key={vehicle.id}
-                      type="button"
-                      onClick={() => router.push(`/admin/parc-auto/${vehicle.id}`)}
-                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:bg-gray-100"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-gray-900 break-words">
-                            {vehicle.brand} {vehicle.model}
-                          </p>
-                          <p className="mt-1 text-sm text-gray-500 break-words">
-                            Nr. inmatriculare: {vehicle.registration_number}
-                          </p>
-                          <p className="mt-1 text-xs text-gray-400">
-                            Categoria: {categoryLabels[vehicle.category as SectionKey]}
-                          </p>
-                        </div>
-
-                        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                          <span
-                            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                              computedStatus
-                            )}`}
-                          >
-                            {getStatusLabel(computedStatus)}
-                          </span>
-
-                          {vehicle.is_leasing && (
-                            <span className="inline-flex w-fit rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
-                              Leasing
-                            </span>
-                          )}
-
-                          {warnings.map((warning) => (
-                            <span
-                              key={warning}
-                              className="inline-flex w-fit rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
-                            >
-                              {warning}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {(Object.keys(categoryLabels) as SectionKey[]).map((sectionKey) => {
-              const sectionVehicles = groupedVehicles[sectionKey];
-              const isOpen = openSections[sectionKey];
-
-              return (
-                <div
-                  key={sectionKey}
-                  className="overflow-hidden rounded-2xl bg-white shadow"
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleSection(sectionKey)}
-                    className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50"
-                  >
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {categoryLabels[sectionKey]}
-                      </h2>
-                      <p className="mt-1 text-sm text-gray-500">
-                        {sectionVehicles.length} vehicule
-                      </p>
-                    </div>
-
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-700">
-                      {isOpen ? "−" : "+"}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className={`badge ${getStatusClasses(status)}`}>
+                      {getStatusLabel(status)}
                     </span>
-                  </button>
 
-                  {isOpen && (
-                    <div className="border-t border-gray-200">
-                      {sectionVehicles.length === 0 ? (
-                        <div className="px-5 py-6 text-sm text-gray-500">
-                          Nu exista vehicule in aceasta categorie pentru filtrul curent.
-                        </div>
-                      ) : (
-                        <div className="space-y-3 p-4">
-                          {sectionVehicles.map((vehicle) => {
-                            const computedStatus = getComputedStatus(vehicle);
-                            const warnings = getExpiryWarnings(vehicle);
+                    {v.is_leasing && (
+                      <span className="badge bg-purple-100 text-purple-700">
+                        Leasing
+                      </span>
+                    )}
 
-                            return (
-                              <button
-                                key={vehicle.id}
-                                type="button"
-                                onClick={() =>
-                                  router.push(`/admin/parc-auto/${vehicle.id}`)
-                                }
-                                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:bg-gray-100"
-                              >
-                                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                  <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-gray-900 break-words">
-                                      {vehicle.brand} {vehicle.model}
-                                    </p>
-                                    <p className="mt-1 text-sm text-gray-500 break-words">
-                                      Nr. inmatriculare: {vehicle.registration_number}
-                                    </p>
-                                  </div>
-
-                                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                                    <span
-                                      className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                                        computedStatus
-                                      )}`}
-                                    >
-                                      {getStatusLabel(computedStatus)}
-                                    </span>
-
-                                    {vehicle.is_leasing && (
-                                      <span className="inline-flex w-fit rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
-                                        Leasing
-                                      </span>
-                                    )}
-
-                                    {warnings.map((warning) => (
-                                      <span
-                                        key={warning}
-                                        className="inline-flex w-fit rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
-                                      >
-                                        {warning}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    {warnings.map((w) => (
+                      <span key={w} className="badge bg-yellow-100 text-yellow-800">
+                        {w}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+
+                {/* SAGEATA */}
+                <div className="text-3xl text-gray-400">›</div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* STYLE BADGE */}
+      <style jsx>{`
+        .badge {
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+      `}</style>
     </div>
   );
 }
