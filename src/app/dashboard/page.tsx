@@ -58,9 +58,9 @@ export default function DashboardPage() {
 
       if (!projectsError && projectsData) {
         const total = projectsData.length;
-const inCurs = projectsData.filter(
-  (project) => project.status === "in_lucru"
-).length;
+        const inCurs = projectsData.filter(
+          (project) => project.status === "in_lucru"
+        ).length;
         const finalizate = projectsData.filter(
           (project) => project.status === "finalizat"
         ).length;
@@ -102,135 +102,158 @@ const inCurs = projectsData.filter(
           Ieșire
         </button>
 
-<div className="flex justify-center">
-  <Image
-    src="/logo.png"
-    alt="Logo"
-    width={140}
-    height={50}
-    className="object-contain"
-  />
-</div>
+        <div className="flex justify-center">
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={140}
+            height={50}
+            className="object-contain"
+          />
+        </div>
 
         <button className="relative rounded-full border px-3 py-2 text-xl">
           🔔
-<span
-  className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white"
-  style={{ backgroundColor: "#0196ff" }}
-></span>
+          <span
+            className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white"
+            style={{ backgroundColor: "#0196ff" }}
+          ></span>
         </button>
       </header>
 
-<main className="p-6">
-  <h1 className="mb-2 text-2xl font-bold">
-    Bun venit, {profile?.full_name}
-  </h1>
-  <p className="mb-6 text-gray-600">
-    Rol: <span className="font-semibold">{profile?.role}</span>
-  </p>
+      <main className="p-6">
+        <h1 className="mb-2 text-2xl font-bold">
+          Bun venit, {profile?.full_name}
+        </h1>
+        <p className="mb-6 text-gray-600">
+          Rol: <span className="font-semibold">{profile?.role}</span>
+        </p>
 
-{profile?.role === "administrator" && (
-  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-      <button
-        onClick={() => router.push("/proiecte/adauga")}
-        className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
-      >
-        ADAUGĂ PROIECT
-      </button>
+        {profile?.role === "administrator" && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <button
+              onClick={() => router.push("/proiecte/adauga")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              ADAUGĂ PROIECT
+            </button>
 
-<button
-  onClick={() => router.push("/proiecte")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
->
-  VEZI PROIECTE
-</button>
+            <button
+              onClick={() => router.push("/proiecte")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              VEZI PROIECTE
+            </button>
 
-<button
-  onClick={() => router.push("/proiecte")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
->
-  PROIECTELE MELE
-</button>
+            <button
+              onClick={() => router.push("/proiecte")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              PROIECTELE MELE
+            </button>
 
-<button
-  onClick={() => router.push("/comenzi")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
->
-  COMENZI
-</button>
+            <button
+              onClick={() => router.push("/comenzi")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              COMENZI
+            </button>
 
-<button
-  onClick={() => router.push("/pontaje")}
-  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
->
-  PONTAJE
-</button>
+            <button
+              onClick={() => router.push("/pontaje")}
+              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              PONTAJE
+            </button>
 
-<button
-  onClick={() => router.push("/admin")}
-  className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow"
->
-  PANOU ADMINISTRATOR
-</button>
-    </div>
-  )}
+            <button
+              onClick={() => router.push("/organizarea-echipelor")}
+              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              ORGANIZAREA ECHIPELOR
+            </button>
 
- {profile?.role === "sef_echipa" && (
-  <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
-        PROIECTELE MELE
-      </button>
-<button
-  onClick={() => router.push("/comenzi")}
-  className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
->
-  COMENZI
-</button>
-<button
-  onClick={() => router.push("/pontaje")}
-  className="rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-left shadow"
->
-  PONTAJE
-</button>
-      <button className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow">
-        CERERE TRANSFER DE BANI
-      </button>
-    </div>
-  )}
+            <button
+              onClick={() => router.push("/admin")}
+              className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow"
+            >
+              PANOU ADMINISTRATOR
+            </button>
+          </div>
+        )}
 
-  {profile?.role === "user" && (
-    <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
-        DASHBOARD USER
-      </button>
+        {profile?.role === "sef_echipa" && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <button className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow">
+              PROIECTELE MELE
+            </button>
 
-      <button className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-left shadow">
-        VEZI PROIECTE
-      </button>
-    </div>
-  )}
+            <button
+              onClick={() => router.push("/comenzi")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              COMENZI
+            </button>
 
-<div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-  
-  {/* TOTAL PROIECTE */}
-  <div className="rounded-xl px-4 py-3 shadow text-white" style={{ backgroundColor: "#0196ff" }}>
-    <p className="text-xs opacity-90">TOTAL PROIECTE</p>
-    <p className="mt-1 text-xl font-bold">{stats.total}</p>
-  </div>
+            <button
+              onClick={() => router.push("/pontaje")}
+              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              PONTAJE
+            </button>
 
-  {/* PROIECTE IN CURS */}
-  <div className="rounded-xl px-4 py-3 shadow text-white bg-yellow-500">
-    <p className="text-xs opacity-90">PROIECTE ÎN CURS</p>
-    <p className="mt-1 text-xl font-bold">{stats.inCurs}</p>
-  </div>
+            <button
+              onClick={() => router.push("/organizarea-echipelor")}
+              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              ORGANIZAREA ECHIPELOR
+            </button>
 
-  {/* FINALIZATE */}
-  <div className="rounded-xl px-4 py-3 shadow text-white bg-green-600">
-    <p className="text-xs opacity-90">PROIECTE FINALIZATE</p>
-    <p className="mt-1 text-xl font-bold">{stats.finalizate}</p>
-  </div>
-  </div>
-</main>
+            <button className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow">
+              CERERE TRANSFER DE BANI
+            </button>
+          </div>
+        )}
+
+        {profile?.role === "user" && (
+          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+            <button className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow">
+              DASHBOARD USER
+            </button>
+
+            <button className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow">
+              VEZI PROIECTE
+            </button>
+
+            <button
+              onClick={() => router.push("/organizarea-echipelor")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
+              ORGANIZAREA ECHIPELOR
+            </button>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div
+            className="rounded-xl px-4 py-3 text-white shadow"
+            style={{ backgroundColor: "#0196ff" }}
+          >
+            <p className="text-xs opacity-90">TOTAL PROIECTE</p>
+            <p className="mt-1 text-xl font-bold">{stats.total}</p>
+          </div>
+
+          <div className="rounded-xl bg-yellow-500 px-4 py-3 text-white shadow">
+            <p className="text-xs opacity-90">PROIECTE ÎN CURS</p>
+            <p className="mt-1 text-xl font-bold">{stats.inCurs}</p>
+          </div>
+
+          <div className="rounded-xl bg-green-600 px-4 py-3 text-white shadow">
+            <p className="text-xs opacity-90">PROIECTE FINALIZATE</p>
+            <p className="mt-1 text-xl font-bold">{stats.finalizate}</p>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
