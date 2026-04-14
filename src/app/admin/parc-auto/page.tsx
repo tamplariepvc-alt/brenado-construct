@@ -33,6 +33,13 @@ type SectionKey =
   | "microbuz"
   | "masina_administrativa";
 
+type FilterType =
+  | "toate"
+  | "active"
+  | "in_reparatie"
+  | "doc_expirate"
+  | "urmeaza_sa_expire";
+
 const categoryLabels: Record<SectionKey, string> = {
   camion: "Camioane",
   autoutilitara: "Autoutilitare",
@@ -45,6 +52,8 @@ export default function ParcAutoPage() {
 
   const [loading, setLoading] = useState(true);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<FilterType>("toate");
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     camion: false,
     autoutilitara: false,
@@ -138,6 +147,11 @@ export default function ParcAutoPage() {
     return vehicle.status;
   };
 
+  const isExpiringSoon = (vehicle: Vehicle) => {
+    if (getComputedStatus(vehicle) === "doc_expirate") return false;
+    return getExpiryWarnings(vehicle).length > 0;
+  };
+
   const getStatusLabel = (status: string) => {
     if (status === "activa") return "Activa";
     if (status === "inactiva") return "Inactiva";
@@ -166,18 +180,78 @@ export default function ParcAutoPage() {
     return "bg-gray-100 text-gray-700";
   };
 
+  const stats = useMemo(() => {
+    const total = vehicles.length;
+    const active = vehicles.filter(
+      (vehicle) => getComputedStatus(vehicle) === "activa"
+    ).length;
+    const inRepair = vehicles.filter(
+      (vehicle) => getComputedStatus(vehicle) === "in_reparatie"
+    ).length;
+    const expiredDocs = vehicles.filter(
+      (vehicle) => getComputedStatus(vehicle) === "doc_expirate"
+    ).length;
+    const expiringSoon = vehicles.filter((vehicle) =>
+      isExpiringSoon(vehicle)
+    ).length;
+
+    return {
+      total,
+      active,
+      inRepair,
+      expiredDocs,
+      expiringSoon,
+    };
+  }, [vehicles, today]);
+
+  const filteredVehicles = useMemo(() => {
+    const normalizedSearch = searchTerm.trim().toLowerCase();
+
+    return vehicles.filter((vehicle) => {
+      const computedStatus = getComputedStatus(vehicle);
+
+      if (activeFilter === "active" && computedStatus !== "activa") {
+        return false;
+      }
+
+      if (activeFilter === "in_reparatie" && computedStatus !== "in_reparatie") {
+        return false;
+      }
+
+      if (activeFilter === "doc_expirate" && computedStatus !== "doc_expirate") {
+        return false;
+      }
+
+      if (activeFilter === "urmeaza_sa_expire" && !isExpiringSoon(vehicle)) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const brandModel = `${vehicle.brand} ${vehicle.model}`.toLowerCase();
+      const registration = vehicle.registration_number.toLowerCase();
+
+      return (
+        brandModel.includes(normalizedSearch) ||
+        registration.includes(normalizedSearch)
+      );
+    });
+  }, [vehicles, activeFilter, searchTerm, today]);
+
   const groupedVehicles = useMemo(() => {
     return {
-      camion: vehicles.filter((vehicle) => vehicle.category === "camion"),
-      autoutilitara: vehicles.filter(
+      camion: filteredVehicles.filter((vehicle) => vehicle.category === "camion"),
+      autoutilitara: filteredVehicles.filter(
         (vehicle) => vehicle.category === "autoutilitara"
       ),
-      microbuz: vehicles.filter((vehicle) => vehicle.category === "microbuz"),
-      masina_administrativa: vehicles.filter(
+      microbuz: filteredVehicles.filter((vehicle) => vehicle.category === "microbuz"),
+      masina_administrativa: filteredVehicles.filter(
         (vehicle) => vehicle.category === "masina_administrativa"
       ),
     };
-  }, [vehicles]);
+  }, [filteredVehicles]);
 
   const toggleSection = (section: SectionKey) => {
     setOpenSections((prev) => ({
@@ -185,6 +259,19 @@ export default function ParcAutoPage() {
       [section]: !prev[section],
     }));
   };
+
+  const getFilterLabel = () => {
+    if (activeFilter === "toate") return "Toate";
+    if (activeFilter === "active") return "Active";
+    if (activeFilter === "in_reparatie") return "In reparatie";
+    if (activeFilter === "doc_expirate") return "Doc. expirate";
+    if (activeFilter === "urmeaza_sa_expire") return "Urmeaza sa expire";
+    return "Toate";
+  };
+
+  const statCardBase =
+    "rounded-2xl p-4 text-left shadow transition hover:shadow-md";
+  const isFilterActive = (filter: FilterType) => activeFilter === filter;
 
   if (loading) {
     return <div className="p-6">Se incarca parcul auto...</div>;
@@ -215,6 +302,146 @@ export default function ParcAutoPage() {
             >
               + Adauga auto
             </button>
+          </div>
+        </div>
+
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <button
+            type="button"
+            onClick={() => setActiveFilter("toate")}
+            className={`${statCardBase} ${
+              isFilterActive("toate")
+                ? "ring-2 ring-[#0196ff] bg-white"
+                : "bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Total vehicule</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">{stats.total}</p>
+              </div>
+              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-[#0196ff] px-3 py-1 text-sm font-bold text-white">
+                {stats.total}
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("active")}
+            className={`${statCardBase} ${
+              isFilterActive("active")
+                ? "ring-2 ring-green-500 bg-white"
+                : "bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Active</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">{stats.active}</p>
+              </div>
+              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-green-600 px-3 py-1 text-sm font-bold text-white">
+                {stats.active}
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("in_reparatie")}
+            className={`${statCardBase} ${
+              isFilterActive("in_reparatie")
+                ? "ring-2 ring-orange-500 bg-white"
+                : "bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-500">In reparatie</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">{stats.inRepair}</p>
+              </div>
+              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-orange-500 px-3 py-1 text-sm font-bold text-white">
+                {stats.inRepair}
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("doc_expirate")}
+            className={`${statCardBase} ${
+              isFilterActive("doc_expirate")
+                ? "ring-2 ring-yellow-500 bg-white"
+                : "bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Doc. expirate</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">
+                  {stats.expiredDocs}
+                </p>
+              </div>
+              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-yellow-500 px-3 py-1 text-sm font-bold text-white">
+                {stats.expiredDocs}
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveFilter("urmeaza_sa_expire")}
+            className={`${statCardBase} ${
+              isFilterActive("urmeaza_sa_expire")
+                ? "ring-2 ring-gray-400 bg-white"
+                : "bg-white"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-500">Urmeaza sa expire</p>
+                <p className="mt-1 text-xl font-bold text-gray-900">
+                  {stats.expiringSoon}
+                </p>
+              </div>
+              <span className="inline-flex min-w-[34px] items-center justify-center rounded-full bg-gray-500 px-3 py-1 text-sm font-bold text-white">
+                {stats.expiringSoon}
+              </span>
+            </div>
+          </button>
+        </div>
+
+        <div className="mb-6 rounded-2xl bg-white p-4 shadow">
+          <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Filtrare</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Tip filtru activ: <span className="font-semibold text-gray-800">{getFilterLabel()}</span>
+              </p>
+            </div>
+
+            {activeFilter !== "toate" && (
+              <button
+                type="button"
+                onClick={() => setActiveFilter("toate")}
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+              >
+                Reseteaza filtrul
+              </button>
+            )}
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700">
+              Cauta dupa model, nr de inmatriculare
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Ex: Transit sau B123ABC"
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+            />
           </div>
         </div>
 
@@ -251,7 +478,7 @@ export default function ParcAutoPage() {
                   <div className="border-t border-gray-200">
                     {sectionVehicles.length === 0 ? (
                       <div className="px-5 py-6 text-sm text-gray-500">
-                        Nu exista vehicule in aceasta categorie.
+                        Nu exista vehicule in aceasta categorie pentru filtrul curent.
                       </div>
                     ) : (
                       <div className="space-y-3 p-4">
