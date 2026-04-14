@@ -20,6 +20,10 @@ type Vehicle = {
   registration_number: string;
   rca_valid_until: string | null;
   itp_valid_until: string | null;
+  has_rovinieta: boolean;
+  rovinieta_valid_until: string | null;
+  has_casco: boolean;
+  casco_valid_until: string | null;
   is_leasing: boolean;
   monthly_rate: number | null;
   last_rate_date: string | null;
@@ -30,7 +34,7 @@ type Vehicle = {
 type VehicleDocumentHistory = {
   id: string;
   vehicle_id: string;
-  document_type: "rca" | "itp";
+  document_type: "rca" | "itp" | "rovinieta" | "casco";
   old_date: string | null;
   new_date: string | null;
   created_at: string;
@@ -78,6 +82,13 @@ export default function DetaliuAutoPage() {
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [rcaValidUntil, setRcaValidUntil] = useState("");
   const [itpValidUntil, setItpValidUntil] = useState("");
+
+  const [hasRovinieta, setHasRovinieta] = useState(false);
+  const [rovinietaValidUntil, setRovinietaValidUntil] = useState("");
+
+  const [hasCasco, setHasCasco] = useState(false);
+  const [cascoValidUntil, setCascoValidUntil] = useState("");
+
   const [isLeasing, setIsLeasing] = useState(false);
   const [monthlyRate, setMonthlyRate] = useState("");
   const [lastRateDate, setLastRateDate] = useState("");
@@ -105,6 +116,10 @@ export default function DetaliuAutoPage() {
             registration_number,
             rca_valid_until,
             itp_valid_until,
+            has_rovinieta,
+            rovinieta_valid_until,
+            has_casco,
+            casco_valid_until,
             is_leasing,
             monthly_rate,
             last_rate_date,
@@ -158,6 +173,13 @@ export default function DetaliuAutoPage() {
     setRegistrationNumber(vehicleData.registration_number || "");
     setRcaValidUntil(vehicleData.rca_valid_until || "");
     setItpValidUntil(vehicleData.itp_valid_until || "");
+
+    setHasRovinieta(Boolean(vehicleData.has_rovinieta));
+    setRovinietaValidUntil(vehicleData.rovinieta_valid_until || "");
+
+    setHasCasco(Boolean(vehicleData.has_casco));
+    setCascoValidUntil(vehicleData.casco_valid_until || "");
+
     setIsLeasing(Boolean(vehicleData.is_leasing));
     setMonthlyRate(
       vehicleData.monthly_rate != null
@@ -255,6 +277,10 @@ export default function DetaliuAutoPage() {
 
     const rcaDays = getDaysUntil(rcaValidUntil || null);
     const itpDays = getDaysUntil(itpValidUntil || null);
+    const rovinietaDays = hasRovinieta
+      ? getDaysUntil(rovinietaValidUntil || null)
+      : null;
+    const cascoDays = hasCasco ? getDaysUntil(cascoValidUntil || null) : null;
 
     if (rcaDays !== null && rcaDays >= 0 && rcaDays <= 30) {
       list.push(`Expira RCA in ${rcaDays} zile`);
@@ -264,8 +290,24 @@ export default function DetaliuAutoPage() {
       list.push(`Expira ITP in ${itpDays} zile`);
     }
 
+    if (rovinietaDays !== null && rovinietaDays >= 0 && rovinietaDays <= 30) {
+      list.push(`Expira Rovinieta in ${rovinietaDays} zile`);
+    }
+
+    if (cascoDays !== null && cascoDays >= 0 && cascoDays <= 30) {
+      list.push(`Expira Casco in ${cascoDays} zile`);
+    }
+
     return list;
-  }, [rcaValidUntil, itpValidUntil, today]);
+  }, [
+    rcaValidUntil,
+    itpValidUntil,
+    hasRovinieta,
+    rovinietaValidUntil,
+    hasCasco,
+    cascoValidUntil,
+    today,
+  ]);
 
   const monthsRemaining = useMemo(() => {
     if (!isLeasing || !lastRateDate) return 0;
@@ -302,6 +344,15 @@ export default function DetaliuAutoPage() {
     setShowRepairNoteForm(false);
   };
 
+  const getDocumentTypeLabel = (
+    type: "rca" | "itp" | "rovinieta" | "casco"
+  ) => {
+    if (type === "rca") return "RCA";
+    if (type === "itp") return "ITP";
+    if (type === "rovinieta") return "Rovinieta";
+    return "Casco";
+  };
+
   const handleSave = async () => {
     if (!vehicle) return;
 
@@ -327,6 +378,16 @@ export default function DetaliuAutoPage() {
 
     if (!itpValidUntil) {
       alert("Completeaza data ITP.");
+      return;
+    }
+
+    if (hasRovinieta && !rovinietaValidUntil) {
+      alert("Completeaza data rovinietei.");
+      return;
+    }
+
+    if (hasCasco && !cascoValidUntil) {
+      alert("Completeaza data Casco.");
       return;
     }
 
@@ -368,6 +429,13 @@ export default function DetaliuAutoPage() {
       registration_number: registrationNumber.trim().toUpperCase(),
       rca_valid_until: rcaValidUntil || null,
       itp_valid_until: itpValidUntil || null,
+
+      has_rovinieta: hasRovinieta,
+      rovinieta_valid_until: hasRovinieta ? rovinietaValidUntil || null : null,
+
+      has_casco: hasCasco,
+      casco_valid_until: hasCasco ? cascoValidUntil || null : null,
+
       is_leasing: isLeasing,
       monthly_rate: isLeasing ? Number(monthlyRate || 0) : null,
       last_rate_date: isLeasing ? lastRateDate || null : null,
@@ -387,7 +455,7 @@ export default function DetaliuAutoPage() {
 
     const documentHistoryRows: Array<{
       vehicle_id: string;
-      document_type: "rca" | "itp";
+      document_type: "rca" | "itp" | "rovinieta" | "casco";
       old_date: string | null;
       new_date: string | null;
     }> = [];
@@ -407,6 +475,32 @@ export default function DetaliuAutoPage() {
         document_type: "itp",
         old_date: vehicle.itp_valid_until || null,
         new_date: itpValidUntil || null,
+      });
+    }
+
+    if (
+      Boolean(vehicle.has_rovinieta) !== Boolean(hasRovinieta) ||
+      (vehicle.rovinieta_valid_until || null) !== (rovinietaValidUntil || null)
+    ) {
+      documentHistoryRows.push({
+        vehicle_id: vehicleId,
+        document_type: "rovinieta",
+        old_date: vehicle.has_rovinieta
+          ? vehicle.rovinieta_valid_until || null
+          : null,
+        new_date: hasRovinieta ? rovinietaValidUntil || null : null,
+      });
+    }
+
+    if (
+      Boolean(vehicle.has_casco) !== Boolean(hasCasco) ||
+      (vehicle.casco_valid_until || null) !== (cascoValidUntil || null)
+    ) {
+      documentHistoryRows.push({
+        vehicle_id: vehicleId,
+        document_type: "casco",
+        old_date: vehicle.has_casco ? vehicle.casco_valid_until || null : null,
+        new_date: hasCasco ? cascoValidUntil || null : null,
       });
     }
 
@@ -525,6 +619,24 @@ export default function DetaliuAutoPage() {
                   {computedStatusLabel}
                 </span>
 
+                {hasRovinieta && (
+                  <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
+                    Rovinieta
+                  </span>
+                )}
+
+                {hasCasco && (
+                  <span className="inline-flex rounded-full bg-cyan-100 px-3 py-1 text-xs font-semibold text-cyan-700">
+                    Casco
+                  </span>
+                )}
+
+                {isLeasing && (
+                  <span className="inline-flex rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                    Leasing
+                  </span>
+                )}
+
                 {warnings.map((warning) => (
                   <span
                     key={warning}
@@ -582,6 +694,20 @@ export default function DetaliuAutoPage() {
                 </p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">
                   {formatDate(itpValidUntil)}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500">Rovinieta</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {hasRovinieta ? formatDate(rovinietaValidUntil) : "Nu"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500">Casco</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {hasCasco ? formatDate(cascoValidUntil) : "Nu"}
                 </p>
               </div>
 
@@ -663,7 +789,7 @@ export default function DetaliuAutoPage() {
                   Istoric documente
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  Modificarile facute pentru RCA si ITP apar automat aici.
+                  Modificarile facute pentru RCA, ITP, Rovinieta si Casco apar automat aici.
                 </p>
               </div>
 
@@ -688,7 +814,7 @@ export default function DetaliuAutoPage() {
                         <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-gray-900">
-                              {item.document_type === "rca" ? "RCA" : "ITP"}
+                              {getDocumentTypeLabel(item.document_type)}
                             </p>
                             <p className="mt-1 text-sm text-gray-600">
                               {formatDate(item.old_date)} {" -> "} {formatDate(item.new_date)}
@@ -895,6 +1021,62 @@ export default function DetaliuAutoPage() {
                   />
                 </div>
               </div>
+
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={hasRovinieta}
+                    onChange={(e) => setHasRovinieta(e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    Rovinieta
+                  </span>
+                </label>
+              </div>
+
+              {hasRovinieta && (
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Rovinieta valabil pana la
+                  </label>
+                  <input
+                    type="date"
+                    value={rovinietaValidUntil}
+                    onChange={(e) => setRovinietaValidUntil(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+              )}
+
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={hasCasco}
+                    onChange={(e) => setHasCasco(e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    Casco
+                  </span>
+                </label>
+              </div>
+
+              {hasCasco && (
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Casco valabil pana la
+                  </label>
+                  <input
+                    type="date"
+                    value={cascoValidUntil}
+                    onChange={(e) => setCascoValidUntil(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+              )}
 
               <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
                 <label className="flex cursor-pointer items-center gap-3">
