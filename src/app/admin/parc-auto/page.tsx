@@ -486,11 +486,11 @@ export default function ParcAutoPage() {
                             <button
                               key={v.id}
                               onClick={() => router.push(`/admin/parc-auto/${v.id}`)}
-                              className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-5 py-5 text-left shadow-sm transition hover:bg-gray-100"
+                              className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left shadow-sm transition hover:bg-gray-100"
                             >
                               <div className="flex items-center justify-between gap-4">
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-2xl font-bold text-gray-900 break-words">
+                                  <p className="text-lg font-semibold text-gray-900 break-words">
                                     {v.brand} {v.model}
                                   </p>
 
