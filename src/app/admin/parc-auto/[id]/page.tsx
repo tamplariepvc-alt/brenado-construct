@@ -65,8 +65,8 @@ export default function DetaliuAutoPage() {
   const [showEditModal, setShowEditModal] = useState(false);
 
   const [showRepairNoteForm, setShowRepairNoteForm] = useState(false);
-  const [showDocumentsHistory, setShowDocumentsHistory] = useState(false);
-  const [showRepairsHistory, setShowRepairsHistory] = useState(false);
+  const [showDocumentHistory, setShowDocumentHistory] = useState(false);
+  const [showRepairHistory, setShowRepairHistory] = useState(false);
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [documentHistory, setDocumentHistory] = useState<VehicleDocumentHistory[]>([]);
@@ -83,69 +83,66 @@ export default function DetaliuAutoPage() {
   const [lastRateDate, setLastRateDate] = useState("");
   const [status, setStatus] = useState<VehicleStatus>("activa");
 
-  const [noteTitle, setNoteTitle] = useState("");
-  const [noteContent, setNoteContent] = useState("");
-  const [noteCost, setNoteCost] = useState("");
-  const [noteDate, setNoteDate] = useState(
+  const [repairTitle, setRepairTitle] = useState("");
+  const [repairContent, setRepairContent] = useState("");
+  const [repairCost, setRepairCost] = useState("");
+  const [repairDate, setRepairDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
   const loadVehicle = async () => {
     setLoading(true);
 
-    const [
-      vehicleResponse,
-      documentHistoryResponse,
-      notesResponse,
-    ] = await Promise.all([
-      supabase
-        .from("vehicles")
-        .select(`
-          id,
-          category,
-          brand,
-          model,
-          registration_number,
-          rca_valid_until,
-          itp_valid_until,
-          is_leasing,
-          monthly_rate,
-          last_rate_date,
-          status,
-          created_at
-        `)
-        .eq("id", vehicleId)
-        .single(),
+    const [vehicleResponse, documentHistoryResponse, notesResponse] =
+      await Promise.all([
+        supabase
+          .from("vehicles")
+          .select(`
+            id,
+            category,
+            brand,
+            model,
+            registration_number,
+            rca_valid_until,
+            itp_valid_until,
+            is_leasing,
+            monthly_rate,
+            last_rate_date,
+            status,
+            created_at
+          `)
+          .eq("id", vehicleId)
+          .single(),
 
-      supabase
-        .from("vehicle_document_history")
-        .select(`
-          id,
-          vehicle_id,
-          document_type,
-          old_date,
-          new_date,
-          created_at
-        `)
-        .eq("vehicle_id", vehicleId)
-        .order("created_at", { ascending: false }),
+        supabase
+          .from("vehicle_document_history")
+          .select(`
+            id,
+            vehicle_id,
+            document_type,
+            old_date,
+            new_date,
+            created_at
+          `)
+          .eq("vehicle_id", vehicleId)
+          .order("created_at", { ascending: false }),
 
-      supabase
-        .from("vehicle_notes")
-        .select(`
-          id,
-          vehicle_id,
-          note_type,
-          title,
-          content,
-          cost,
-          note_date,
-          created_at
-        `)
-        .eq("vehicle_id", vehicleId)
-        .order("note_date", { ascending: false })
-        .order("created_at", { ascending: false }),
-    ]);
+        supabase
+          .from("vehicle_notes")
+          .select(`
+            id,
+            vehicle_id,
+            note_type,
+            title,
+            content,
+            cost,
+            note_date,
+            created_at
+          `)
+          .eq("vehicle_id", vehicleId)
+          .order("note_date", { ascending: false })
+          .order("created_at", { ascending: false }),
+      ]);
 
     if (vehicleResponse.error || !vehicleResponse.data) {
       router.push("/admin/parc-auto");
@@ -297,11 +294,12 @@ export default function DetaliuAutoPage() {
     return vehicleNotes.filter((note) => note.note_type === "reparatie");
   }, [vehicleNotes]);
 
-  const resetNoteFields = () => {
-    setNoteTitle("");
-    setNoteContent("");
-    setNoteCost("");
-    setNoteDate(new Date().toISOString().split("T")[0]);
+  const resetRepairFields = () => {
+    setRepairTitle("");
+    setRepairContent("");
+    setRepairCost("");
+    setRepairDate(new Date().toISOString().split("T")[0]);
+    setShowRepairNoteForm(false);
   };
 
   const handleSave = async () => {
@@ -344,9 +342,21 @@ export default function DetaliuAutoPage() {
       }
     }
 
-    if (noteCost && Number(noteCost) < 0) {
-      alert("Costul nu poate fi negativ.");
-      return;
+    if (showRepairNoteForm) {
+      if (!repairTitle.trim()) {
+        alert("Completeaza titlul reparatiei.");
+        return;
+      }
+
+      if (!repairContent.trim()) {
+        alert("Completeaza observatiile reparatiei.");
+        return;
+      }
+
+      if (!repairCost || Number(repairCost) < 0) {
+        alert("Completeaza costul reparatiei.");
+        return;
+      }
     }
 
     setSaving(true);
@@ -412,14 +422,14 @@ export default function DetaliuAutoPage() {
       }
     }
 
-    if (showRepairNoteForm && noteContent.trim()) {
+    if (showRepairNoteForm && repairContent.trim()) {
       const notePayload = {
         vehicle_id: vehicleId,
-        note_type: "reparatie" as const,
-        title: noteTitle.trim() || null,
-        content: noteContent.trim(),
-        cost: noteCost ? Number(noteCost) : null,
-        note_date: noteDate || null,
+        note_type: "reparatie",
+        title: repairTitle.trim() || null,
+        content: repairContent.trim(),
+        cost: repairCost ? Number(repairCost) : null,
+        note_date: repairDate || null,
       };
 
       const { error: noteError } = await supabase
@@ -428,15 +438,14 @@ export default function DetaliuAutoPage() {
 
       if (noteError) {
         alert(
-          `Modificarile masinii s-au salvat, dar nota de reparatie nu s-a putut salva: ${noteError.message}`
+          `Modificarile masinii s-au salvat, dar nota reparatiei nu s-a putut salva: ${noteError.message}`
         );
       }
     }
 
     setSaving(false);
     setShowEditModal(false);
-    setShowRepairNoteForm(false);
-    resetNoteFields();
+    resetRepairFields();
     await loadVehicle();
   };
 
@@ -646,7 +655,7 @@ export default function DetaliuAutoPage() {
           <div className="overflow-hidden rounded-2xl bg-white shadow">
             <button
               type="button"
-              onClick={() => setShowDocumentsHistory((prev) => !prev)}
+              onClick={() => setShowDocumentHistory((prev) => !prev)}
               className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50"
             >
               <div>
@@ -659,12 +668,12 @@ export default function DetaliuAutoPage() {
               </div>
 
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-700">
-                {showDocumentsHistory ? "−" : "+"}
+                {showDocumentHistory ? "−" : "+"}
               </span>
             </button>
 
-            {showDocumentsHistory && (
-              <div className="border-t border-gray-200 px-5 py-4">
+            {showDocumentHistory && (
+              <div className="border-t border-gray-200 p-5">
                 {documentHistory.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     Nu exista istoric de documente.
@@ -701,7 +710,7 @@ export default function DetaliuAutoPage() {
           <div className="overflow-hidden rounded-2xl bg-white shadow">
             <button
               type="button"
-              onClick={() => setShowRepairsHistory((prev) => !prev)}
+              onClick={() => setShowRepairHistory((prev) => !prev)}
               className="flex w-full items-center justify-between px-5 py-4 text-left transition hover:bg-gray-50"
             >
               <div>
@@ -714,12 +723,12 @@ export default function DetaliuAutoPage() {
               </div>
 
               <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-xl font-semibold text-gray-700">
-                {showRepairsHistory ? "−" : "+"}
+                {showRepairHistory ? "−" : "+"}
               </span>
             </button>
 
-            {showRepairsHistory && (
-              <div className="border-t border-gray-200 px-5 py-4">
+            {showRepairHistory && (
+              <div className="border-t border-gray-200 p-5">
                 {repairNotes.length === 0 ? (
                   <p className="text-sm text-gray-500">
                     Nu exista reparatii salvate.
@@ -743,7 +752,9 @@ export default function DetaliuAutoPage() {
                             <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
                               <span>Data: {formatDate(note.note_date)}</span>
                               {note.cost != null && (
-                                <span>Cost: {Number(note.cost).toFixed(2)} lei</span>
+                                <span>
+                                  Cost: {Number(note.cost).toFixed(2)} lei
+                                </span>
                               )}
                             </div>
                           </div>
@@ -769,7 +780,7 @@ export default function DetaliuAutoPage() {
               <div>
                 <h2 className="text-lg font-semibold">Actualizeaza auto</h2>
                 <p className="text-sm text-gray-500">
-                  Modifica datele vehiculului si adauga nota de reparatie daca este cazul.
+                  Modifica datele vehiculului si adauga reparatii.
                 </p>
               </div>
 
@@ -777,8 +788,7 @@ export default function DetaliuAutoPage() {
                 type="button"
                 onClick={() => {
                   setShowEditModal(false);
-                  setShowRepairNoteForm(false);
-                  resetNoteFields();
+                  resetRepairFields();
                 }}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
               >
@@ -813,4 +823,219 @@ export default function DetaliuAutoPage() {
                     Status manual
                   </label>
                   <select
-                    value={status
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as VehicleStatus)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                  >
+                    <option value="activa">Activa</option>
+                    <option value="inactiva">Inactiva</option>
+                    <option value="in_reparatie">In reparatie</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Marca
+                  </label>
+                  <input
+                    type="text"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Model
+                  </label>
+                  <input
+                    type="text"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Nr. inmatriculare
+                  </label>
+                  <input
+                    type="text"
+                    value={registrationNumber}
+                    onChange={(e) =>
+                      setRegistrationNumber(e.target.value.toUpperCase())
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 uppercase outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    RCA valabil pana la
+                  </label>
+                  <input
+                    type="date"
+                    value={rcaValidUntil}
+                    onChange={(e) => setRcaValidUntil(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    ITP valabil pana la
+                  </label>
+                  <input
+                    type="date"
+                    value={itpValidUntil}
+                    onChange={(e) => setItpValidUntil(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isLeasing}
+                    onChange={(e) => setIsLeasing(e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    Leasing
+                  </span>
+                </label>
+              </div>
+
+              {isLeasing && (
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Rata lunara
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={monthlyRate}
+                      onChange={(e) => setMonthlyRate(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Data ultimei rate
+                    </label>
+                    <input
+                      type="date"
+                      value={lastRateDate}
+                      onChange={(e) => setLastRateDate(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <button
+                  type="button"
+                  onClick={() => setShowRepairNoteForm((prev) => !prev)}
+                  className={`w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition ${
+                    showRepairNoteForm
+                      ? "bg-gray-500 hover:bg-gray-600"
+                      : "bg-[#0196ff] hover:opacity-90"
+                  }`}
+                >
+                  {showRepairNoteForm
+                    ? "Ascunde nota reparatie"
+                    : "Adauga nota reparatie +"}
+                </button>
+
+                {showRepairNoteForm && (
+                  <div className="mt-4 grid grid-cols-1 gap-4">
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Titlu
+                      </label>
+                      <input
+                        type="text"
+                        value={repairTitle}
+                        onChange={(e) => setRepairTitle(e.target.value)}
+                        placeholder="Ex: Schimb placute frana"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Cost reparatie (TVA inclus)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={repairCost}
+                        onChange={(e) => setRepairCost(e.target.value)}
+                        placeholder="Ex: 850"
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Data reparatie
+                      </label>
+                      <input
+                        type="date"
+                        value={repairDate}
+                        onChange={(e) => setRepairDate(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Observatii
+                      </label>
+                      <textarea
+                        value={repairContent}
+                        onChange={(e) => setRepairContent(e.target.value)}
+                        rows={4}
+                        placeholder="Scrie aici detaliile reparatiei..."
+                        className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {saving ? "Se salveaza..." : "Salveaza modificarile"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {deleting ? "Se sterge..." : "Sterge auto"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
