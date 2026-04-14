@@ -42,7 +42,7 @@ export default function AdminPage() {
           <div>
             <h1 className="text-2xl font-bold">Panou Admin</h1>
             <p className="text-sm text-gray-600">
-              Gestionare date și module administrative.
+              Gestionare date si module administrative.
             </p>
           </div>
 
@@ -50,7 +50,7 @@ export default function AdminPage() {
             onClick={() => router.push("/dashboard")}
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
           >
-            Înapoi la dashboard
+            Inapoi la dashboard
           </button>
         </div>
 
@@ -61,7 +61,7 @@ export default function AdminPage() {
           >
             <h2 className="text-lg font-semibold">Centre de cost</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Vezi toate proiectele și costurile aferente.
+              Vezi toate proiectele si costurile aferente.
             </p>
           </button>
 
@@ -71,7 +71,17 @@ export default function AdminPage() {
           >
             <h2 className="text-lg font-semibold">Muncitori</h2>
             <p className="mt-1 text-sm text-gray-500">
-              Gestionează muncitorii și salariile lunare.
+              Gestioneaza muncitorii si salariile lunare.
+            </p>
+          </button>
+
+          <button
+            onClick={() => router.push("/admin/parc-auto")}
+            className="rounded-2xl bg-white p-6 text-left shadow transition hover:shadow-md"
+          >
+            <h2 className="text-lg font-semibold">Parc Auto</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Gestioneaza vehiculele firmei, documentele si leasingul.
             </p>
           </button>
 
@@ -87,7 +97,7 @@ export default function AdminPage() {
 
             <h2 className="text-lg font-semibold">Ore Extra + Weekend</h2>
             <p className="mt-1 text-sm text-white/80">
-              Vezi, filtrează, achită și exportă rapoartele pentru ore extra și weekend.
+              Vezi, filtreaza, achita si exporta rapoartele pentru ore extra si weekend.
             </p>
           </button>
         </div>
