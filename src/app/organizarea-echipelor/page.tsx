@@ -43,7 +43,7 @@ type TeamVehicleRelation = {
     brand: string;
     model: string;
     registration_number: string;
-  }[] | null;
+  } | null;
 };
 
 type TeamWorkerRelation = {
@@ -51,7 +51,7 @@ type TeamWorkerRelation = {
   workers?: {
     id: string;
     full_name: string;
-  }[] | null;
+  } | null;
 };
 
 type TeamRow = {
@@ -62,9 +62,9 @@ type TeamRow = {
   projects?: {
     id: string;
     name: string;
-    beneficiary: string | null;
-    project_location: string | null;
-  }[] | null;
+    beneficiary?: string | null;
+    project_location?: string | null;
+  } | null;
   daily_team_workers?: TeamWorkerRelation[] | null;
   daily_team_vehicles?: TeamVehicleRelation[] | null;
 };
@@ -468,28 +468,28 @@ export default function OrganizareaEchipelorPage() {
     await loadData();
   };
 
-  const getProjectName = (team: TeamRow) => {
-    return team.projects?.[0]?.name || "Proiect";
-  };
+const getProjectName = (team: TeamRow) => {
+  return team.projects?.name || "Proiect";
+};
 
-  const getProjectBeneficiary = (team: TeamRow) => {
-    return team.projects?.[0]?.beneficiary || "-";
-  };
+const getProjectBeneficiary = (team: TeamRow) => {
+  return team.projects?.beneficiary || "-";
+};
 
-  const getProjectLocation = (team: TeamRow) => {
-    return team.projects?.[0]?.project_location || "-";
-  };
+const getProjectLocation = (team: TeamRow) => {
+  return team.projects?.project_location || "-";
+};
 
-  const getVehiclesPreview = (team: TeamRow) => {
-    const vehiclesList = (team.daily_team_vehicles || [])
-      .map((item) => item.vehicles?.[0]?.registration_number || "-")
-      .filter(Boolean);
+const getVehiclesPreview = (team: TeamRow) => {
+  const vehiclesList = (team.daily_team_vehicles || [])
+    .map((item) => item.vehicles?.registration_number || "-")
+    .filter(Boolean);
 
-    if (vehiclesList.length === 0) return "-";
-    if (vehiclesList.length === 1) return vehiclesList[0];
+  if (vehiclesList.length === 0) return "-";
+  if (vehiclesList.length === 1) return vehiclesList[0];
 
-    return `${vehiclesList[0]} +${vehiclesList.length - 1}`;
-  };
+  return `${vehiclesList[0]} +${vehiclesList.length - 1}`;
+};
 
   if (loading) {
     return <div className="p-6">Se incarca organizarea echipelor...</div>;

@@ -19,7 +19,7 @@ type TeamVehicleRelation = {
     brand: string;
     model: string;
     registration_number: string;
-  }[] | null;
+  } | null;
 };
 
 type TeamWorkerRelation = {
@@ -27,7 +27,7 @@ type TeamWorkerRelation = {
   workers?: {
     id: string;
     full_name: string;
-  }[] | null;
+  } | null;
 };
 
 type TeamRow = {
@@ -40,7 +40,7 @@ type TeamRow = {
     name: string;
     beneficiary: string | null;
     project_location: string | null;
-  }[] | null;
+  } | null;
   daily_team_workers?: TeamWorkerRelation[] | null;
   daily_team_vehicles?: TeamVehicleRelation[] | null;
 };
@@ -417,7 +417,7 @@ export default function DetaliuEchipaPage() {
     return <div className="p-6">Echipa nu a fost gasita.</div>;
   }
 
-  const project = team.projects?.[0];
+  const project = team.projects;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
@@ -501,10 +501,10 @@ export default function DetaliuEchipaPage() {
                     className="rounded-xl border border-gray-200 px-4 py-3"
                   >
                     <p className="text-sm font-medium text-gray-800">
-                      {item.vehicles?.[0]?.registration_number || "-"}
+                      {item.vehicles?.registration_number || "-"}
                     </p>
                     <p className="mt-1 text-xs text-gray-500">
-                      {item.vehicles?.[0]?.brand || ""} {item.vehicles?.[0]?.model || ""}
+                      {item.vehicles?.brand || ""} {item.vehicles?.model || ""}
                     </p>
                   </div>
                 ))}
@@ -530,7 +530,7 @@ export default function DetaliuEchipaPage() {
                     className="rounded-xl border border-gray-200 px-4 py-3"
                   >
                     <p className="text-sm font-medium text-gray-800">
-                      {item.workers?.[0]?.full_name || "-"}
+                      {item.workers?.full_name || "-"}
                     </p>
                   </div>
                 ))}
