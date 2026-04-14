@@ -23,9 +23,17 @@ export default function AdaugaAutoPage() {
   const [registrationNumber, setRegistrationNumber] = useState("");
   const [rcaValidUntil, setRcaValidUntil] = useState("");
   const [itpValidUntil, setItpValidUntil] = useState("");
+
+  const [hasRovinieta, setHasRovinieta] = useState(false);
+  const [rovinietaValidUntil, setRovinietaValidUntil] = useState("");
+
+  const [hasCasco, setHasCasco] = useState(false);
+  const [cascoValidUntil, setCascoValidUntil] = useState("");
+
   const [isLeasing, setIsLeasing] = useState(false);
   const [monthlyRate, setMonthlyRate] = useState("");
   const [lastRateDate, setLastRateDate] = useState("");
+
   const [status, setStatus] = useState<VehicleStatus>("activa");
 
   const handleSubmit = async () => {
@@ -54,6 +62,16 @@ export default function AdaugaAutoPage() {
       return;
     }
 
+    if (hasRovinieta && !rovinietaValidUntil) {
+      alert("Completeaza data rovinietei.");
+      return;
+    }
+
+    if (hasCasco && !cascoValidUntil) {
+      alert("Completeaza data Casco.");
+      return;
+    }
+
     if (isLeasing) {
       if (!monthlyRate || Number(monthlyRate) <= 0) {
         alert("Completeaza rata lunara pentru leasing.");
@@ -75,9 +93,17 @@ export default function AdaugaAutoPage() {
       registration_number: registrationNumber.trim().toUpperCase(),
       rca_valid_until: rcaValidUntil || null,
       itp_valid_until: itpValidUntil || null,
+
+      has_rovinieta: hasRovinieta,
+      rovinieta_valid_until: hasRovinieta ? rovinietaValidUntil || null : null,
+
+      has_casco: hasCasco,
+      casco_valid_until: hasCasco ? cascoValidUntil || null : null,
+
       is_leasing: isLeasing,
       monthly_rate: isLeasing ? Number(monthlyRate || 0) : null,
       last_rate_date: isLeasing ? lastRateDate || null : null,
+
       status,
     };
 
@@ -210,6 +236,62 @@ export default function AdaugaAutoPage() {
               />
             </div>
           </div>
+
+          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={hasRovinieta}
+                onChange={(e) => setHasRovinieta(e.target.checked)}
+                className="h-5 w-5"
+              />
+              <span className="text-sm font-medium text-gray-800">
+                Rovinieta
+              </span>
+            </label>
+          </div>
+
+          {hasRovinieta && (
+            <div className="mt-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Rovinieta valabil pana la
+              </label>
+              <input
+                type="date"
+                value={rovinietaValidUntil}
+                onChange={(e) => setRovinietaValidUntil(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              />
+            </div>
+          )}
+
+          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={hasCasco}
+                onChange={(e) => setHasCasco(e.target.checked)}
+                className="h-5 w-5"
+              />
+              <span className="text-sm font-medium text-gray-800">
+                Casco
+              </span>
+            </label>
+          </div>
+
+          {hasCasco && (
+            <div className="mt-4">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Casco valabil pana la
+              </label>
+              <input
+                type="date"
+                value={cascoValidUntil}
+                onChange={(e) => setCascoValidUntil(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              />
+            </div>
+          )}
 
           <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
             <label className="flex cursor-pointer items-center gap-3">
