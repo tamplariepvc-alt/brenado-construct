@@ -99,6 +99,31 @@ export default function ParcAutoPage() {
     return new Date(year, month - 1, day);
   };
 
+  const getDaysUntil = (value: string | null) => {
+    const targetDate = parseDate(value);
+    if (!targetDate) return null;
+
+    const diffMs = targetDate.getTime() - today.getTime();
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  };
+
+  const getExpiryWarnings = (vehicle: Vehicle) => {
+    const warnings: string[] = [];
+
+    const rcaDays = getDaysUntil(vehicle.rca_valid_until);
+    const itpDays = getDaysUntil(vehicle.itp_valid_until);
+
+    if (rcaDays !== null && rcaDays >= 0 && rcaDays <= 30) {
+      warnings.push(`Expira RCA in ${rcaDays} zile`);
+    }
+
+    if (itpDays !== null && itpDays >= 0 && itpDays <= 30) {
+      warnings.push(`Expira ITP in ${itpDays} zile`);
+    }
+
+    return warnings;
+  };
+
   const getComputedStatus = (vehicle: Vehicle) => {
     const rcaDate = parseDate(vehicle.rca_valid_until);
     const itpDate = parseDate(vehicle.itp_valid_until);
@@ -232,11 +257,16 @@ export default function ParcAutoPage() {
                       <div className="space-y-3 p-4">
                         {sectionVehicles.map((vehicle) => {
                           const computedStatus = getComputedStatus(vehicle);
+                          const warnings = getExpiryWarnings(vehicle);
 
                           return (
-                            <div
+                            <button
                               key={vehicle.id}
-                              className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4"
+                              type="button"
+                              onClick={() =>
+                                router.push(`/admin/parc-auto/${vehicle.id}`)
+                              }
+                              className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-left transition hover:bg-gray-100"
                             >
                               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div className="min-w-0">
@@ -248,7 +278,7 @@ export default function ParcAutoPage() {
                                   </p>
                                 </div>
 
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                                   <span
                                     className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
                                       computedStatus
@@ -257,18 +287,17 @@ export default function ParcAutoPage() {
                                     {getStatusLabel(computedStatus)}
                                   </span>
 
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      router.push(`/admin/parc-auto/${vehicle.id}/edit`)
-                                    }
-                                    className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                                  >
-                                    Actualizeaza
-                                  </button>
+                                  {warnings.map((warning) => (
+                                    <span
+                                      key={warning}
+                                      className="inline-flex w-fit rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
+                                    >
+                                      {warning}
+                                    </span>
+                                  ))}
                                 </div>
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                       </div>
