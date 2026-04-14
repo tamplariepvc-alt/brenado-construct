@@ -24,16 +24,27 @@ type Vehicle = {
   monthly_rate: number | null;
   last_rate_date: string | null;
   status: VehicleStatus;
+  created_at: string;
 };
 
-export default function EditAutoPage() {
+const categoryLabelMap: Record<VehicleCategory, string> = {
+  camion: "Camion",
+  autoutilitara: "Autoutilitara",
+  microbuz: "Microbuz",
+  masina_administrativa: "Masina administrativa",
+};
+
+export default function DetaliuAutoPage() {
   const router = useRouter();
   const params = useParams();
   const vehicleId = params.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
 
   const [category, setCategory] = useState<VehicleCategory>("camion");
   const [brand, setBrand] = useState("");
@@ -46,53 +57,57 @@ export default function EditAutoPage() {
   const [lastRateDate, setLastRateDate] = useState("");
   const [status, setStatus] = useState<VehicleStatus>("activa");
 
+  const loadVehicle = async () => {
+    setLoading(true);
+
+    const { data, error } = await supabase
+      .from("vehicles")
+      .select(`
+        id,
+        category,
+        brand,
+        model,
+        registration_number,
+        rca_valid_until,
+        itp_valid_until,
+        is_leasing,
+        monthly_rate,
+        last_rate_date,
+        status,
+        created_at
+      `)
+      .eq("id", vehicleId)
+      .single();
+
+    if (error || !data) {
+      router.push("/admin/parc-auto");
+      return;
+    }
+
+    const vehicleData = data as Vehicle;
+
+    setVehicle(vehicleData);
+    setCategory(vehicleData.category);
+    setBrand(vehicleData.brand || "");
+    setModel(vehicleData.model || "");
+    setRegistrationNumber(vehicleData.registration_number || "");
+    setRcaValidUntil(vehicleData.rca_valid_until || "");
+    setItpValidUntil(vehicleData.itp_valid_until || "");
+    setIsLeasing(Boolean(vehicleData.is_leasing));
+    setMonthlyRate(
+      vehicleData.monthly_rate != null
+        ? String(Number(vehicleData.monthly_rate))
+        : ""
+    );
+    setLastRateDate(vehicleData.last_rate_date || "");
+    setStatus(vehicleData.status);
+
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const loadVehicle = async () => {
-      setLoading(true);
-
-      const { data, error } = await supabase
-        .from("vehicles")
-        .select(`
-          id,
-          category,
-          brand,
-          model,
-          registration_number,
-          rca_valid_until,
-          itp_valid_until,
-          is_leasing,
-          monthly_rate,
-          last_rate_date,
-          status
-        `)
-        .eq("id", vehicleId)
-        .single();
-
-      if (error || !data) {
-        router.push("/admin/parc-auto");
-        return;
-      }
-
-      const vehicle = data as Vehicle;
-
-      setCategory(vehicle.category);
-      setBrand(vehicle.brand || "");
-      setModel(vehicle.model || "");
-      setRegistrationNumber(vehicle.registration_number || "");
-      setRcaValidUntil(vehicle.rca_valid_until || "");
-      setItpValidUntil(vehicle.itp_valid_until || "");
-      setIsLeasing(Boolean(vehicle.is_leasing));
-      setMonthlyRate(
-        vehicle.monthly_rate != null ? String(Number(vehicle.monthly_rate)) : ""
-      );
-      setLastRateDate(vehicle.last_rate_date || "");
-      setStatus(vehicle.status);
-
-      setLoading(false);
-    };
-
     loadVehicle();
-  }, [vehicleId, router]);
+  }, [vehicleId]);
 
   const today = useMemo(() => {
     const now = new Date();
@@ -103,6 +118,19 @@ export default function EditAutoPage() {
     if (!value) return null;
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
+  };
+
+  const formatDate = (value: string | null) => {
+    if (!value) return "-";
+    return new Date(value).toLocaleDateString("ro-RO");
+  };
+
+  const getDaysUntil = (value: string | null) => {
+    const targetDate = parseDate(value);
+    if (!targetDate) return null;
+
+    const diffMs = targetDate.getTime() - today.getTime();
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
   };
 
   const computedStatus = useMemo(() => {
@@ -147,6 +175,23 @@ export default function EditAutoPage() {
     return "bg-gray-100 text-gray-700";
   }, [computedStatus]);
 
+  const warnings = useMemo(() => {
+    const list: string[] = [];
+
+    const rcaDays = getDaysUntil(rcaValidUntil || null);
+    const itpDays = getDaysUntil(itpValidUntil || null);
+
+    if (rcaDays !== null && rcaDays >= 0 && rcaDays <= 30) {
+      list.push(`Expira RCA in ${rcaDays} zile`);
+    }
+
+    if (itpDays !== null && itpDays >= 0 && itpDays <= 30) {
+      list.push(`Expira ITP in ${itpDays} zile`);
+    }
+
+    return list;
+  }, [rcaValidUntil, itpValidUntil, today]);
+
   const monthsRemaining = useMemo(() => {
     if (!isLeasing || !lastRateDate) return 0;
 
@@ -170,7 +215,7 @@ export default function EditAutoPage() {
     return monthsRemaining * Number(monthlyRate || 0);
   }, [isLeasing, monthsRemaining, monthlyRate]);
 
-  const handleSubmit = async () => {
+  const handleSave = async () => {
     if (!brand.trim()) {
       alert("Completeaza marca.");
       return;
@@ -198,17 +243,17 @@ export default function EditAutoPage() {
 
     if (isLeasing) {
       if (!monthlyRate || Number(monthlyRate) <= 0) {
-        alert("Completeaza rata lunara pentru leasing.");
+        alert("Completeaza rata lunara.");
         return;
       }
 
       if (!lastRateDate) {
-        alert("Selecteaza data ultimei rate.");
+        alert("Completeaza data ultimei rate.");
         return;
       }
     }
 
-    setSubmitting(true);
+    setSaving(true);
 
     const payload = {
       category,
@@ -230,19 +275,17 @@ export default function EditAutoPage() {
 
     if (error) {
       alert(`A aparut o eroare la salvare: ${error.message}`);
-      setSubmitting(false);
+      setSaving(false);
       return;
     }
 
-    setSubmitting(false);
-    router.push("/admin/parc-auto");
+    setSaving(false);
+    setShowEditModal(false);
+    await loadVehicle();
   };
 
   const handleDelete = async () => {
-    const confirmed = window.confirm(
-      "Sigur vrei sa stergi acest vehicul?"
-    );
-
+    const confirmed = window.confirm("Sigur vrei sa stergi acest vehicul?");
     if (!confirmed) return;
 
     setDeleting(true);
@@ -266,223 +309,373 @@ export default function EditAutoPage() {
     return <div className="p-6">Se incarca datele vehiculului...</div>;
   }
 
+  if (!vehicle) {
+    return <div className="p-6">Vehiculul nu a fost gasit.</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl">
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Editeaza auto</h1>
+            <h1 className="text-2xl font-bold">Detaliu auto</h1>
             <p className="text-sm text-gray-600">
-              Modifica datele vehiculului din parc auto.
+              Vezi detaliile vehiculului si actualizeaza datele cand este nevoie.
             </p>
           </div>
 
-          <button
-            onClick={() => router.push("/admin/parc-auto")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-          >
-            Inapoi la parc auto
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => router.push("/admin/parc-auto")}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            >
+              Inapoi la parc auto
+            </button>
+
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+            >
+              Actualizeaza
+            </button>
+          </div>
         </div>
 
-        <div className="rounded-2xl bg-white p-5 shadow md:p-6">
-          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Status afisat</p>
-              <span
-                className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${computedStatusClasses}`}
-              >
-                {computedStatusLabel}
-              </span>
-            </div>
-
-            {isLeasing && (
-              <div className="text-left sm:text-right">
-                <p className="text-sm font-medium text-gray-500">
-                  Leasing ramas
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {monthsRemaining} luni
-                </p>
-                <p className="mt-1 text-sm font-bold text-gray-900">
-                  {remainingLeasingValue.toFixed(2)} lei
+        <div className="space-y-6">
+          <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {brand} {model}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Nr. inmatriculare: {registrationNumber}
                 </p>
               </div>
-            )}
-          </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Categorie auto
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as VehicleCategory)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-              >
-                <option value="camion">Camion</option>
-                <option value="autoutilitara">Autoutilitara</option>
-                <option value="microbuz">Microbuz</option>
-                <option value="masina_administrativa">Masina administrativa</option>
-              </select>
+              <div className="flex flex-wrap gap-2">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${computedStatusClasses}`}
+                >
+                  {computedStatusLabel}
+                </span>
+
+                {warnings.map((warning) => (
+                  <span
+                    key={warning}
+                    className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
+                  >
+                    {warning}
+                  </span>
+                ))}
+              </div>
             </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Status manual
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as VehicleStatus)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-              >
-                <option value="activa">Activa</option>
-                <option value="inactiva">Inactiva</option>
-                <option value="in_reparatie">In reparatie</option>
-              </select>
-            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              <div>
+                <p className="text-xs font-medium text-gray-500">Categorie</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {categoryLabelMap[category]}
+                </p>
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Marca
-              </label>
-              <input
-                type="text"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Ex: Ford"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Marca</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {brand}
+                </p>
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Model
-              </label>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="Ex: Transit"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Model</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {model}
+                </p>
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Nr. inmatriculare
-              </label>
-              <input
-                type="text"
-                value={registrationNumber}
-                onChange={(e) =>
-                  setRegistrationNumber(e.target.value.toUpperCase())
-                }
-                placeholder="Ex: B123ABC"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 uppercase outline-none focus:border-black"
-              />
-            </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">
+                  Nr. inmatriculare
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {registrationNumber}
+                </p>
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                RCA valabil pana la
-              </label>
-              <input
-                type="date"
-                value={rcaValidUntil}
-                onChange={(e) => setRcaValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">
+                  RCA valabil pana la
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {formatDate(rcaValidUntil)}
+                </p>
+              </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                ITP valabil pana la
-              </label>
-              <input
-                type="date"
-                value={itpValidUntil}
-                onChange={(e) => setItpValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
-          </div>
+              <div>
+                <p className="text-xs font-medium text-gray-500">
+                  ITP valabil pana la
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {formatDate(itpValidUntil)}
+                </p>
+              </div>
 
-          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={isLeasing}
-                onChange={(e) => setIsLeasing(e.target.checked)}
-                className="h-5 w-5"
-              />
-              <span className="text-sm font-medium text-gray-800">
-                Leasing
-              </span>
-            </label>
+              <div>
+                <p className="text-xs font-medium text-gray-500">Leasing</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {isLeasing ? "Da" : "Nu"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500">
+                  Status manual
+                </p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">
+                  {status === "activa"
+                    ? "Activa"
+                    : status === "inactiva"
+                    ? "Inactiva"
+                    : "In reparatie"}
+                </p>
+              </div>
+            </div>
           </div>
 
           {isLeasing && (
-            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Rata lunara
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={monthlyRate}
-                  onChange={(e) => setMonthlyRate(e.target.value)}
-                  placeholder="Ex: 1500"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                />
+            <div className="rounded-2xl bg-white p-5 shadow">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">Detalii leasing</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Valori calculate automat in functie de rata lunara si data ultimei rate.
+                </p>
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Data ultimei rate
-                </label>
-                <input
-                  type="date"
-                  value={lastRateDate}
-                  onChange={(e) => setLastRateDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                />
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Rata lunara</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {Number(monthlyRate || 0).toFixed(2)} lei
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-gray-500">
+                    Data ultimei rate
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {formatDate(lastRateDate)}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Luni ramase</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {monthsRemaining}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-gray-500">
+                    Ramas de plata
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-gray-900">
+                    {remainingLeasingValue.toFixed(2)} lei
+                  </p>
+                </div>
               </div>
             </div>
           )}
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {submitting ? "Se salveaza..." : "Salveaza modificarile"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="w-full rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {deleting ? "Se sterge..." : "Sterge auto"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => router.push("/admin/parc-auto")}
-              className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
-            >
-              Renunta
-            </button>
-          </div>
         </div>
       </div>
+
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b px-5 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">Actualizeaza auto</h2>
+                <p className="text-sm text-gray-500">
+                  Modifica datele vehiculului.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEditModal(false)}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+              >
+                Inchide
+              </button>
+            </div>
+
+            <div className="max-h-[75vh] overflow-y-auto px-5 py-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Categorie auto
+                  </label>
+                  <select
+                    value={category}
+                    onChange={(e) =>
+                      setCategory(e.target.value as VehicleCategory)
+                    }
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                  >
+                    <option value="camion">Camion</option>
+                    <option value="autoutilitara">Autoutilitara</option>
+                    <option value="microbuz">Microbuz</option>
+                    <option value="masina_administrativa">
+                      Masina administrativa
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Status manual
+                  </label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as VehicleStatus)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                  >
+                    <option value="activa">Activa</option>
+                    <option value="inactiva">Inactiva</option>
+                    <option value="in_reparatie">In reparatie</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Marca
+                  </label>
+                  <input
+                    type="text"
+                    value={brand}
+                    onChange={(e) => setBrand(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Model
+                  </label>
+                  <input
+                    type="text"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Nr. inmatriculare
+                  </label>
+                  <input
+                    type="text"
+                    value={registrationNumber}
+                    onChange={(e) =>
+                      setRegistrationNumber(e.target.value.toUpperCase())
+                    }
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 uppercase outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    RCA valabil pana la
+                  </label>
+                  <input
+                    type="date"
+                    value={rcaValidUntil}
+                    onChange={(e) => setRcaValidUntil(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    ITP valabil pana la
+                  </label>
+                  <input
+                    type="date"
+                    value={itpValidUntil}
+                    onChange={(e) => setItpValidUntil(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isLeasing}
+                    onChange={(e) => setIsLeasing(e.target.checked)}
+                    className="h-5 w-5"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    Leasing
+                  </span>
+                </label>
+              </div>
+
+              {isLeasing && (
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Rata lunara
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={monthlyRate}
+                      onChange={(e) => setMonthlyRate(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Data ultimei rate
+                    </label>
+                    <input
+                      type="date"
+                      value={lastRateDate}
+                      onChange={(e) => setLastRateDate(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {saving ? "Se salveaza..." : "Salveaza modificarile"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="w-full rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {deleting ? "Se sterge..." : "Sterge auto"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
