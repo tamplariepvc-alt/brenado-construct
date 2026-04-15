@@ -62,8 +62,8 @@ type TeamRow = {
   projects?: {
     id: string;
     name: string;
-    beneficiary?: string | null;
-    project_location?: string | null;
+    beneficiary: string | null;
+    project_location: string | null;
   } | null;
   daily_team_workers?: TeamWorkerRelation[] | null;
   daily_team_vehicles?: TeamVehicleRelation[] | null;
@@ -88,9 +88,6 @@ export default function OrganizareaEchipelorPage() {
   const [workers, setWorkers] = useState<Worker[]>([]);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<TeamRow | null>(null);
-
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
 
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -112,10 +109,16 @@ export default function OrganizareaEchipelorPage() {
     resetForm();
   };
 
+  const parseDate = (value: string | null | undefined) => {
+    if (!value) return null;
+    const [year, month, day] = value.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  };
+
   const getVehicleComputedStatus = (vehicle: Vehicle) => {
     const today = new Date();
-    const rca = vehicle.rca_valid_until ? new Date(vehicle.rca_valid_until) : null;
-    const itp = vehicle.itp_valid_until ? new Date(vehicle.itp_valid_until) : null;
+    const rca = vehicle.rca_valid_until ? parseDate(vehicle.rca_valid_until) : null;
+    const itp = vehicle.itp_valid_until ? parseDate(vehicle.itp_valid_until) : null;
 
     if ((rca && rca < today) || (itp && itp < today)) {
       return "doc_expirate";
@@ -300,11 +303,6 @@ export default function OrganizareaEchipelorPage() {
     );
   };
 
-  const openTeamDetails = (team: TeamRow) => {
-    setSelectedTeam(team);
-    setShowDetailsModal(true);
-  };
-
   const openCreateModal = () => {
     resetForm();
     setShowCreateModal(true);
@@ -320,7 +318,6 @@ export default function OrganizareaEchipelorPage() {
       (team.daily_team_workers || []).map((item) => item.worker_id)
     );
     setShowCreateModal(true);
-    setShowDetailsModal(false);
   };
 
   const handleSaveTeam = async () => {
@@ -468,28 +465,24 @@ export default function OrganizareaEchipelorPage() {
     await loadData();
   };
 
-const getProjectName = (team: TeamRow) => {
-  return team.projects?.name || "Proiect";
-};
+  const getProjectName = (team: TeamRow) => {
+    return team.projects?.name || "Proiect";
+  };
 
-const getProjectBeneficiary = (team: TeamRow) => {
-  return team.projects?.beneficiary || "-";
-};
+  const getProjectLocation = (team: TeamRow) => {
+    return team.projects?.project_location || "-";
+  };
 
-const getProjectLocation = (team: TeamRow) => {
-  return team.projects?.project_location || "-";
-};
+  const getVehiclesPreview = (team: TeamRow) => {
+    const vehiclesList = (team.daily_team_vehicles || [])
+      .map((item) => item.vehicles?.registration_number || "-")
+      .filter(Boolean);
 
-const getVehiclesPreview = (team: TeamRow) => {
-  const vehiclesList = (team.daily_team_vehicles || [])
-    .map((item) => item.vehicles?.registration_number || "-")
-    .filter(Boolean);
+    if (vehiclesList.length === 0) return "-";
+    if (vehiclesList.length === 1) return vehiclesList[0];
 
-  if (vehiclesList.length === 0) return "-";
-  if (vehiclesList.length === 1) return vehiclesList[0];
-
-  return `${vehiclesList[0]} +${vehiclesList.length - 1}`;
-};
+    return `${vehiclesList[0]} +${vehiclesList.length - 1}`;
+  };
 
   if (loading) {
     return <div className="p-6">Se incarca organizarea echipelor...</div>;
@@ -540,14 +533,12 @@ const getVehiclesPreview = (team: TeamRow) => {
               <button
                 key={team.id}
                 type="button"
-                onClick={() => openTeamDetails(team)}
+                onClick={() => router.push(`/organizarea-echipelor/${team.id}`)}
                 className="rounded-2xl bg-white p-5 text-left shadow transition hover:shadow-md"
               >
                 <div className="mb-4 flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-lg font-semibold">
-                      Echipa {index + 1}
-                    </h2>
+                    <h2 className="text-lg font-semibold">Echipa {index + 1}</h2>
                     <p className="mt-1 text-sm text-gray-500">
                       {getProjectName(team)}
                     </p>
@@ -572,6 +563,19 @@ const getVehiclesPreview = (team: TeamRow) => {
                     {getProjectLocation(team)}
                   </p>
                 </div>
+
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditModal(team);
+                    }}
+                    className="mt-4 rounded-lg border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-700"
+                  >
+                    Editeaza
+                  </button>
+                )}
               </button>
             ))}
           </div>
@@ -723,104 +727,6 @@ const getVehiclesPreview = (team: TeamRow) => {
                     Renunta
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showDetailsModal && selectedTeam && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-5 py-4">
-              <div>
-                <h2 className="text-lg font-semibold">{getProjectName(selectedTeam)}</h2>
-                <p className="text-sm text-gray-500">
-                  Echipa pentru data de{" "}
-                  {new Date(`${selectedTeam.work_date}T00:00:00`).toLocaleDateString("ro-RO")}
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowDetailsModal(false)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
-              >
-                Inchide
-              </button>
-            </div>
-
-            <div className="max-h-[76vh] overflow-y-auto px-5 py-4">
-              <div className="space-y-5">
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                  <p className="text-sm">
-                    <span className="font-medium text-gray-500">Santier:</span>{" "}
-                    <span className="font-semibold text-gray-900">
-                      {getProjectName(selectedTeam)}
-                    </span>
-                  </p>
-                  <p className="mt-2 text-sm">
-                    <span className="font-medium text-gray-500">Beneficiar:</span>{" "}
-                    {getProjectBeneficiary(selectedTeam)}
-                  </p>
-                  <p className="mt-2 text-sm">
-                    <span className="font-medium text-gray-500">Locatie:</span>{" "}
-                    {getProjectLocation(selectedTeam)}
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="mb-3 text-base font-semibold">Auto atribuite</h3>
-                  {(selectedTeam.daily_team_vehicles || []).length === 0 ? (
-                    <p className="text-sm text-gray-500">Nu exista auto atribuite.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(selectedTeam.daily_team_vehicles || []).map((item, index) => (
-                        <div
-                          key={`${item.vehicle_id}-${index}`}
-                          className="rounded-xl border border-gray-200 px-4 py-3"
-                        >
-                          <p className="text-sm font-medium text-gray-800">
-                            {item.vehicles?.[0]?.registration_number || "-"}
-                          </p>
-                          <p className="mt-1 text-xs text-gray-500">
-                            {item.vehicles?.[0]?.brand || ""} {item.vehicles?.[0]?.model || ""}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <h3 className="mb-3 text-base font-semibold">Muncitori echipa</h3>
-                  {(selectedTeam.daily_team_workers || []).length === 0 ? (
-                    <p className="text-sm text-gray-500">Nu exista muncitori in echipa.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {(selectedTeam.daily_team_workers || []).map((item, index) => (
-                        <div
-                          key={`${item.worker_id}-${index}`}
-                          className="rounded-xl border border-gray-200 px-4 py-3"
-                        >
-                          <p className="text-sm font-medium text-gray-800">
-                            {item.workers?.[0]?.full_name || "-"}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(selectedTeam)}
-                    className="w-full rounded-lg bg-black px-5 py-3 text-sm font-semibold text-white"
-                  >
-                    Editeaza echipa
-                  </button>
-                )}
               </div>
             </div>
           </div>
