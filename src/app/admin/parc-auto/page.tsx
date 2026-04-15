@@ -358,11 +358,20 @@ export default function ParcAutoPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold">Parc Auto</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Gestioneaza vehiculele firmei, documentele si leasingul.
-          </p>
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Parc Auto</h1>
+            <p className="mt-1 text-sm text-gray-600">
+              Gestioneaza vehiculele firmei, documentele si leasingul.
+            </p>
+          </div>
+
+          <button
+            onClick={() => router.push("/admin")}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+          >
+            Inapoi la panou admin
+          </button>
         </div>
 
         <button
