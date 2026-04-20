@@ -171,7 +171,7 @@ export default function DetaliuEchipaPage() {
       return;
     }
 
-    const parsedTeam = teamData as TeamRow;
+    const parsedTeam = teamData as unknown as TeamRow;
     const workDate = parsedTeam.work_date;
 
     const [teamsRes, projectsRes, vehiclesRes, workersRes] = await Promise.all([
@@ -232,8 +232,6 @@ export default function DetaliuEchipaPage() {
         .eq("is_active", true)
         .order("full_name", { ascending: true }),
     ]);
-
-    const parsedTeam = teamData as TeamRow;
 
     setProfile(profileData as Profile);
     setTeam(parsedTeam);
