@@ -370,8 +370,7 @@ export default function ProiectePage() {
                     Aici intră toate funcțiile financiare ale proiectului.
                   </p>
                   <p className="mt-1 text-xs text-blue-700">
-                    Bonuri fiscale, costuri, documente financiare și centralizare
-                    în centrul de cost.
+                    Bonuri fiscale, facturi, costuri și nedeductibile pentru centrul de cost.
                   </p>
                 </div>
 
@@ -383,6 +382,26 @@ export default function ProiectePage() {
                   className="w-full rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                 >
                   Încarcă BF
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/proiecte/${selectedProject.id}/incarca-factura`)
+                  }
+                  className="w-full rounded-xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Încarcă Facturi
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/proiecte/${selectedProject.id}/adauga-nedeductibile`)
+                  }
+                  className="w-full rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Adaugă Nedeductibile
                 </button>
               </div>
             )}
