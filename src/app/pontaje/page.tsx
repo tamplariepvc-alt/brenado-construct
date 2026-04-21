@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -20,15 +20,30 @@ type Project = {
   status: string;
 };
 
+type DailyTeam = {
+  id: string;
+  project_id: string;
+  work_date: string;
+  created_at?: string | null;
+};
+
+const getTodayDate = () => {
+  const d = new Date();
+  return d.toISOString().split("T")[0];
+};
+
 export default function PontajePage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const todayDate = useMemo(() => getTodayDate(), []);
 
   useEffect(() => {
     const loadData = async () => {
+      setLoading(true);
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -59,14 +74,39 @@ export default function PontajePage() {
 
       setProfile(profileData as Profile);
 
+      const { data: dailyTeamsData, error: dailyTeamsError } = await supabase
+        .from("daily_teams")
+        .select("id, project_id, work_date, created_at")
+        .eq("work_date", todayDate)
+        .order("created_at", { ascending: true });
+
+      if (dailyTeamsError || !dailyTeamsData || dailyTeamsData.length === 0) {
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+
+      const teamProjectIds = Array.from(
+        new Set((dailyTeamsData as DailyTeam[]).map((item) => item.project_id))
+      );
+
+      if (teamProjectIds.length === 0) {
+        setProjects([]);
+        setLoading(false);
+        return;
+      }
+
       if (profileData.role === "administrator") {
         const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
           .select("id, name, beneficiary, project_location, status")
+          .in("id", teamProjectIds)
           .order("created_at", { ascending: false });
 
         if (!projectsError && projectsData) {
           setProjects(projectsData as Project[]);
+        } else {
+          setProjects([]);
         }
       }
 
@@ -76,20 +116,34 @@ export default function PontajePage() {
           .select("project_id")
           .eq("user_id", user.id);
 
-        if (!linkedError && linkedProjects) {
-          const projectIds = linkedProjects.map((item) => item.project_id);
+        if (linkedError || !linkedProjects) {
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
 
-          if (projectIds.length > 0) {
-            const { data: projectsData, error: projectsError } = await supabase
-              .from("projects")
-              .select("id, name, beneficiary, project_location, status")
-              .in("id", projectIds)
-              .order("created_at", { ascending: false });
+        const linkedProjectIds = linkedProjects.map((item) => item.project_id);
 
-            if (!projectsError && projectsData) {
-              setProjects(projectsData as Project[]);
-            }
-          }
+        const visibleProjectIds = teamProjectIds.filter((projectId) =>
+          linkedProjectIds.includes(projectId)
+        );
+
+        if (visibleProjectIds.length === 0) {
+          setProjects([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data: projectsData, error: projectsError } = await supabase
+          .from("projects")
+          .select("id, name, beneficiary, project_location, status")
+          .in("id", visibleProjectIds)
+          .order("created_at", { ascending: false });
+
+        if (!projectsError && projectsData) {
+          setProjects(projectsData as Project[]);
+        } else {
+          setProjects([]);
         }
       }
 
@@ -97,11 +151,11 @@ export default function PontajePage() {
     };
 
     loadData();
-  }, [router]);
+  }, [router, todayDate]);
 
   const getStatusLabel = (status: string) => {
-    if (status === "in_asteptare") return "În așteptare";
-    if (status === "in_lucru") return "În lucru";
+    if (status === "in_asteptare") return "In asteptare";
+    if (status === "in_lucru") return "In lucru";
     if (status === "finalizat") return "Finalizat";
     return status;
   };
@@ -120,7 +174,7 @@ export default function PontajePage() {
   };
 
   if (loading) {
-    return <div className="p-6">Se încarcă șantierele pentru pontaj...</div>;
+    return <div className="p-6">Se incarca santierele pentru pontaj...</div>;
   }
 
   return (
@@ -130,7 +184,7 @@ export default function PontajePage() {
           <div>
             <h1 className="text-2xl font-bold">Pontaje</h1>
             <p className="text-sm text-gray-600">
-              Selectează șantierul pentru pontarea echipei.
+              Selecteaza santierul pentru pontarea echipei de azi.
             </p>
           </div>
 
@@ -138,14 +192,14 @@ export default function PontajePage() {
             onClick={() => router.push("/dashboard")}
             className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
           >
-            Înapoi la dashboard
+            Inapoi la dashboard
           </button>
         </div>
 
         {projects.length === 0 ? (
           <div className="rounded-2xl bg-white p-6 shadow">
             <p className="text-sm text-gray-500">
-              Nu există șantiere disponibile pentru pontaj.
+              Nu exista santiere cu echipe organizate pentru azi.
             </p>
           </div>
         ) : (
@@ -173,7 +227,7 @@ export default function PontajePage() {
                 </div>
 
                 <div className="mb-5">
-                  <p className="text-xs font-medium text-gray-500">Locație</p>
+                  <p className="text-xs font-medium text-gray-500">Locatie</p>
                   <p className="mt-1 text-sm font-medium">
                     {project.project_location || "-"}
                   </p>
@@ -184,7 +238,7 @@ export default function PontajePage() {
                   onClick={() => router.push(`/pontaje/${project.id}`)}
                   className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                 >
-                  Pontează echipa la intrare
+                  Ponteaza echipa la intrare
                 </button>
               </div>
             ))}

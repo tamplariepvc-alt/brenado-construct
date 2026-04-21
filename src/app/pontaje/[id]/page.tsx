@@ -67,6 +67,17 @@ type WeekendSelection = {
   sunday: boolean;
 };
 
+type DailyTeam = {
+  id: string;
+  project_id: string;
+  work_date: string;
+};
+
+type DailyTeamWorker = {
+  daily_team_id: string;
+  worker_id: string;
+};
+
 export default function PontajSantierPage() {
   const router = useRouter();
   const params = useParams();
@@ -75,6 +86,7 @@ export default function PontajSantierPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<Project | null>(null);
+
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [selectedWorkers, setSelectedWorkers] = useState<string[]>([]);
   const [showWorkersList, setShowWorkersList] = useState(false);
@@ -86,8 +98,13 @@ export default function PontajSantierPage() {
     TodayWorkedWorker[]
   >([]);
   const [now, setNow] = useState(Date.now());
+
   const [sameTeamAsYesterday, setSameTeamAsYesterday] = useState(false);
   const [yesterdayWorkerIds, setYesterdayWorkerIds] = useState<string[]>([]);
+
+  const [plannedTeamExists, setPlannedTeamExists] = useState(false);
+  const [plannedTeamId, setPlannedTeamId] = useState<string | null>(null);
+  const [plannedWorkerIds, setPlannedWorkerIds] = useState<string[]>([]);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyFilter, setHistoryFilter] = useState<
@@ -221,7 +238,14 @@ export default function PontajSantierPage() {
     return date.toLocaleDateString("ro-RO");
   };
 
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const activeWorkerIds = useMemo(() => {
+    return activeEntries.map((entry) => entry.worker_id);
+  }, [activeEntries]);
+
   const loadData = async () => {
+    setLoading(true);
+
     const { data: projectData, error: projectError } = await supabase
       .from("projects")
       .select("id, name, beneficiary, project_location")
@@ -232,41 +256,22 @@ export default function PontajSantierPage() {
       router.push("/pontaje");
       return;
     }
-	
-	const {
-  data: { user },
-} = await supabase.auth.getUser();
 
-let currentUserRole: string | null = null;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-if (user) {
-  const { data: profileData } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+    let currentUserRole: string | null = null;
 
-  currentUserRole = profileData?.role || null;
-}
+    if (user) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-    const { data: workersData, error: workersError } = await supabase
-      .from("workers")
-      .select("id, full_name, is_active, extra_hour_rate, weekend_day_rate")
-      .eq("is_active", true)
-      .order("full_name", { ascending: true });
-
-    let parsedWorkers: Worker[] = [];
-    if (!workersError && workersData) {
-      parsedWorkers = (workersData as Worker[]).filter(
-        (worker) => worker.is_active
-      );
+      currentUserRole = profileData?.role || null;
     }
-
-    const today = new Date().toISOString().split("T")[0];
-
-    const yesterdayDate = new Date();
-    yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-    const yesterday = yesterdayDate.toISOString().split("T")[0];
 
     const { data: activeData, error: activeError } = await supabase
       .from("time_entries")
@@ -290,7 +295,11 @@ if (user) {
       .from("time_entries")
       .select("worker_id")
       .eq("project_id", projectId)
-      .eq("work_date", yesterday);
+      .eq("work_date", (() => {
+        const yesterdayDate = new Date();
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        return yesterdayDate.toISOString().split("T")[0];
+      })());
 
     const { data: historyData, error: historyError } = await supabase
       .from("time_entries")
@@ -323,46 +332,95 @@ if (user) {
       .eq("project_id", projectId)
       .eq("work_date", today);
 
-    setProject(projectData as Project);
-    setWorkers(parsedWorkers);
+    const { data: dailyTeamData } = await supabase
+      .from("daily_teams")
+      .select("id, project_id, work_date")
+      .eq("project_id", projectId)
+      .eq("work_date", today)
+      .maybeSingle();
 
-    if (!activeError && activeData) {
-      const enrichedEntries = (activeData as ActiveTimeEntry[]).map((entry) => {
-        const workerFromRelation = entry.workers?.[0]?.full_name;
-        const workerFromList = parsedWorkers.find(
-          (worker) => worker.id === entry.worker_id
-        )?.full_name;
+    let plannedWorkerIdsLocal: string[] = [];
+    let workerPool: Worker[] = [];
 
-        return {
-          ...entry,
-          worker_name: workerFromRelation || workerFromList || "-",
-        };
-      });
+    if (dailyTeamData) {
+      setPlannedTeamExists(true);
+      setPlannedTeamId((dailyTeamData as DailyTeam).id);
 
-      setActiveEntries(enrichedEntries);
-    } else {
-      setActiveEntries([]);
-    }
+      const { data: dailyTeamWorkersData } = await supabase
+        .from("daily_team_workers")
+        .select("daily_team_id, worker_id")
+        .eq("daily_team_id", (dailyTeamData as DailyTeam).id);
 
-    if (!historyError && historyData) {
-      const enrichedHistory = (historyData as HistoryTimeEntry[]).map(
-        (entry) => {
-          const workerFromRelation = entry.workers?.[0]?.full_name;
-          const workerFromList = parsedWorkers.find(
-            (worker) => worker.id === entry.worker_id
-          )?.full_name;
+      plannedWorkerIdsLocal = ((dailyTeamWorkersData ||
+        []) as DailyTeamWorker[]).map((item) => item.worker_id);
 
-          return {
-            ...entry,
-            worker_name: workerFromRelation || workerFromList || "-",
-          };
+      setPlannedWorkerIds(plannedWorkerIdsLocal);
+
+      if (plannedWorkerIdsLocal.length > 0) {
+        const { data: workersData, error: workersError } = await supabase
+          .from("workers")
+          .select("id, full_name, is_active, extra_hour_rate, weekend_day_rate")
+          .in("id", plannedWorkerIdsLocal)
+          .eq("is_active", true)
+          .order("full_name", { ascending: true });
+
+        if (!workersError && workersData) {
+          workerPool = workersData as Worker[];
         }
-      );
-
-      setHistoryEntries(enrichedHistory);
+      }
     } else {
-      setHistoryEntries([]);
+      setPlannedTeamExists(false);
+      setPlannedTeamId(null);
+      setPlannedWorkerIds([]);
+
+      if (currentUserRole === "administrator") {
+        const { data: workersData, error: workersError } = await supabase
+          .from("workers")
+          .select("id, full_name, is_active, extra_hour_rate, weekend_day_rate")
+          .eq("is_active", true)
+          .order("full_name", { ascending: true });
+
+        if (!workersError && workersData) {
+          workerPool = workersData as Worker[];
+        }
+      }
     }
+
+    const enrichedActiveEntries = !activeError && activeData
+      ? (activeData as ActiveTimeEntry[]).map((entry) => ({
+          ...entry,
+          worker_name:
+            entry.workers?.[0]?.full_name ||
+            workerPool.find((worker) => worker.id === entry.worker_id)
+              ?.full_name ||
+            "-",
+        }))
+      : [];
+
+    const enrichedHistory = !historyError && historyData
+      ? (historyData as HistoryTimeEntry[]).map((entry) => ({
+          ...entry,
+          worker_name:
+            entry.workers?.[0]?.full_name ||
+            workerPool.find((worker) => worker.id === entry.worker_id)
+              ?.full_name ||
+            "-",
+        }))
+      : [];
+
+    const activeWorkerIdsLocal = enrichedActiveEntries.map(
+      (entry) => entry.worker_id
+    );
+
+    const autoSelectedWorkers = workerPool
+      .filter((worker) => !activeWorkerIdsLocal.includes(worker.id))
+      .map((worker) => worker.id);
+
+    setProject(projectData as Project);
+    setWorkers(workerPool);
+    setActiveEntries(enrichedActiveEntries);
+    setHistoryEntries(enrichedHistory);
+    setSelectedWorkers(autoSelectedWorkers);
 
     if (!todayWorkedError && todayWorkedData) {
       const map = new Map<string, TodayWorkedWorker>();
@@ -376,7 +434,7 @@ if (user) {
         if (!item.worker_id) return;
 
         const workerFromRelation = item.workers?.[0];
-        const localWorker = parsedWorkers.find((w) => w.id === item.worker_id);
+        const localWorker = workerPool.find((w) => w.id === item.worker_id);
 
         map.set(item.worker_id, {
           id: item.worker_id,
@@ -401,19 +459,14 @@ if (user) {
     } else {
       setYesterdayWorkerIds([]);
     }
-	
-	setUserRole(currentUserRole);
 
+    setUserRole(currentUserRole);
     setLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, [projectId, router]);
-
-  const activeWorkerIds = useMemo(() => {
-    return activeEntries.map((entry) => entry.worker_id);
-  }, [activeEntries]);
 
   const availableWorkers = useMemo(() => {
     return workers.filter((worker) => !activeWorkerIds.includes(worker.id));
@@ -459,7 +512,10 @@ if (user) {
       );
       setSelectedWorkers(availableYesterdayWorkers);
     } else {
-      setSelectedWorkers([]);
+      const autoSelected = availableWorkers
+        .filter((worker) => plannedWorkerIds.includes(worker.id))
+        .map((worker) => worker.id);
+      setSelectedWorkers(autoSelected);
     }
   };
 
@@ -491,7 +547,7 @@ if (user) {
       worker_id: workerId,
       started_by: user.id,
       start_time: new Date().toISOString(),
-      work_date: new Date().toISOString().split("T")[0],
+      work_date: today,
       status: "activ",
     }));
 
@@ -611,8 +667,6 @@ if (user) {
   }, [historyEntries, now]);
 
   const filteredHistoryGrouped = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
-
     if (historyFilter === "azi") {
       return historyGrouped.filter((item) => item.work_date === today);
     }
@@ -630,19 +684,19 @@ if (user) {
     }
 
     return historyGrouped;
-  }, [historyGrouped, historyFilter, selectedHistoryDate, selectedHistoryMonth]);
+  }, [historyGrouped, historyFilter, selectedHistoryDate, selectedHistoryMonth, today]);
 
-const isAdmin = userRole === "administrator" || userRole === "admin";
-const isAfterFivePM = new Date(now).getHours() >= 17;
-const isMonday = new Date(now).getDay() === 1;
+  const isAdmin = userRole === "administrator" || userRole === "admin";
+  const isAfterFivePM = new Date(now).getHours() >= 17;
+  const isMonday = new Date(now).getDay() === 1;
 
-const canOpenExtraModal = isAdmin
-  ? todayWorkedWorkers.length > 0
-  : isAfterFivePM && activeEntries.length === 0 && todayWorkedWorkers.length > 0;
+  const canOpenExtraModal = isAdmin
+    ? todayWorkedWorkers.length > 0
+    : isAfterFivePM && activeEntries.length === 0 && todayWorkedWorkers.length > 0;
 
-const canOpenWeekendModal = isAdmin
-  ? workers.length > 0
-  : isMonday && workers.length > 0;
+  const canOpenWeekendModal = isAdmin
+    ? workers.length > 0
+    : isMonday && workers.length > 0;
 
   const getLastWeekendDates = () => {
     const current = new Date(now);
@@ -758,7 +812,6 @@ const canOpenWeekendModal = isAdmin
   }, [extraHours, selectedExtraWorkersDetails]);
 
   const handleSaveExtraWork = async () => {
-    const today = new Date().toISOString().split("T")[0];
     const parsedExtraHours = Number(extraHours || 0);
 
     if (!applyExtraToAll && selectedExtraWorkers.length === 0) {
@@ -1184,7 +1237,7 @@ const canOpenWeekendModal = isAdmin
 
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Toți membrii activi</h2>
+              <h2 className="text-lg font-semibold">Echipa de azi</h2>
 
               <button
                 type="button"
@@ -1197,26 +1250,51 @@ const canOpenWeekendModal = isAdmin
               </button>
             </div>
 
-            <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-              <label className="flex cursor-pointer items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={sameTeamAsYesterday}
-                  onChange={(e) =>
-                    handleToggleSameTeamAsYesterday(e.target.checked)
-                  }
-                  className="h-5 w-5"
-                />
-                <span className="text-sm font-medium text-gray-800">
-                  Aceeași echipă ca ieri
-                </span>
-              </label>
+            {!plannedTeamExists && (
+              <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
+                <p className="text-sm font-medium text-yellow-800">
+                  Nu există echipă organizată pentru azi pe acest șantier.
+                </p>
+                <p className="mt-1 text-xs text-yellow-700">
+                  Administratorul poate ponta manual, dacă este necesar.
+                </p>
+              </div>
+            )}
 
-              <p className="mt-2 text-xs text-gray-500">
-                Selectează automat muncitorii care au fost pontați ieri pe acest
-                șantier.
-              </p>
-            </div>
+            {plannedTeamExists && (
+              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+                <p className="text-sm font-medium text-green-800">
+                  Echipa organizată pentru azi a fost încărcată automat.
+                </p>
+                <p className="mt-1 text-xs text-green-700">
+                  Toți muncitorii atribuiți sunt bifați automat. Poți debifa
+                  muncitorii lipsă.
+                </p>
+              </div>
+            )}
+
+            {!plannedTeamExists && (
+              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <label className="flex cursor-pointer items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={sameTeamAsYesterday}
+                    onChange={(e) =>
+                      handleToggleSameTeamAsYesterday(e.target.checked)
+                    }
+                    className="h-5 w-5"
+                  />
+                  <span className="text-sm font-medium text-gray-800">
+                    Aceeași echipă ca ieri
+                  </span>
+                </label>
+
+                <p className="mt-2 text-xs text-gray-500">
+                  Selectează automat muncitorii care au fost pontați ieri pe acest
+                  șantier.
+                </p>
+              </div>
+            )}
 
             {showWorkersList && (
               <div className="space-y-2">
