@@ -20,6 +20,8 @@ type Project = {
   created_at: string;
 };
 
+type ProjectSectionTab = "financiara" | "tehnica";
+
 const monthOptions = [
   { value: "toate", label: "Toate lunile" },
   { value: "1", label: "Ianuarie" },
@@ -46,6 +48,11 @@ export default function ProiectePage() {
   const [searchName, setSearchName] = useState("");
   const [selectedYear, setSelectedYear] = useState("toate");
   const [selectedMonth, setSelectedMonth] = useState("toate");
+
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [activeSectionTab, setActiveSectionTab] =
+    useState<ProjectSectionTab>("financiara");
 
   useEffect(() => {
     const loadData = async () => {
@@ -79,7 +86,6 @@ export default function ProiectePage() {
 
       setProfile(profileData as Profile);
 
-      // ADMINISTRATOR -> vede toate proiectele
       if (profileData.role === "administrator") {
         const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
@@ -94,7 +100,6 @@ export default function ProiectePage() {
         return;
       }
 
-      // SEF ECHIPA -> vede doar proiectele lui
       if (profileData.role === "sef_echipa") {
         const { data: linkedProjects, error: linkedProjectsError } =
           await supabase
@@ -164,6 +169,38 @@ export default function ProiectePage() {
     });
   }, [projects, searchName, selectedYear, selectedMonth]);
 
+  const getStatusLabel = (status: string | null) => {
+    if (status === "in_asteptare") return "In asteptare";
+    if (status === "in_lucru") return "In lucru";
+    if (status === "finalizat") return "Finalizat";
+    return "-";
+  };
+
+  const getStatusClasses = (status: string | null) => {
+    if (status === "in_asteptare") {
+      return "bg-yellow-100 text-yellow-700";
+    }
+    if (status === "in_lucru") {
+      return "bg-[#0196ff]/10 text-[#0196ff]";
+    }
+    if (status === "finalizat") {
+      return "bg-green-100 text-green-700";
+    }
+    return "bg-gray-100 text-gray-700";
+  };
+
+  const openProjectModal = (project: Project) => {
+    setSelectedProject(project);
+    setActiveSectionTab("financiara");
+    setShowProjectModal(true);
+  };
+
+  const closeProjectModal = () => {
+    setShowProjectModal(false);
+    setSelectedProject(null);
+    setActiveSectionTab("financiara");
+  };
+
   if (loading) {
     return <div className="p-6">Se încarcă proiectele...</div>;
   }
@@ -177,9 +214,7 @@ export default function ProiectePage() {
               ? "Toate proiectele"
               : "Proiectele mele"}
           </h1>
-          <p className="text-sm text-gray-600">
-            {profile?.full_name}
-          </p>
+          <p className="text-sm text-gray-600">{profile?.full_name}</p>
         </div>
 
         <button
@@ -252,35 +287,140 @@ export default function ProiectePage() {
           </div>
         ) : (
           filteredProjects.map((project, index) => (
-            <div
+            <button
               key={project.id}
-              className="grid grid-cols-12 border-b px-4 py-3 text-sm last:border-b-0"
+              type="button"
+              onClick={() => openProjectModal(project)}
+              className="grid w-full grid-cols-12 border-b px-4 py-3 text-left text-sm transition hover:bg-gray-50 last:border-b-0"
             >
               <div className="col-span-2 md:col-span-1 font-semibold">
                 {index + 1}
               </div>
 
-              <div className="col-span-5 md:col-span-4">
-                {project.name}
-              </div>
+              <div className="col-span-5 md:col-span-4">{project.name}</div>
 
               <div className="col-span-5 md:col-span-4">
                 {project.beneficiary || "-"}
               </div>
 
               <div className="hidden md:block md:col-span-2">
-                {project.status === "in_asteptare" && "In asteptare"}
-                {project.status === "in_lucru" && "In lucru"}
-                {project.status === "finalizat" && "Finalizat"}
+                {getStatusLabel(project.status)}
               </div>
 
               <div className="hidden md:block md:col-span-1">
                 {new Date(project.created_at).toLocaleDateString("ro-RO")}
               </div>
-            </div>
+            </button>
           ))
         )}
       </div>
+
+      {showProjectModal && selectedProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  {selectedProject.name}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {selectedProject.beneficiary || "-"}
+                </p>
+              </div>
+
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                  selectedProject.status
+                )}`}
+              >
+                {getStatusLabel(selectedProject.status)}
+              </span>
+            </div>
+
+            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setActiveSectionTab("financiara")}
+                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  activeSectionTab === "financiara"
+                    ? "bg-[#0196ff] text-white"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                Secțiune Financiară
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveSectionTab("tehnica")}
+                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
+                  activeSectionTab === "tehnica"
+                    ? "bg-[#0196ff] text-white"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                Secțiune Tehnică
+              </button>
+            </div>
+
+            {activeSectionTab === "financiara" && (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                  <p className="text-sm font-medium text-blue-800">
+                    Aici intră toate funcțiile financiare ale proiectului.
+                  </p>
+                  <p className="mt-1 text-xs text-blue-700">
+                    Bonuri fiscale, costuri, documente financiare și centralizare
+                    în centrul de cost.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(`/proiecte/${selectedProject.id}/incarca-bf`)
+                  }
+                  className="w-full rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Încarcă BF
+                </button>
+              </div>
+            )}
+
+            {activeSectionTab === "tehnica" && (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
+                  <p className="text-sm font-medium text-gray-800">
+                    Secțiunea tehnică este pregătită.
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Aici putem adăuga ulterior documente tehnice, montaj,
+                    observații, schițe, procese sau alte opțiuni.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => router.push(`/proiecte/${selectedProject.id}`)}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Deschide proiect
+              </button>
+
+              <button
+                type="button"
+                onClick={closeProjectModal}
+                className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Închide
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
