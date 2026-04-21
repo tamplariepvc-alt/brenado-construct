@@ -30,6 +30,16 @@ type ApprovedOrder = {
   created_at: string;
 };
 
+type FiscalReceipt = {
+  id: string;
+  receipt_date: string;
+  supplier: string | null;
+  document_number: string | null;
+  total_without_vat: number | null;
+  total_with_vat: number | null;
+  created_at: string;
+};
+
 type Worker = {
   id: string;
   full_name: string;
@@ -152,6 +162,7 @@ export default function CentruDeCostDetaliuPage() {
   const [loading, setLoading] = useState(true);
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [orders, setOrders] = useState<ApprovedOrder[]>([]);
+  const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [extraWorkRows, setExtraWorkRows] = useState<ExtraWork[]>([]);
@@ -266,6 +277,21 @@ export default function CentruDeCostDetaliuPage() {
         .eq("status", "aprobata")
         .order("created_at", { ascending: false });
 
+      const { data: receiptsData } = await supabase
+        .from("fiscal_receipts")
+        .select(`
+          id,
+          receipt_date,
+          supplier,
+          document_number,
+          total_without_vat,
+          total_with_vat,
+          created_at
+        `)
+        .eq("project_id", projectId)
+        .order("receipt_date", { ascending: false })
+        .order("created_at", { ascending: false });
+
       const { data: workersData } = await supabase
         .from("workers")
         .select("id, full_name, monthly_salary, is_active")
@@ -306,6 +332,7 @@ export default function CentruDeCostDetaliuPage() {
 
       setProject(projectData as ProjectDetails);
       setOrders((ordersData as ApprovedOrder[]) || []);
+      setReceipts((receiptsData as FiscalReceipt[]) || []);
       setWorkers((workersData as Worker[]) || []);
       setTimeEntries((timeEntriesData as TimeEntry[]) || []);
       setExtraWorkRows((extraWorkData as ExtraWork[]) || []);
@@ -326,6 +353,17 @@ export default function CentruDeCostDetaliuPage() {
       { subtotal: 0, vat: 0, total: 0 }
     );
   }, [orders]);
+
+  const receiptTotals = useMemo(() => {
+    return receipts.reduce(
+      (acc, receipt) => {
+        acc.count += 1;
+        acc.total += Number(receipt.total_with_vat || 0);
+        return acc;
+      },
+      { count: 0, total: 0 }
+    );
+  }, [receipts]);
 
   const projectMeta = useMemo<DisplayMeta>(() => {
     const allProjectDates = [
@@ -432,13 +470,13 @@ export default function CentruDeCostDetaliuPage() {
   const categoryTotals = useMemo(() => {
     return {
       comenzi: orderTotals.total,
-      bonuri: 0,
+      bonuri: receiptTotals.total,
       facturi: 0,
       transport: 0,
       manopera: manoperaSummary.totalCost,
       nedeductibile: 0,
     };
-  }, [orderTotals, manoperaSummary]);
+  }, [orderTotals, receiptTotals, manoperaSummary]);
 
   const projectGrandTotal = useMemo(() => {
     return (
@@ -521,10 +559,10 @@ export default function CentruDeCostDetaliuPage() {
       title: "Bonuri",
       value: categoryTotals.bonuri,
       description: "Bonuri fiscale aferente proiectului",
-      active: false,
+      active: true,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
-      details: [] as string[],
+      details: [`Total bonuri: ${receiptTotals.count}`] as string[],
     },
     {
       key: "facturi",
