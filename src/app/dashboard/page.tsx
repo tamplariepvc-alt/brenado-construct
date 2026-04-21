@@ -146,13 +146,6 @@ export default function DashboardPage() {
             </button>
 
             <button
-              onClick={() => router.push("/proiecte")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              PROIECTELE MELE
-            </button>
-
-            <button
               onClick={() => router.push("/comenzi")}
               className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
             >
@@ -184,7 +177,10 @@ export default function DashboardPage() {
 
         {profile?.role === "sef_echipa" && (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <button className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow">
+            <button
+              onClick={() => router.push("/proiecte")}
+              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+            >
               PROIECTELE MELE
             </button>
 
