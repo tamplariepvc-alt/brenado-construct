@@ -56,6 +56,22 @@ type TeamWorkerRelation = {
   worker_id: string;
 };
 
+type ModalDateTeam = {
+  id: string;
+  project_id: string;
+  work_date: string;
+};
+
+type ModalDateTeamVehicleRelation = {
+  daily_team_id: string;
+  vehicle_id: string;
+};
+
+type ModalDateTeamWorkerRelation = {
+  daily_team_id: string;
+  worker_id: string;
+};
+
 const getTodayDate = () => {
   const d = new Date();
   return d.toISOString().split("T")[0];
@@ -88,6 +104,17 @@ export default function OrganizareaEchipelorPage() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+  const [selectedWorkDate, setSelectedWorkDate] = useState(getTomorrowDate());
+
+  const [modalTeamsForDate, setModalTeamsForDate] = useState<ModalDateTeam[]>(
+    []
+  );
+  const [modalTeamVehiclesForDate, setModalTeamVehiclesForDate] = useState<
+    ModalDateTeamVehicleRelation[]
+  >([]);
+  const [modalTeamWorkersForDate, setModalTeamWorkersForDate] = useState<
+    ModalDateTeamWorkerRelation[]
+  >([]);
 
   const todayDate = useMemo(() => getTodayDate(), []);
   const tomorrowDate = useMemo(() => getTomorrowDate(), []);
@@ -99,6 +126,7 @@ export default function OrganizareaEchipelorPage() {
     setSelectedProjectId("");
     setSelectedVehicleIds([]);
     setSelectedWorkerIds([]);
+    setSelectedWorkDate(getTomorrowDate());
     setEditingTeamId(null);
   };
 
@@ -133,6 +161,43 @@ export default function OrganizareaEchipelorPage() {
     }
 
     return vehicle.status;
+  };
+
+  const loadModalAvailabilityForDate = async (workDate: string) => {
+    const { data: teamsData } = await supabase
+      .from("daily_teams")
+      .select("id, project_id, work_date")
+      .eq("work_date", workDate);
+
+    const parsedTeams = (teamsData as ModalDateTeam[]) || [];
+    setModalTeamsForDate(parsedTeams);
+
+    const teamIds = parsedTeams.map((team) => team.id);
+
+    if (teamIds.length === 0) {
+      setModalTeamVehiclesForDate([]);
+      setModalTeamWorkersForDate([]);
+      return;
+    }
+
+    const [{ data: vehiclesData }, { data: workersData }] = await Promise.all([
+      supabase
+        .from("daily_team_vehicles")
+        .select("daily_team_id, vehicle_id")
+        .in("daily_team_id", teamIds),
+
+      supabase
+        .from("daily_team_workers")
+        .select("daily_team_id, worker_id")
+        .in("daily_team_id", teamIds),
+    ]);
+
+    setModalTeamVehiclesForDate(
+      (vehiclesData as ModalDateTeamVehicleRelation[]) || []
+    );
+    setModalTeamWorkersForDate(
+      (workersData as ModalDateTeamWorkerRelation[]) || []
+    );
   };
 
   const loadData = async () => {
@@ -210,29 +275,34 @@ export default function OrganizareaEchipelorPage() {
     loadData();
   }, [selectedViewDate]);
 
-  const tomorrowTeamIds = useMemo(() => {
-    return teams
+  useEffect(() => {
+    if (!showCreateModal || !selectedWorkDate) return;
+    loadModalAvailabilityForDate(selectedWorkDate);
+  }, [showCreateModal, selectedWorkDate]);
+
+  const modalDateTeamIds = useMemo(() => {
+    return modalTeamsForDate
       .filter((team) => team.id !== editingTeamId)
       .map((team) => team.id);
-  }, [teams, editingTeamId]);
+  }, [modalTeamsForDate, editingTeamId]);
 
   const usedProjectIds = useMemo(() => {
-    return teams
+    return modalTeamsForDate
       .filter((team) => team.id !== editingTeamId)
       .map((team) => team.project_id);
-  }, [teams, editingTeamId]);
+  }, [modalTeamsForDate, editingTeamId]);
 
   const usedVehicleIds = useMemo(() => {
-    return teamVehicles
-      .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
+    return modalTeamVehiclesForDate
+      .filter((item) => modalDateTeamIds.includes(item.daily_team_id))
       .map((item) => item.vehicle_id);
-  }, [teamVehicles, tomorrowTeamIds]);
+  }, [modalTeamVehiclesForDate, modalDateTeamIds]);
 
   const usedWorkerIds = useMemo(() => {
-    return teamWorkers
-      .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
+    return modalTeamWorkersForDate
+      .filter((item) => modalDateTeamIds.includes(item.daily_team_id))
       .map((item) => item.worker_id);
-  }, [teamWorkers, tomorrowTeamIds]);
+  }, [modalTeamWorkersForDate, modalDateTeamIds]);
 
   const availableProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -275,12 +345,14 @@ export default function OrganizareaEchipelorPage() {
 
   const openCreateModal = () => {
     resetForm();
+    setSelectedWorkDate(getTomorrowDate());
     setShowCreateModal(true);
   };
 
   const openEditModal = (team: Team) => {
     setEditingTeamId(team.id);
     setSelectedProjectId(team.project_id);
+    setSelectedWorkDate(team.work_date);
     setSelectedVehicleIds(
       teamVehicles
         .filter((item) => item.daily_team_id === team.id)
@@ -301,6 +373,11 @@ export default function OrganizareaEchipelorPage() {
 
     if (!user) {
       router.push("/login");
+      return;
+    }
+
+    if (!selectedWorkDate) {
+      alert("Selecteaza data echipei.");
       return;
     }
 
@@ -326,7 +403,7 @@ export default function OrganizareaEchipelorPage() {
         .from("daily_teams")
         .insert({
           project_id: selectedProjectId,
-          work_date: tomorrowDate,
+          work_date: selectedWorkDate,
           created_by: user.id,
         })
         .select("id")
@@ -378,6 +455,7 @@ export default function OrganizareaEchipelorPage() {
         .from("daily_teams")
         .update({
           project_id: selectedProjectId,
+          work_date: selectedWorkDate,
         })
         .eq("id", editingTeamId);
 
@@ -453,8 +531,8 @@ export default function OrganizareaEchipelorPage() {
     setSaving(false);
     closeCreateModal();
 
-    if (selectedViewDate !== tomorrowDate) {
-      setSelectedViewDate(tomorrowDate);
+    if (selectedViewDate !== selectedWorkDate) {
+      setSelectedViewDate(selectedWorkDate);
     } else {
       await loadData();
     }
@@ -618,7 +696,7 @@ export default function OrganizareaEchipelorPage() {
                     </div>
                   </button>
 
-                  {isAdmin && selectedViewDate === tomorrowDate && (
+                  {isAdmin && (
                     <button
                       type="button"
                       onClick={() => openEditModal(team)}
@@ -643,7 +721,7 @@ export default function OrganizareaEchipelorPage() {
                   {editingTeamId ? "Editeaza echipa" : "Creeaza echipa"}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Echipa se va salva pentru data de {formatDate(tomorrowDate)}.
+                  Echipa se va salva pentru data de {formatDate(selectedWorkDate)}.
                 </p>
               </div>
 
@@ -658,6 +736,18 @@ export default function OrganizareaEchipelorPage() {
 
             <div className="max-h-[76vh] overflow-y-auto px-5 py-4">
               <div className="space-y-6">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Data echipei
+                  </label>
+                  <input
+                    type="date"
+                    value={selectedWorkDate}
+                    onChange={(e) => setSelectedWorkDate(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Selectare santier
@@ -683,7 +773,7 @@ export default function OrganizareaEchipelorPage() {
 
                   {availableVehicles.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu exista masini disponibile pentru ziua urmatoare.
+                      Nu exista masini disponibile pentru data selectata.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -719,7 +809,7 @@ export default function OrganizareaEchipelorPage() {
 
                   {availableWorkers.length === 0 ? (
                     <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu exista muncitori disponibili pentru ziua urmatoare.
+                      Nu exista muncitori disponibili pentru data selectata.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -745,6 +835,9 @@ export default function OrganizareaEchipelorPage() {
 
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-sm font-medium text-blue-800">
+                    Data selectata: {formatDate(selectedWorkDate)}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-blue-800">
                     Santier selectat:{" "}
                     {availableProjects.find((p) => p.id === selectedProjectId)
                       ?.name || "-"}
