@@ -7,12 +7,10 @@ export async function POST(req: Request) {
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: "Lipseste OPENAI_API_KEY in .env.local" },
+        { error: "Lipseste OPENAI_API_KEY in .env.local / Vercel Environment Variables." },
         { status: 500 }
       );
     }
-
-    const client = new OpenAI({ apiKey });
 
     const body = await req.json();
     const imageUrl = body?.imageUrl as string | undefined;
@@ -23,6 +21,8 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+
+    const client = new OpenAI({ apiKey });
 
     const response = await client.responses.create({
       model: "gpt-5.4-mini",
@@ -109,14 +109,43 @@ export async function POST(req: Request) {
       },
     });
 
+    console.log("OPENAI RAW RESPONSE:", JSON.stringify(response, null, 2));
+
     const outputText = response.output_text;
-    const parsed = JSON.parse(outputText);
+
+    if (!outputText || !outputText.trim()) {
+      return NextResponse.json(
+        {
+          error: "Modelul nu a returnat output_text.",
+          debug: response,
+        },
+        { status: 500 }
+      );
+    }
+
+    let parsed: any;
+
+    try {
+      parsed = JSON.parse(outputText);
+    } catch (parseError) {
+      return NextResponse.json(
+        {
+          error: "output_text nu este JSON valid.",
+          outputText,
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json(parsed);
-  } catch (error) {
-    console.error("extract-receipt error:", error);
+  } catch (error: any) {
+    console.error("extract-receipt error full:", error);
+
     return NextResponse.json(
-      { error: "A aparut o eroare la extragerea datelor din bon." },
+      {
+        error: error?.message || "A aparut o eroare la extragerea datelor din bon.",
+        details: error?.response?.data || null,
+      },
       { status: 500 }
     );
   }
