@@ -377,9 +377,8 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
                   alt="Preview bon fiscal"
                   className="max-h-[420px] rounded-xl border border-gray-200"
                 />
-              </div>
-			  
-			  {uploadingImage && (
+				
+				{uploadingImage && (
   <p className="mt-3 text-sm font-medium text-[#0196ff]">
     Se incarca imaginea...
   </p>
@@ -395,6 +394,9 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
   <p className="mt-3 text-sm font-medium text-red-600">
     {extractionError}
   </p>
+)}
+				
+              </div>
             )}
 
             <p className="mt-3 text-xs text-gray-500">
