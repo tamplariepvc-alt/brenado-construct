@@ -46,8 +46,12 @@ export default function IncarcaBFPage() {
   const [totalWithoutVat, setTotalWithoutVat] = useState("");
   const [totalWithVat, setTotalWithVat] = useState("");
   const [notes, setNotes] = useState("");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
 
   const [items, setItems] = useState<ReceiptItem[]>([createEmptyItem()]);
+  
+  
 
   useEffect(() => {
     const loadProject = async () => {
@@ -70,20 +74,103 @@ export default function IncarcaBFPage() {
 
     loadProject();
   }, [projectId, router]);
+  
+  const applyExtractedData = (data: any) => {
+  setReceiptDate(data.document_date || "");
+  setSupplier(data.supplier || "");
+  setDocumentNumber(data.document_number || "");
+  setTotalWithoutVat(
+    data.total_without_vat ? String(data.total_without_vat) : ""
+  );
+  setTotalWithVat(data.total_with_vat ? String(data.total_with_vat) : "");
+  setNotes(data.notes || "");
 
-  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
-    setImageFile(file);
-    setUploadedImageUrl("");
+  if (Array.isArray(data.items) && data.items.length > 0) {
+    setItems(
+      data.items.map((item: any) => ({
+        item_name: item.item_name || "",
+        quantity:
+          item.quantity !== undefined && item.quantity !== null
+            ? String(item.quantity)
+            : "",
+        unit_price:
+          item.unit_price !== undefined && item.unit_price !== null
+            ? String(item.unit_price)
+            : "",
+        line_total:
+          item.line_total !== undefined && item.line_total !== null
+            ? String(item.line_total)
+            : "",
+      }))
+    );
+  }
+};
 
-    if (!file) {
-      setImagePreview("");
+const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0] || null;
+  setImageFile(file);
+  setUploadedImageUrl("");
+  setExtractionError("");
+
+  if (!file) {
+    setImagePreview("");
+    return;
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  setImagePreview(objectUrl);
+
+  setUploadingImage(true);
+
+  const fileExt = file.name.split(".").pop() || "jpg";
+  const fileName = `${projectId}/${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("bonuri-fiscale")
+    .upload(fileName, file, {
+      upsert: false,
+    });
+
+  if (uploadError) {
+    setUploadingImage(false);
+    alert(`Eroare la incarcarea imaginii: ${uploadError.message}`);
+    return;
+  }
+
+  const { data } = supabase.storage
+    .from("bonuri-fiscale")
+    .getPublicUrl(fileName);
+
+  const publicUrl = data.publicUrl;
+  setUploadedImageUrl(publicUrl);
+  setUploadingImage(false);
+
+  setIsExtracting(true);
+
+  try {
+    const res = await fetch("/api/extract-receipt", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ imageUrl: publicUrl }),
+    });
+
+    const parsed = await res.json();
+
+    if (!res.ok) {
+      setExtractionError(parsed.error || "Nu s-au putut extrage datele.");
+      setIsExtracting(false);
       return;
     }
 
-    const objectUrl = URL.createObjectURL(file);
-    setImagePreview(objectUrl);
-  };
+    applyExtractedData(parsed);
+  } catch (error) {
+    setExtractionError("A aparut o eroare la analiza AI.");
+  } finally {
+    setIsExtracting(false);
+  }
+};
 
   const uploadImageToStorage = async () => {
     if (!imageFile) return "";
@@ -291,6 +378,23 @@ export default function IncarcaBFPage() {
                   className="max-h-[420px] rounded-xl border border-gray-200"
                 />
               </div>
+			  
+			  {uploadingImage && (
+  <p className="mt-3 text-sm font-medium text-[#0196ff]">
+    Se incarca imaginea...
+  </p>
+)}
+
+{isExtracting && (
+  <p className="mt-3 text-sm font-medium text-purple-700">
+    AI analizeaza bonul si completeaza automat datele...
+  </p>
+)}
+
+{extractionError && (
+  <p className="mt-3 text-sm font-medium text-red-600">
+    {extractionError}
+  </p>
             )}
 
             <p className="mt-3 text-xs text-gray-500">
