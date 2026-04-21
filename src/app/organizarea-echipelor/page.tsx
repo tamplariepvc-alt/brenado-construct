@@ -56,6 +56,11 @@ type TeamWorkerRelation = {
   worker_id: string;
 };
 
+const getTodayDate = () => {
+  const d = new Date();
+  return d.toISOString().split("T")[0];
+};
+
 const getTomorrowDate = () => {
   const d = new Date();
   d.setDate(d.getDate() + 1);
@@ -84,7 +89,10 @@ export default function OrganizareaEchipelorPage() {
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
 
+  const todayDate = useMemo(() => getTodayDate(), []);
   const tomorrowDate = useMemo(() => getTomorrowDate(), []);
+  const [selectedViewDate, setSelectedViewDate] = useState(getTomorrowDate());
+
   const isAdmin = profile?.role === "administrator";
 
   const resetForm = () => {
@@ -105,9 +113,17 @@ export default function OrganizareaEchipelorPage() {
     return new Date(year, month - 1, day);
   };
 
+  const formatDate = (date: string) => {
+    return new Date(`${date}T00:00:00`).toLocaleDateString("ro-RO");
+  };
+
   const getVehicleComputedStatus = (vehicle: Vehicle) => {
     const today = new Date();
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
 
     const rca = parseDate(vehicle.rca_valid_until);
     const itp = parseDate(vehicle.itp_valid_until);
@@ -153,7 +169,7 @@ export default function OrganizareaEchipelorPage() {
       supabase
         .from("daily_teams")
         .select("id, project_id, work_date, created_by, created_at")
-        .eq("work_date", tomorrowDate)
+        .eq("work_date", selectedViewDate)
         .order("created_at", { ascending: true }),
 
       supabase
@@ -164,7 +180,9 @@ export default function OrganizareaEchipelorPage() {
 
       supabase
         .from("vehicles")
-        .select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until")
+        .select(
+          "id, brand, model, registration_number, status, rca_valid_until, itp_valid_until"
+        )
         .order("registration_number", { ascending: true }),
 
       supabase
@@ -173,13 +191,9 @@ export default function OrganizareaEchipelorPage() {
         .eq("is_active", true)
         .order("full_name", { ascending: true }),
 
-      supabase
-        .from("daily_team_vehicles")
-        .select("id, daily_team_id, vehicle_id"),
+      supabase.from("daily_team_vehicles").select("id, daily_team_id, vehicle_id"),
 
-      supabase
-        .from("daily_team_workers")
-        .select("id, daily_team_id, worker_id"),
+      supabase.from("daily_team_workers").select("id, daily_team_id, worker_id"),
     ]);
 
     setProfile(profileData as Profile);
@@ -194,7 +208,13 @@ export default function OrganizareaEchipelorPage() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [selectedViewDate]);
+
+  const tomorrowTeamIds = useMemo(() => {
+    return teams
+      .filter((team) => team.id !== editingTeamId)
+      .map((team) => team.id);
+  }, [teams, editingTeamId]);
 
   const usedProjectIds = useMemo(() => {
     return teams
@@ -202,23 +222,17 @@ export default function OrganizareaEchipelorPage() {
       .map((team) => team.project_id);
   }, [teams, editingTeamId]);
 
- const tomorrowTeamIds = useMemo(() => {
-  return teams
-    .filter((team) => team.id !== editingTeamId)
-    .map((team) => team.id);
-}, [teams, editingTeamId]);
+  const usedVehicleIds = useMemo(() => {
+    return teamVehicles
+      .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
+      .map((item) => item.vehicle_id);
+  }, [teamVehicles, tomorrowTeamIds]);
 
-const usedVehicleIds = useMemo(() => {
-  return teamVehicles
-    .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
-    .map((item) => item.vehicle_id);
-}, [teamVehicles, tomorrowTeamIds]);
-
-const usedWorkerIds = useMemo(() => {
-  return teamWorkers
-    .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
-    .map((item) => item.worker_id);
-}, [teamWorkers, tomorrowTeamIds]);
+  const usedWorkerIds = useMemo(() => {
+    return teamWorkers
+      .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
+      .map((item) => item.worker_id);
+  }, [teamWorkers, tomorrowTeamIds]);
 
   const availableProjects = useMemo(() => {
     return projects.filter((project) => {
@@ -319,7 +333,9 @@ const usedWorkerIds = useMemo(() => {
         .single();
 
       if (teamError || !teamInsert) {
-        alert(`A aparut o eroare la crearea echipei: ${teamError?.message || ""}`);
+        alert(
+          `A aparut o eroare la crearea echipei: ${teamError?.message || ""}`
+        );
         setSaving(false);
         return;
       }
@@ -339,7 +355,9 @@ const usedWorkerIds = useMemo(() => {
         .insert(workerRows);
 
       if (workerError) {
-        alert(`A aparut o eroare la salvarea muncitorilor: ${workerError.message}`);
+        alert(
+          `A aparut o eroare la salvarea muncitorilor: ${workerError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -349,7 +367,9 @@ const usedWorkerIds = useMemo(() => {
         .insert(vehicleRows);
 
       if (vehicleError) {
-        alert(`A aparut o eroare la salvarea masinilor: ${vehicleError.message}`);
+        alert(
+          `A aparut o eroare la salvarea masinilor: ${vehicleError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -362,7 +382,9 @@ const usedWorkerIds = useMemo(() => {
         .eq("id", editingTeamId);
 
       if (updateTeamError) {
-        alert(`A aparut o eroare la actualizarea echipei: ${updateTeamError.message}`);
+        alert(
+          `A aparut o eroare la actualizarea echipei: ${updateTeamError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -373,7 +395,9 @@ const usedWorkerIds = useMemo(() => {
         .eq("daily_team_id", editingTeamId);
 
       if (deleteWorkersError) {
-        alert(`A aparut o eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`);
+        alert(
+          `A aparut o eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -384,7 +408,9 @@ const usedWorkerIds = useMemo(() => {
         .eq("daily_team_id", editingTeamId);
 
       if (deleteVehiclesError) {
-        alert(`A aparut o eroare la actualizarea masinilor: ${deleteVehiclesError.message}`);
+        alert(
+          `A aparut o eroare la actualizarea masinilor: ${deleteVehiclesError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -404,7 +430,9 @@ const usedWorkerIds = useMemo(() => {
         .insert(workerRows);
 
       if (insertWorkersError) {
-        alert(`A aparut o eroare la salvarea muncitorilor: ${insertWorkersError.message}`);
+        alert(
+          `A aparut o eroare la salvarea muncitorilor: ${insertWorkersError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -414,7 +442,9 @@ const usedWorkerIds = useMemo(() => {
         .insert(vehicleRows);
 
       if (insertVehiclesError) {
-        alert(`A aparut o eroare la salvarea masinilor: ${insertVehiclesError.message}`);
+        alert(
+          `A aparut o eroare la salvarea masinilor: ${insertVehiclesError.message}`
+        );
         setSaving(false);
         return;
       }
@@ -422,7 +452,12 @@ const usedWorkerIds = useMemo(() => {
 
     setSaving(false);
     closeCreateModal();
-    await loadData();
+
+    if (selectedViewDate !== tomorrowDate) {
+      setSelectedViewDate(tomorrowDate);
+    } else {
+      await loadData();
+    }
   };
 
   const getProjectById = (projectId: string) => {
@@ -444,16 +479,16 @@ const usedWorkerIds = useMemo(() => {
   const getVehiclesPreview = (teamId: string) => {
     const vehicleIds = getTeamVehicleIds(teamId);
     const regs = vehicleIds
-      .map((vehicleId) => vehicles.find((vehicle) => vehicle.id === vehicleId)?.registration_number)
+      .map(
+        (vehicleId) =>
+          vehicles.find((vehicle) => vehicle.id === vehicleId)
+            ?.registration_number
+      )
       .filter(Boolean) as string[];
 
     if (regs.length === 0) return "-";
     if (regs.length === 1) return regs[0];
     return `${regs[0]} +${regs.length - 1}`;
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(`${date}T00:00:00`).toLocaleDateString("ro-RO");
   };
 
   if (loading) {
@@ -467,12 +502,14 @@ const usedWorkerIds = useMemo(() => {
           <div>
             <h1 className="text-2xl font-bold">Organizarea echipelor</h1>
             <p className="text-sm text-gray-600">
-              Echipe planificate pentru ziua urmatoare:{" "}
-              <span className="font-semibold">{formatDate(tomorrowDate)}</span>
+              {selectedViewDate === todayDate
+                ? "Echipe planificate pentru azi: "
+                : "Echipe planificate pentru ziua urmatoare: "}
+              <span className="font-semibold">{formatDate(selectedViewDate)}</span>
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
               onClick={() => router.push("/dashboard")}
               className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
@@ -488,13 +525,37 @@ const usedWorkerIds = useMemo(() => {
                 Creeaza echipa
               </button>
             )}
+
+            <button
+              onClick={() => setSelectedViewDate(todayDate)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                selectedViewDate === todayDate
+                  ? "bg-black text-white"
+                  : "border border-gray-300 bg-white text-gray-700"
+              }`}
+            >
+              Vezi echipele de azi
+            </button>
+
+            <button
+              onClick={() => setSelectedViewDate(tomorrowDate)}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                selectedViewDate === tomorrowDate
+                  ? "bg-black text-white"
+                  : "border border-gray-300 bg-white text-gray-700"
+              }`}
+            >
+              Vezi echipele de maine
+            </button>
           </div>
         </div>
 
         {teams.length === 0 ? (
           <div className="rounded-2xl bg-white p-6 shadow">
             <p className="text-sm text-gray-500">
-              Nu exista echipe postate pentru ziua urmatoare.
+              {selectedViewDate === todayDate
+                ? "Nu exista echipe postate pentru azi."
+                : "Nu exista echipe postate pentru ziua urmatoare."}
             </p>
           </div>
         ) : (
@@ -557,7 +618,7 @@ const usedWorkerIds = useMemo(() => {
                     </div>
                   </button>
 
-                  {isAdmin && (
+                  {isAdmin && selectedViewDate === tomorrowDate && (
                     <button
                       type="button"
                       onClick={() => openEditModal(team)}
@@ -685,7 +746,8 @@ const usedWorkerIds = useMemo(() => {
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-sm font-medium text-blue-800">
                     Santier selectat:{" "}
-                    {availableProjects.find((p) => p.id === selectedProjectId)?.name || "-"}
+                    {availableProjects.find((p) => p.id === selectedProjectId)
+                      ?.name || "-"}
                   </p>
                   <p className="mt-1 text-sm text-blue-800">
                     Auto selectate: {selectedVehicleIds.length}
