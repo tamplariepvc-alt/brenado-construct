@@ -33,6 +33,8 @@ export default function IncarcaFacturaPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
 
   const [project, setProject] = useState<Project | null>(null);
 
@@ -46,8 +48,6 @@ export default function IncarcaFacturaPage() {
   const [totalWithoutVat, setTotalWithoutVat] = useState("");
   const [totalWithVat, setTotalWithVat] = useState("");
   const [notes, setNotes] = useState("");
-  const [isExtracting, setIsExtracting] = useState(false);
-  const [extractionError, setExtractionError] = useState("");
 
   const [items, setItems] = useState<InvoiceItem[]>([createEmptyItem()]);
 
@@ -72,119 +72,53 @@ export default function IncarcaFacturaPage() {
 
     loadProject();
   }, [projectId, router]);
-  
+
   const applyExtractedData = (data: any) => {
-  setReceiptDate(data.document_date || "");
-  setSupplier(data.supplier || "");
-  setDocumentNumber(data.document_number || "");
-  setTotalWithoutVat(
-    data.total_without_vat ? String(data.total_without_vat) : ""
-  );
-  setTotalWithVat(data.total_with_vat ? String(data.total_with_vat) : "");
-  setNotes(data.notes || "");
-
-  if (Array.isArray(data.items) && data.items.length > 0) {
-    setItems(
-      data.items.map((item: any) => ({
-        item_name: item.item_name || "",
-        quantity:
-          item.quantity !== undefined && item.quantity !== null
-            ? String(item.quantity)
-            : "",
-        unit_price:
-          item.unit_price !== undefined && item.unit_price !== null
-            ? String(item.unit_price)
-            : "",
-        line_total:
-          item.line_total !== undefined && item.line_total !== null
-            ? String(item.line_total)
-            : "",
-      }))
+    setInvoiceDate(data.document_date || "");
+    setSupplier(data.supplier || "");
+    setDocumentNumber(data.document_number || "");
+    setTotalWithoutVat(
+      data.total_without_vat !== undefined && data.total_without_vat !== null
+        ? String(data.total_without_vat)
+        : ""
     );
-  }
-};
+    setTotalWithVat(
+      data.total_with_vat !== undefined && data.total_with_vat !== null
+        ? String(data.total_with_vat)
+        : ""
+    );
+    setNotes(data.notes || "");
 
-const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0] || null;
-  setImageFile(file);
-  setUploadedImageUrl("");
-  setExtractionError("");
-
-  if (!file) {
-    setImagePreview("");
-    return;
-  }
-
-  const objectUrl = URL.createObjectURL(file);
-  setImagePreview(objectUrl);
-
-  setUploadingImage(true);
-
-  const fileExt = file.name.split(".").pop() || "jpg";
-  const fileName = `${projectId}/${Date.now()}.${fileExt}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from("facturi")
-    .upload(fileName, file, {
-      upsert: false,
-    });
-
-  if (uploadError) {
-    setUploadingImage(false);
-    alert(`Eroare la incarcarea imaginii: ${uploadError.message}`);
-    return;
-  }
-
-  const { data } = supabase.storage
-    .from("facturi")
-    .getPublicUrl(fileName);
-
-  const publicUrl = data.publicUrl;
-  setUploadedImageUrl(publicUrl);
-  setUploadingImage(false);
-
-  setIsExtracting(true);
-
-  try {
-    const res = await fetch("/api/extract-invoice", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ imageUrl: publicUrl }),
-    });
-
-    const parsed = await res.json();
-
-    if (!res.ok) {
-      setExtractionError(parsed.error || "Nu s-au putut extrage datele.");
-      setIsExtracting(false);
-      return;
+    if (Array.isArray(data.items) && data.items.length > 0) {
+      setItems(
+        data.items.map((item: any) => ({
+          item_name: item.item_name || "",
+          quantity:
+            item.quantity !== undefined && item.quantity !== null
+              ? String(item.quantity)
+              : "",
+          unit_price:
+            item.unit_price !== undefined && item.unit_price !== null
+              ? String(item.unit_price)
+              : "",
+          line_total:
+            item.line_total !== undefined && item.line_total !== null
+              ? String(item.line_total)
+              : "",
+        }))
+      );
     }
-
-    applyExtractedData(parsed);
-  } catch (error) {
-    setExtractionError("A aparut o eroare la analiza AI.");
-  } finally {
-    setIsExtracting(false);
-  }
-};
-
-    const objectUrl = URL.createObjectURL(file);
-    setImagePreview(objectUrl);
   };
 
-  const uploadImageToStorage = async () => {
-    if (!imageFile) return "";
-
+  const uploadImageToStorage = async (file: File) => {
     setUploadingImage(true);
 
-    const fileExt = imageFile.name.split(".").pop() || "jpg";
+    const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${projectId}/${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from("facturi")
-      .upload(fileName, imageFile, {
+      .upload(fileName, file, {
         upsert: false,
       });
 
@@ -195,12 +129,57 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     }
 
     const { data } = supabase.storage.from("facturi").getPublicUrl(fileName);
-
     const publicUrl = data.publicUrl;
+
     setUploadedImageUrl(publicUrl);
     setUploadingImage(false);
 
     return publicUrl;
+  };
+
+  const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+
+    setImageFile(file);
+    setUploadedImageUrl("");
+    setExtractionError("");
+
+    if (!file) {
+      setImagePreview("");
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(file);
+    setImagePreview(objectUrl);
+
+    const publicUrl = await uploadImageToStorage(file);
+    if (!publicUrl) return;
+
+    setIsExtracting(true);
+
+    try {
+      const res = await fetch("/api/extract-invoice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageUrl: publicUrl }),
+      });
+
+      const parsed = await res.json();
+
+      if (!res.ok) {
+        setExtractionError(parsed.error || "Nu s-au putut extrage datele.");
+        setIsExtracting(false);
+        return;
+      }
+
+      applyExtractedData(parsed);
+    } catch (error) {
+      setExtractionError("A aparut o eroare la analiza AI.");
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const updateItem = (
@@ -280,7 +259,7 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
     let imageUrl = uploadedImageUrl;
 
     if (imageFile && !uploadedImageUrl) {
-      imageUrl = await uploadImageToStorage();
+      imageUrl = await uploadImageToStorage(imageFile);
       if (!imageUrl) {
         setSaving(false);
         return;
@@ -377,31 +356,26 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
                   alt="Preview factura"
                   className="max-h-[420px] rounded-xl border border-gray-200"
                 />
-				
-				{uploadingImage && (
-  <p className="mt-3 text-sm font-medium text-[#0196ff]">
-    Se incarca imaginea...
-  </p>
-)}
-
-{isExtracting && (
-  <p className="mt-3 text-sm font-medium text-purple-700">
-    AI analizeaza bonul si completeaza automat datele...
-  </p>
-)}
-
-{extractionError && (
-  <p className="mt-3 text-sm font-medium text-red-600">
-    {extractionError}
-  </p>
-)}
-				
               </div>
             )}
 
-            <p className="mt-3 text-xs text-gray-500">
-              In pasul urmator legam aici extractia AI din poza exact ca la bon.
-            </p>
+            {uploadingImage && (
+              <p className="mt-3 text-sm font-medium text-[#0196ff]">
+                Se incarca imaginea...
+              </p>
+            )}
+
+            {isExtracting && (
+              <p className="mt-3 text-sm font-medium text-purple-700">
+                AI analizeaza factura si completeaza automat datele...
+              </p>
+            )}
+
+            {extractionError && (
+              <p className="mt-3 text-sm font-medium text-red-600">
+                {extractionError}
+              </p>
+            )}
           </div>
 
           <div className="rounded-2xl bg-white p-5 shadow">
@@ -594,10 +568,12 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || uploadingImage}
+              disabled={saving || uploadingImage || isExtracting}
               className="w-full rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {saving || uploadingImage ? "Se salveaza..." : "Salveaza Factura"}
+              {saving || uploadingImage || isExtracting
+                ? "Se salveaza..."
+                : "Salveaza Factura"}
             </button>
 
             <button
