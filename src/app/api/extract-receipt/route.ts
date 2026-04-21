@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Lipseste OPENAI_API_KEY in .env.local" },
+        { status: 500 }
+      );
+    }
+
+    const client = new OpenAI({ apiKey });
+
     const body = await req.json();
     const imageUrl = body?.imageUrl as string | undefined;
 
@@ -60,27 +67,13 @@ export async function POST(req: Request) {
             type: "object",
             additionalProperties: false,
             properties: {
-              document_type: {
-                type: "string",
-              },
-              document_date: {
-                type: "string",
-              },
-              supplier: {
-                type: "string",
-              },
-              document_number: {
-                type: "string",
-              },
-              total_without_vat: {
-                type: "number",
-              },
-              total_with_vat: {
-                type: "number",
-              },
-              notes: {
-                type: "string",
-              },
+              document_type: { type: "string" },
+              document_date: { type: "string" },
+              supplier: { type: "string" },
+              document_number: { type: "string" },
+              total_without_vat: { type: "number" },
+              total_with_vat: { type: "number" },
+              notes: { type: "string" },
               items: {
                 type: "array",
                 items: {
