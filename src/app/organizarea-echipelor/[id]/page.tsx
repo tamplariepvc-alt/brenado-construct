@@ -1,4 +1,4 @@
-"use client"; 
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -235,7 +235,7 @@ export default function DetaliuEchipaPage() {
 
     setProfile(profileData as Profile);
     setTeam(parsedTeam);
-    setAllTeamsForDate((teamsRes.data as TeamRow[]) || []);
+    setAllTeamsForDate((teamsRes.data as unknown as TeamRow[]) || []);
     setProjects((projectsRes.data as Project[]) || []);
     setVehicles((vehiclesRes.data as Vehicle[]) || []);
     setWorkers((workersRes.data as Worker[]) || []);

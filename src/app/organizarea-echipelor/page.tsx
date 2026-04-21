@@ -43,7 +43,7 @@ type TeamVehicleRelation = {
     brand: string;
     model: string;
     registration_number: string;
-  } | null;
+  }[] | null;
 };
 
 type TeamWorkerRelation = {
@@ -51,7 +51,7 @@ type TeamWorkerRelation = {
   workers?: {
     id: string;
     full_name: string;
-  } | null;
+  }[] | null;
 };
 
 type TeamRow = {
@@ -64,7 +64,7 @@ type TeamRow = {
     name: string;
     beneficiary: string | null;
     project_location: string | null;
-  } | null;
+  }[] | null;
   daily_team_workers?: TeamWorkerRelation[] | null;
   daily_team_vehicles?: TeamVehicleRelation[] | null;
 };
@@ -211,7 +211,7 @@ export default function OrganizareaEchipelorPage() {
     ]);
 
     setProfile(profileData as Profile);
-    setTeams((teamsRes.data as TeamRow[]) || []);
+    setTeams((teamsRes.data as unknown as TeamRow[]) || []);
     setProjects((projectsRes.data as Project[]) || []);
     setVehicles((vehiclesRes.data as Vehicle[]) || []);
     setWorkers((workersRes.data as Worker[]) || []);
@@ -466,16 +466,16 @@ export default function OrganizareaEchipelorPage() {
   };
 
   const getProjectName = (team: TeamRow) => {
-    return team.projects?.name || "Proiect";
+    return team.projects?.[0]?.name || "Proiect";
   };
 
   const getProjectLocation = (team: TeamRow) => {
-    return team.projects?.project_location || "-";
+    return team.projects?.[0]?.project_location || "-";
   };
 
   const getVehiclesPreview = (team: TeamRow) => {
     const vehiclesList = (team.daily_team_vehicles || [])
-      .map((item) => item.vehicles?.registration_number || "-")
+      .map((item) => item.vehicles?.[0]?.registration_number || "-")
       .filter(Boolean);
 
     if (vehiclesList.length === 0) return "-";
