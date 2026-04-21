@@ -202,17 +202,23 @@ export default function OrganizareaEchipelorPage() {
       .map((team) => team.project_id);
   }, [teams, editingTeamId]);
 
-  const usedVehicleIds = useMemo(() => {
-    return teamVehicles
-      .filter((item) => item.daily_team_id !== editingTeamId)
-      .map((item) => item.vehicle_id);
-  }, [teamVehicles, editingTeamId]);
+ const tomorrowTeamIds = useMemo(() => {
+  return teams
+    .filter((team) => team.id !== editingTeamId)
+    .map((team) => team.id);
+}, [teams, editingTeamId]);
 
-  const usedWorkerIds = useMemo(() => {
-    return teamWorkers
-      .filter((item) => item.daily_team_id !== editingTeamId)
-      .map((item) => item.worker_id);
-  }, [teamWorkers, editingTeamId]);
+const usedVehicleIds = useMemo(() => {
+  return teamVehicles
+    .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
+    .map((item) => item.vehicle_id);
+}, [teamVehicles, tomorrowTeamIds]);
+
+const usedWorkerIds = useMemo(() => {
+  return teamWorkers
+    .filter((item) => tomorrowTeamIds.includes(item.daily_team_id))
+    .map((item) => item.worker_id);
+}, [teamWorkers, tomorrowTeamIds]);
 
   const availableProjects = useMemo(() => {
     return projects.filter((project) => {
