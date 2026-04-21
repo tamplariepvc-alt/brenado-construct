@@ -40,6 +40,16 @@ type FiscalReceipt = {
   created_at: string;
 };
 
+type ProjectInvoice = {
+  id: string;
+  invoice_date: string;
+  supplier: string | null;
+  document_number: string | null;
+  total_without_vat: number | null;
+  total_with_vat: number | null;
+  created_at: string;
+};
+
 type Worker = {
   id: string;
   full_name: string;
@@ -163,6 +173,7 @@ export default function CentruDeCostDetaliuPage() {
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [orders, setOrders] = useState<ApprovedOrder[]>([]);
   const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
+  const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [extraWorkRows, setExtraWorkRows] = useState<ExtraWork[]>([]);
@@ -292,6 +303,21 @@ export default function CentruDeCostDetaliuPage() {
         .order("receipt_date", { ascending: false })
         .order("created_at", { ascending: false });
 
+      const { data: invoicesData } = await supabase
+        .from("project_invoices")
+        .select(`
+          id,
+          invoice_date,
+          supplier,
+          document_number,
+          total_without_vat,
+          total_with_vat,
+          created_at
+        `)
+        .eq("project_id", projectId)
+        .order("invoice_date", { ascending: false })
+        .order("created_at", { ascending: false });
+
       const { data: workersData } = await supabase
         .from("workers")
         .select("id, full_name, monthly_salary, is_active")
@@ -333,6 +359,7 @@ export default function CentruDeCostDetaliuPage() {
       setProject(projectData as ProjectDetails);
       setOrders((ordersData as ApprovedOrder[]) || []);
       setReceipts((receiptsData as FiscalReceipt[]) || []);
+      setInvoices((invoicesData as ProjectInvoice[]) || []);
       setWorkers((workersData as Worker[]) || []);
       setTimeEntries((timeEntriesData as TimeEntry[]) || []);
       setExtraWorkRows((extraWorkData as ExtraWork[]) || []);
@@ -364,6 +391,17 @@ export default function CentruDeCostDetaliuPage() {
       { count: 0, total: 0 }
     );
   }, [receipts]);
+
+  const invoiceTotals = useMemo(() => {
+    return invoices.reduce(
+      (acc, invoice) => {
+        acc.count += 1;
+        acc.total += Number(invoice.total_with_vat || 0);
+        return acc;
+      },
+      { count: 0, total: 0 }
+    );
+  }, [invoices]);
 
   const projectMeta = useMemo<DisplayMeta>(() => {
     const allProjectDates = [
@@ -471,12 +509,12 @@ export default function CentruDeCostDetaliuPage() {
     return {
       comenzi: orderTotals.total,
       bonuri: receiptTotals.total,
-      facturi: 0,
+      facturi: invoiceTotals.total,
       transport: 0,
       manopera: manoperaSummary.totalCost,
       nedeductibile: 0,
     };
-  }, [orderTotals, receiptTotals, manoperaSummary]);
+  }, [orderTotals, receiptTotals, invoiceTotals, manoperaSummary]);
 
   const projectGrandTotal = useMemo(() => {
     return (
@@ -569,10 +607,10 @@ export default function CentruDeCostDetaliuPage() {
       title: "Facturi",
       value: categoryTotals.facturi,
       description: "Facturi aferente proiectului",
-      active: false,
+      active: true,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
-      details: [] as string[],
+      details: [`Total facturi: ${invoiceTotals.count}`] as string[],
     },
     {
       key: "transport",
