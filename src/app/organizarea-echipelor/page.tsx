@@ -158,7 +158,7 @@ export default function OrganizareaEchipelorPage() {
           project_id,
           work_date,
           created_at,
-          projects:project_id (
+          projects!daily_teams_project_id_fkey (
             id,
             name,
             beneficiary,
@@ -166,14 +166,14 @@ export default function OrganizareaEchipelorPage() {
           ),
           daily_team_workers (
             worker_id,
-            workers:worker_id (
+            workers!daily_team_workers_worker_id_fkey (
               id,
               full_name
             )
           ),
           daily_team_vehicles (
             vehicle_id,
-            vehicles:vehicle_id (
+            vehicles!daily_team_vehicles_vehicle_id_fkey (
               id,
               brand,
               model,
