@@ -295,11 +295,14 @@ export default function PontajSantierPage() {
       .from("time_entries")
       .select("worker_id")
       .eq("project_id", projectId)
-      .eq("work_date", (() => {
-        const yesterdayDate = new Date();
-        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-        return yesterdayDate.toISOString().split("T")[0];
-      })());
+      .eq(
+        "work_date",
+        (() => {
+          const yesterdayDate = new Date();
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          return yesterdayDate.toISOString().split("T")[0];
+        })()
+      );
 
     const { data: historyData, error: historyError } = await supabase
       .from("time_entries")
@@ -386,27 +389,29 @@ export default function PontajSantierPage() {
       }
     }
 
-    const enrichedActiveEntries = !activeError && activeData
-      ? (activeData as ActiveTimeEntry[]).map((entry) => ({
-          ...entry,
-          worker_name:
-            entry.workers?.[0]?.full_name ||
-            workerPool.find((worker) => worker.id === entry.worker_id)
-              ?.full_name ||
-            "-",
-        }))
-      : [];
+    const enrichedActiveEntries =
+      !activeError && activeData
+        ? (activeData as ActiveTimeEntry[]).map((entry) => ({
+            ...entry,
+            worker_name:
+              entry.workers?.[0]?.full_name ||
+              workerPool.find((worker) => worker.id === entry.worker_id)
+                ?.full_name ||
+              "-",
+          }))
+        : [];
 
-    const enrichedHistory = !historyError && historyData
-      ? (historyData as HistoryTimeEntry[]).map((entry) => ({
-          ...entry,
-          worker_name:
-            entry.workers?.[0]?.full_name ||
-            workerPool.find((worker) => worker.id === entry.worker_id)
-              ?.full_name ||
-            "-",
-        }))
-      : [];
+    const enrichedHistory =
+      !historyError && historyData
+        ? (historyData as HistoryTimeEntry[]).map((entry) => ({
+            ...entry,
+            worker_name:
+              entry.workers?.[0]?.full_name ||
+              workerPool.find((worker) => worker.id === entry.worker_id)
+                ?.full_name ||
+              "-",
+          }))
+        : [];
 
     const activeWorkerIdsLocal = enrichedActiveEntries.map(
       (entry) => entry.worker_id
@@ -1082,7 +1087,7 @@ export default function PontajSantierPage() {
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">Pontaj șantier</h1>
             <p className="text-sm text-gray-600">
@@ -1099,42 +1104,40 @@ export default function PontajSantierPage() {
           </button>
         </div>
 
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <button
-              type="button"
-              onClick={() => setShowHistoryModal(true)}
-              className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              Vezi istoric pontaje
-            </button>
+        <div className="space-y-4">
+          <div className="rounded-2xl bg-white p-4 shadow">
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowHistoryModal(true)}
+                className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                Vezi istoric pontaje
+              </button>
+
+              {canOpenExtraModal && (
+                <button
+                  type="button"
+                  onClick={handleOpenExtraModal}
+                  className="w-full rounded-lg bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Adăugare ore extra
+                </button>
+              )}
+
+              {canOpenWeekendModal && (
+                <button
+                  type="button"
+                  onClick={handleOpenWeekendModal}
+                  className="w-full rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Zile lucrate în weekend
+                </button>
+              )}
+            </div>
           </div>
 
-          {canOpenExtraModal && (
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <button
-                type="button"
-                onClick={handleOpenExtraModal}
-                className="w-full rounded-lg bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                Adăugare ore extra
-              </button>
-            </div>
-          )}
-
-          {canOpenWeekendModal && (
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <button
-                type="button"
-                onClick={handleOpenWeekendModal}
-                className="w-full rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                Zile lucrate în weekend
-              </button>
-            </div>
-          )}
-
-          <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="rounded-2xl bg-white p-4 shadow">
             <h2 className="text-lg font-semibold">{project.name}</h2>
             <p className="mt-1 text-sm text-gray-500">
               {project.beneficiary || "-"}
@@ -1145,7 +1148,7 @@ export default function PontajSantierPage() {
             </p>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="rounded-2xl bg-white p-4 shadow">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Pontaje active</h2>
               <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
@@ -1235,7 +1238,7 @@ export default function PontajSantierPage() {
             )}
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="rounded-2xl bg-white p-4 shadow">
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Echipa de azi</h2>
 
