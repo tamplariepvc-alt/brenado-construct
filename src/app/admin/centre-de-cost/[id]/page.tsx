@@ -17,6 +17,7 @@ type ProjectDetails = {
   status: string;
   cost_center_code: string | null;
   is_cost_center: boolean | null;
+  budget_ron: number | null;
 };
 
 type ApprovedOrder = {
@@ -272,7 +273,8 @@ export default function CentruDeCostDetaliuPage() {
           execution_deadline,
           status,
           cost_center_code,
-          is_cost_center
+          is_cost_center,
+          budget_ron
         `)
         .eq("id", projectId)
         .single();
@@ -563,6 +565,10 @@ export default function CentruDeCostDetaliuPage() {
     );
   }, [categoryTotals]);
 
+  const remainingBudget = useMemo(() => {
+    return Number(project?.budget_ron || 0) - projectGrandTotal;
+  }, [project?.budget_ron, projectGrandTotal]);
+
   const getProjectStatusLabel = (status: string) => {
     if (status === "in_asteptare") return "În așteptare";
     if (status === "in_lucru") return "În lucru";
@@ -738,6 +744,44 @@ export default function CentruDeCostDetaliuPage() {
                     : "-"}
                 </p>
               </div>
+
+              <div>
+                <p className="text-xs font-medium text-gray-500">Buget</p>
+                <p className="mt-1 text-sm font-semibold">
+                  {project.budget_ron !== null && project.budget_ron !== undefined
+                    ? `${Number(project.budget_ron).toFixed(2)} lei`
+                    : "-"}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="rounded-2xl bg-white p-5 shadow">
+              <p className="text-sm text-gray-500">Buget proiect</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {Number(project.budget_ron || 0).toFixed(2)} lei
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-white p-5 shadow">
+              <p className="text-sm text-gray-500">Total cheltuit</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {projectGrandTotal.toFixed(2)} lei
+              </p>
+            </div>
+
+            <div
+              className={`rounded-2xl p-5 shadow ${
+                remainingBudget >= 0
+                  ? "bg-green-600 text-white"
+                  : "bg-red-600 text-white"
+              }`}
+            >
+              <p className="text-sm text-white/80">Diferență rămasă</p>
+              <p className="mt-2 text-3xl font-bold">
+                {remainingBudget.toFixed(2)} lei
+              </p>
             </div>
           </div>
 

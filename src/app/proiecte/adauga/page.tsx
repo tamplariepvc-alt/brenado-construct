@@ -17,6 +17,7 @@ export default function AdaugaProiectPage() {
   const [locatie, setLocatie] = useState("");
   const [tip, setTip] = useState("");
   const [grupa, setGrupa] = useState("");
+  const [bugetRon, setBugetRon] = useState("");
   const [dataStart, setDataStart] = useState("");
   const [termen, setTermen] = useState("");
   const [status, setStatus] = useState("in_asteptare");
@@ -73,30 +74,36 @@ export default function AdaugaProiectPage() {
       return;
     }
 
+    if (bugetRon && Number(bugetRon) < 0) {
+      alert("Bugetul nu poate fi negativ.");
+      return;
+    }
+
     setLoading(true);
 
-const { count } = await supabase
-  .from("projects")
-  .select("*", { count: "exact", head: true });
+    const { count } = await supabase
+      .from("projects")
+      .select("*", { count: "exact", head: true });
 
-const nextCostCenterCode = `CC-${String((count || 0) + 1).padStart(4, "0")}`;
+    const nextCostCenterCode = `CC-${String((count || 0) + 1).padStart(4, "0")}`;
 
-const { data: projectData, error: projectError } = await supabase
-  .from("projects")
-  .insert({
-    name: nume,
-    beneficiary: beneficiar,
-    project_location: locatie,
-    project_type: tip,
-    project_group: grupa,
-    start_date: dataStart,
-    execution_deadline: termen,
-    status,
-    is_cost_center: true,
-    cost_center_code: nextCostCenterCode,
-  })
-  .select()
-  .single();
+    const { data: projectData, error: projectError } = await supabase
+      .from("projects")
+      .insert({
+        name: nume.trim(),
+        beneficiary: beneficiar.trim(),
+        project_location: locatie.trim(),
+        project_type: tip.trim(),
+        project_group: grupa,
+        budget_ron: bugetRon ? Number(bugetRon) : null,
+        start_date: dataStart,
+        execution_deadline: termen,
+        status,
+        is_cost_center: true,
+        cost_center_code: nextCostCenterCode,
+      })
+      .select()
+      .single();
 
     if (projectError || !projectData) {
       alert("A apărut o eroare la salvarea proiectului.");
@@ -214,6 +221,20 @@ const { data: projectData, error: projectError } = await supabase
                   <option value="brenado_construct">BRENADO CONSTRUCT</option>
                   <option value="brenado_mentenanta">BRENADO MENTENANȚĂ</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Buget (RON)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={bugetRon}
+                  onChange={(e) => setBugetRon(e.target.value)}
+                  placeholder="Introdu bugetul proiectului"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                />
               </div>
             </div>
           </div>
