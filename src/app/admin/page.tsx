@@ -55,6 +55,7 @@ export default function AdminPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+
           <button
             onClick={() => router.push("/admin/centre-de-cost")}
             className="rounded-2xl bg-white p-6 text-left shadow transition hover:shadow-md"
@@ -100,6 +101,18 @@ export default function AdminPage() {
               Vezi, filtreaza, achita si exporta rapoartele pentru ore extra si weekend.
             </p>
           </button>
+
+          {/* 🔵 BUTON NOU */}
+          <button
+            onClick={() => router.push("/admin/alimentari")}
+            className="rounded-2xl bg-green-600 p-6 text-left text-white shadow transition hover:opacity-90"
+          >
+            <h2 className="text-lg font-semibold">Alimentare Carduri / Conturi</h2>
+            <p className="mt-1 text-sm text-white/80">
+              Alimenteaza proiectele si vezi istoricul alimentărilor.
+            </p>
+          </button>
+
         </div>
       </div>
     </div>

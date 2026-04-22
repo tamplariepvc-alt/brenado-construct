@@ -20,6 +20,26 @@ type Project = {
   created_at: string;
 };
 
+type ProjectFunding = {
+  project_id: string;
+  amount_ron: number | null;
+};
+
+type FiscalReceipt = {
+  project_id: string;
+  total_with_vat: number | null;
+};
+
+type ProjectInvoice = {
+  project_id: string;
+  total_with_vat: number | null;
+};
+
+type NondeductibleExpense = {
+  project_id: string;
+  cost_ron: number | null;
+};
+
 type ProjectSectionTab = "financiara" | "tehnica";
 
 const monthOptions = [
@@ -44,6 +64,13 @@ export default function ProiectePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+
+  const [fundings, setFundings] = useState<ProjectFunding[]>([]);
+  const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
+  const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
+  const [nondeductibles, setNondeductibles] = useState<NondeductibleExpense[]>(
+    []
+  );
 
   const [searchName, setSearchName] = useState("");
   const [selectedYear, setSelectedYear] = useState("toate");
@@ -86,6 +113,8 @@ export default function ProiectePage() {
 
       setProfile(profileData as Profile);
 
+      let visibleProjects: Project[] = [];
+
       if (profileData.role === "administrator") {
         const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
@@ -93,11 +122,9 @@ export default function ProiectePage() {
           .order("created_at", { ascending: true });
 
         if (!projectsError && projectsData) {
-          setProjects(projectsData);
+          visibleProjects = projectsData as Project[];
+          setProjects(visibleProjects);
         }
-
-        setLoading(false);
-        return;
       }
 
       if (profileData.role === "sef_echipa") {
@@ -128,11 +155,55 @@ export default function ProiectePage() {
           .order("created_at", { ascending: true });
 
         if (!projectsError && projectsData) {
-          setProjects(projectsData);
+          visibleProjects = projectsData as Project[];
+          setProjects(visibleProjects);
         }
-
-        setLoading(false);
       }
+
+      const projectIds = visibleProjects.map((project) => project.id);
+
+      if (projectIds.length > 0) {
+        const [
+          fundingsRes,
+          receiptsRes,
+          invoicesRes,
+          nondeductiblesRes,
+        ] = await Promise.all([
+          supabase
+            .from("project_fundings")
+            .select("project_id, amount_ron")
+            .in("project_id", projectIds),
+
+          supabase
+            .from("fiscal_receipts")
+            .select("project_id, total_with_vat")
+            .in("project_id", projectIds),
+
+          supabase
+            .from("project_invoices")
+            .select("project_id, total_with_vat")
+            .in("project_id", projectIds),
+
+          supabase
+            .from("project_nondeductible_expenses")
+            .select("project_id, cost_ron")
+            .in("project_id", projectIds),
+        ]);
+
+        setFundings((fundingsRes.data as ProjectFunding[]) || []);
+        setReceipts((receiptsRes.data as FiscalReceipt[]) || []);
+        setInvoices((invoicesRes.data as ProjectInvoice[]) || []);
+        setNondeductibles(
+          (nondeductiblesRes.data as NondeductibleExpense[]) || []
+        );
+      } else {
+        setFundings([]);
+        setReceipts([]);
+        setInvoices([]);
+        setNondeductibles([]);
+      }
+
+      setLoading(false);
     };
 
     loadData();
@@ -169,6 +240,75 @@ export default function ProiectePage() {
     });
   }, [projects, searchName, selectedYear, selectedMonth]);
 
+  const fundingTotalsByProject = useMemo(() => {
+    const map = new Map<string, number>();
+
+    fundings.forEach((row) => {
+      const current = map.get(row.project_id) || 0;
+      map.set(row.project_id, current + Number(row.amount_ron || 0));
+    });
+
+    return map;
+  }, [fundings]);
+
+  const receiptTotalsByProject = useMemo(() => {
+    const map = new Map<string, number>();
+
+    receipts.forEach((row) => {
+      const current = map.get(row.project_id) || 0;
+      map.set(row.project_id, current + Number(row.total_with_vat || 0));
+    });
+
+    return map;
+  }, [receipts]);
+
+  const invoiceTotalsByProject = useMemo(() => {
+    const map = new Map<string, number>();
+
+    invoices.forEach((row) => {
+      const current = map.get(row.project_id) || 0;
+      map.set(row.project_id, current + Number(row.total_with_vat || 0));
+    });
+
+    return map;
+  }, [invoices]);
+
+  const nondeductibleTotalsByProject = useMemo(() => {
+    const map = new Map<string, number>();
+
+    nondeductibles.forEach((row) => {
+      const current = map.get(row.project_id) || 0;
+      map.set(row.project_id, current + Number(row.cost_ron || 0));
+    });
+
+    return map;
+  }, [nondeductibles]);
+
+  const currentCreditByProject = useMemo(() => {
+    const map = new Map<string, number>();
+
+    projects.forEach((project) => {
+      const totalFunded = fundingTotalsByProject.get(project.id) || 0;
+      const totalReceipts = receiptTotalsByProject.get(project.id) || 0;
+      const totalInvoices = invoiceTotalsByProject.get(project.id) || 0;
+      const totalNondeductibles =
+        nondeductibleTotalsByProject.get(project.id) || 0;
+
+      const currentCredit =
+        totalFunded - totalReceipts - totalInvoices - totalNondeductibles;
+
+      map.set(project.id, currentCredit);
+    });
+
+    return map;
+  }, [
+    projects,
+    fundingTotalsByProject,
+    receiptTotalsByProject,
+    invoiceTotalsByProject,
+    nondeductibleTotalsByProject,
+  ]);
+
   const getStatusLabel = (status: string | null) => {
     if (status === "in_asteptare") return "In asteptare";
     if (status === "in_lucru") return "In lucru";
@@ -204,6 +344,10 @@ export default function ProiectePage() {
   if (loading) {
     return <div className="p-6">Se încarcă proiectele...</div>;
   }
+
+  const selectedProjectCredit = selectedProject
+    ? currentCreditByProject.get(selectedProject.id) || 0
+    : 0;
 
   return (
     <div className="min-h-screen bg-gray-100 p-6">
@@ -371,6 +515,42 @@ export default function ProiectePage() {
                   </p>
                   <p className="mt-1 text-xs text-blue-700">
                     Bonuri fiscale, facturi, costuri și nedeductibile pentru centrul de cost.
+                  </p>
+                </div>
+
+                <div
+                  className={`rounded-xl px-4 py-3 ${
+                    selectedProjectCredit >= 0
+                      ? "border border-green-200 bg-green-50"
+                      : "border border-red-200 bg-red-50"
+                  }`}
+                >
+                  <p
+                    className={`text-sm font-medium ${
+                      selectedProjectCredit >= 0
+                        ? "text-green-800"
+                        : "text-red-800"
+                    }`}
+                  >
+                    Credit curent:
+                  </p>
+                  <p
+                    className={`mt-1 text-xl font-bold ${
+                      selectedProjectCredit >= 0
+                        ? "text-green-900"
+                        : "text-red-900"
+                    }`}
+                  >
+                    {selectedProjectCredit.toFixed(2)} lei
+                  </p>
+                  <p
+                    className={`mt-1 text-xs ${
+                      selectedProjectCredit >= 0
+                        ? "text-green-700"
+                        : "text-red-700"
+                    }`}
+                  >
+                    Credit alimentat minus bonuri, facturi și nedeductibile.
                   </p>
                 </div>
 
