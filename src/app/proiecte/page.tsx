@@ -509,14 +509,6 @@ export default function ProiectePage() {
 
             {activeSectionTab === "financiara" && (
               <div className="space-y-3">
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    Aici intră toate funcțiile financiare ale proiectului.
-                  </p>
-                  <p className="mt-1 text-xs text-blue-700">
-                    Bonuri fiscale, facturi, costuri și nedeductibile pentru centrul de cost.
-                  </p>
-                </div>
 
                 <div
                   className={`rounded-xl px-4 py-3 ${
