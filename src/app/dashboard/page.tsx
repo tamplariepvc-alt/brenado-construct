@@ -133,7 +133,7 @@ export default function DashboardPage() {
     },
     {
       label: "Vezi\nProiecte",
-      sublabel: `${stats.total} proiecte`,
+      sublabel: `${stats.total} active`,
       route: "/proiecte",
     },
     {
@@ -148,7 +148,7 @@ export default function DashboardPage() {
     },
     {
       label: "Organizare\nEchipe",
-      sublabel: "Planificare",
+      sublabel: "3 echipe",
       route: "/organizarea-echipelor",
     },
     {
@@ -217,7 +217,7 @@ export default function DashboardPage() {
   const getProjectPercent = (project: ActiveProject) => {
     if (project.status === "finalizat") return 100;
     if (project.status === "in_asteptare") return 15;
-    if (project.status === "in_lucru") return 65;
+    if (project.status === "in_lucru") return 72;
     return 20;
   };
 
@@ -253,6 +253,166 @@ export default function DashboardPage() {
       badge: "bg-green-50 text-green-700",
       bar: "from-green-600 to-green-300",
     };
+  };
+
+  const renderActionIcon = (label: string, dark?: boolean) => {
+    const iconClass = `h-7 w-7 ${dark ? "text-slate-300" : ""}`;
+
+    if (label.includes("Adaugă")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <rect
+            x="4.5"
+            y="4.5"
+            width="15"
+            height="15"
+            rx="4"
+            stroke={dark ? "currentColor" : "#2563EB"}
+            strokeWidth="2"
+          />
+          <path
+            d="M12 8.5v7M8.5 12h7"
+            stroke={dark ? "currentColor" : "#2563EB"}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    }
+
+    if (label.includes("Vezi")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path
+            d="M6 8h12M6 12h12M6 16h8"
+            stroke={dark ? "currentColor" : "#0F766E"}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+          <circle
+            cx="10"
+            cy="12"
+            r="1.5"
+            fill={dark ? "currentColor" : "#0F766E"}
+          />
+        </svg>
+      );
+    }
+
+    if (label.includes("Comenzi")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path
+            d="M4 6h2l1.4 6.5h8.8L18 8H8.2"
+            stroke={dark ? "currentColor" : "#D97706"}
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <circle cx="10" cy="18" r="1.5" fill={dark ? "currentColor" : "#D97706"} />
+          <circle cx="17" cy="18" r="1.5" fill={dark ? "currentColor" : "#D97706"} />
+        </svg>
+      );
+    }
+
+    if (label.includes("Pontaje")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <circle
+            cx="12"
+            cy="12"
+            r="7.5"
+            stroke={dark ? "currentColor" : "#059669"}
+            strokeWidth="2"
+          />
+          <path
+            d="M12 8v4l2.8 2"
+            stroke={dark ? "currentColor" : "#059669"}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    }
+
+    if (label.includes("Organizare")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <circle
+            cx="12"
+            cy="6.5"
+            r="2"
+            stroke={dark ? "currentColor" : "#1D4ED8"}
+            strokeWidth="2"
+          />
+          <circle
+            cx="7"
+            cy="16.5"
+            r="1.8"
+            stroke={dark ? "currentColor" : "#1D4ED8"}
+            strokeWidth="2"
+          />
+          <circle
+            cx="17"
+            cy="16.5"
+            r="1.8"
+            stroke={dark ? "currentColor" : "#1D4ED8"}
+            strokeWidth="2"
+          />
+          <path
+            d="M12 8.5v3M12 11.5l-5 3M12 11.5l5 3"
+            stroke={dark ? "currentColor" : "#1D4ED8"}
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    }
+
+    if (label.includes("Panou")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path
+            d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <path
+            d="M19 12a1.8 1.8 0 0 0 1.3 1.7l.1.1a1.9 1.9 0 0 1-1.3 3.3h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.9 1.9 0 0 1-1.3-3.3l.1-.1A1.8 1.8 0 0 0 5 12c0-.7-.3-1.3-.8-1.7l-.1-.1a1.9 1.9 0 0 1 1.3-3.3h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.9 1.9 0 0 1 1.3 3.3l-.1.1c-.5.4-.8 1-.8 1.7Z"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    }
+
+    if (label.includes("Cerere")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path
+            d="M7 5h10l2 2v12H7V5Z"
+            stroke={dark ? "currentColor" : "#2563EB"}
+            strokeWidth="2"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M10 11h6M10 15h4"
+            stroke={dark ? "currentColor" : "#2563EB"}
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        </svg>
+      );
+    }
+
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <circle cx="12" cy="12" r="4" fill={dark ? "currentColor" : "#2563EB"} />
+      </svg>
+    );
   };
 
   if (loading) {
@@ -356,13 +516,21 @@ export default function DashboardPage() {
                   }`}
                 >
                   <div
-                    className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${
-                      action.dark ? "bg-slate-700" : "bg-[#EFF6FF]"
+                    className={`mb-4 flex h-14 w-14 items-center justify-center rounded-3xl ${
+                      action.dark
+                        ? "bg-slate-700"
+                        : action.label.includes("Adaugă")
+                        ? "bg-blue-50"
+                        : action.label.includes("Vezi")
+                        ? "bg-teal-100"
+                        : action.label.includes("Comenzi")
+                        ? "bg-amber-50"
+                        : action.label.includes("Pontaje")
+                        ? "bg-emerald-50"
+                        : "bg-blue-50"
                     }`}
                   >
-                    <span className={`text-lg ${action.dark ? "text-slate-300" : "text-blue-600"}`}>
-                      ◆
-                    </span>
+                    {renderActionIcon(action.label, action.dark)}
                   </div>
 
                   <p className="whitespace-pre-line text-sm font-bold leading-5">
@@ -458,34 +626,32 @@ export default function DashboardPage() {
           <nav className="sticky bottom-0 mt-8 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur">
             <div className="grid grid-cols-4">
               <button className="flex flex-col items-center gap-1 py-1 text-blue-600">
-                <span className="text-lg">🏠</span>
+                <span className="text-2xl">🏠</span>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
                   Acasă
                 </span>
+                <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-600" />
               </button>
 
               <button
                 onClick={() => router.push("/proiecte")}
                 className="flex flex-col items-center gap-1 py-1 text-gray-400"
               >
-                <span className="text-lg">📋</span>
+                <span className="text-2xl">📋</span>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
                   Proiecte
                 </span>
               </button>
 
-              <button
-                onClick={() => router.push("/pontaje")}
-                className="flex flex-col items-center gap-1 py-1 text-gray-400"
-              >
-                <span className="text-lg">⏱️</span>
+              <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
+                <span className="text-2xl">🔔</span>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
-                  Pontaje
+                  Notificări
                 </span>
               </button>
 
               <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
-                <span className="text-lg">👤</span>
+                <span className="text-2xl">👤</span>
                 <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
                   Profil
                 </span>
