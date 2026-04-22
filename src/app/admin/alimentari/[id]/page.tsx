@@ -70,11 +70,7 @@ export default function DetaliuAlimentarePage() {
 
       const fundingRow = fundingData as FundingDetails;
 
-      const [
-        projectRes,
-        teamLeadRes,
-        adminRes,
-      ] = await Promise.all([
+      const [projectRes, teamLeadRes, adminRes] = await Promise.all([
         supabase
           .from("projects")
           .select(`
@@ -132,6 +128,160 @@ export default function DetaliuAlimentarePage() {
     return "bg-gray-100 text-gray-800";
   };
 
+  const handleExportPdf = () => {
+    if (!funding) return;
+
+    const projectName = project?.name || "-";
+    const costCenterCode = project?.cost_center_code || "-";
+    const beneficiary = project?.beneficiary || "-";
+    const projectLocation = project?.project_location || "-";
+    const projectStatus = getProjectStatusLabel(project?.status || "");
+    const teamLeadName = teamLead?.full_name || "-";
+    const addedByName = adminProfile?.full_name || "-";
+    const fundingTypeLabel = getFundingTypeLabel(funding.funding_type);
+    const fundingAmount = `${Number(funding.amount_ron || 0).toFixed(2)} lei`;
+    const fundingDate = funding.funding_date
+      ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
+      : "-";
+    const createdAt = funding.created_at
+      ? new Date(funding.created_at).toLocaleDateString("ro-RO")
+      : "-";
+    const notes = funding.notes || "-";
+
+    const html = `
+      <html>
+        <head>
+          <title>Detaliu alimentare</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 24px;
+              color: #111827;
+            }
+            h1 {
+              font-size: 24px;
+              margin-bottom: 8px;
+            }
+            .muted {
+              color: #6b7280;
+              margin-bottom: 18px;
+            }
+            .section {
+              margin-top: 20px;
+              padding: 16px;
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+            }
+            .section-title {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 14px;
+            }
+            .row {
+              margin-bottom: 12px;
+            }
+            .label {
+              font-size: 12px;
+              color: #6b7280;
+              margin-bottom: 4px;
+            }
+            .value {
+              font-size: 16px;
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Detaliu alimentare</h1>
+          <div class="muted">Raport generat la ${new Date().toLocaleString("ro-RO")}</div>
+
+          <div class="section">
+            <div class="section-title">Date proiect</div>
+
+            <div class="row">
+              <div class="label">Proiect</div>
+              <div class="value">${projectName}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Cod centru de cost</div>
+              <div class="value">${costCenterCode}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Beneficiar</div>
+              <div class="value">${beneficiary}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Locație</div>
+              <div class="value">${projectLocation}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Status proiect</div>
+              <div class="value">${projectStatus}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Șef șantier</div>
+              <div class="value">${teamLeadName}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Alimentat de</div>
+              <div class="value">${addedByName}</div>
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Date alimentare</div>
+
+            <div class="row">
+              <div class="label">Tip alimentare</div>
+              <div class="value">${fundingTypeLabel}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Sumă alimentată</div>
+              <div class="value">${fundingAmount}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Data alimentării</div>
+              <div class="value">${fundingDate}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Creată la</div>
+              <div class="value">${createdAt}</div>
+            </div>
+
+            <div class="row">
+              <div class="label">Observații</div>
+              <div class="value">${notes}</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Nu s-a putut deschide fereastra pentru export PDF.");
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+  };
+
   const handleDelete = async () => {
     const confirmed = window.confirm(
       "Sigur vrei să ștergi această alimentare?"
@@ -175,12 +325,21 @@ export default function DetaliuAlimentarePage() {
             </p>
           </div>
 
-          <button
-            onClick={() => router.push("/admin/alimentari")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
-          >
-            Înapoi la alimentări
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              onClick={() => router.push("/admin/alimentari")}
+              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            >
+              Înapoi la alimentări
+            </button>
+
+            <button
+              onClick={handleExportPdf}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
 
         <div className="space-y-6">
