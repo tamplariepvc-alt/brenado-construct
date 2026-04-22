@@ -21,7 +21,7 @@ type FundingDetails = {
     project_location: string | null;
     status: string;
     cost_center_code: string | null;
-  } | null;
+  }[] | null;
   team_lead?: {
     id: string;
     full_name: string;
@@ -74,7 +74,7 @@ export default function DetaliuAlimentarePage() {
         return;
       }
 
-      const fundingRow = data as FundingDetails;
+      const fundingRow = data as unknown as FundingDetails;
 
       const [{ data: leadData }, { data: adminData }] = await Promise.all([
         supabase
@@ -153,6 +153,8 @@ export default function DetaliuAlimentarePage() {
     return <div className="p-6">Alimentarea nu a fost găsită.</div>;
   }
 
+  const project = funding.projects?.[0] || null;
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="mx-auto max-w-5xl">
@@ -177,19 +179,19 @@ export default function DetaliuAlimentarePage() {
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {funding.projects?.name || "-"}
+                  {project?.name || "-"}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Cod centru de cost: {funding.projects?.cost_center_code || "-"}
+                  Cod centru de cost: {project?.cost_center_code || "-"}
                 </p>
               </div>
 
               <span
                 className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getProjectStatusStyle(
-                  funding.projects?.status || ""
+                  project?.status || ""
                 )}`}
               >
-                {getProjectStatusLabel(funding.projects?.status || "")}
+                {getProjectStatusLabel(project?.status || "")}
               </span>
             </div>
 
@@ -197,14 +199,14 @@ export default function DetaliuAlimentarePage() {
               <div>
                 <p className="text-xs font-medium text-gray-500">Beneficiar</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {funding.projects?.beneficiary || "-"}
+                  {project?.beneficiary || "-"}
                 </p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Locație</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {funding.projects?.project_location || "-"}
+                  {project?.project_location || "-"}
                 </p>
               </div>
 
