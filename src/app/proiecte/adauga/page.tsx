@@ -62,11 +62,12 @@ export default function AdaugaProiectPage() {
       !locatie.trim() ||
       !tip.trim() ||
       !grupa ||
+      !bugetRon ||
       !dataStart ||
       !termen ||
       !status
     ) {
-      alert("Completează toate câmpurile obligatorii.");
+      alert("Completează toate câmpurile obligatorii, inclusiv bugetul.");
       return;
     }
 
@@ -75,7 +76,7 @@ export default function AdaugaProiectPage() {
       return;
     }
 
-    if (bugetRon && Number(bugetRon) < 0) {
+    if (Number(bugetRon) < 0) {
       alert("Bugetul nu poate fi negativ.");
       return;
     }
@@ -96,7 +97,7 @@ export default function AdaugaProiectPage() {
         project_location: locatie.trim(),
         project_type: tip.trim(),
         project_group: grupa,
-        budget_ron: bugetRon ? Number(bugetRon) : null,
+        budget_ron: Number(bugetRon),
         start_date: dataStart,
         execution_deadline: termen,
         status,
@@ -329,11 +330,13 @@ export default function AdaugaProiectPage() {
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Buget (RON)
+                  Buget (RON) *
                 </label>
                 <input
                   type="number"
                   step="0.01"
+                  min="0"
+                  required
                   value={bugetRon}
                   onChange={(e) => setBugetRon(e.target.value)}
                   placeholder="Introdu bugetul proiectului"
@@ -421,7 +424,9 @@ export default function AdaugaProiectPage() {
                     ? `Selectați: ${selectedLeads.length}`
                     : "Selectează șefii de echipă"}
                 </span>
-                <span className="text-lg">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
+                <span className="text-lg">
+                  {showTeamLeadsDropdown ? "▲" : "▼"}
+                </span>
               </button>
 
               {showTeamLeadsDropdown && (
