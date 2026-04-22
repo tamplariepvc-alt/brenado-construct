@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -41,6 +41,25 @@ type NondeductibleExpense = {
   cost_ron: number | null;
 };
 
+type UploadDocType = "bon" | "factura";
+
+type InlineItem = {
+  item_name: string;
+  quantity: string;
+  unit_price: string;
+  line_total: string;
+};
+
+type InlineFormState = {
+  documentDate: string;
+  supplier: string;
+  documentNumber: string;
+  totalWithoutVat: string;
+  totalWithVat: string;
+  notes: string;
+  items: InlineItem[];
+};
+
 const monthOptions = [
   { value: "toate", label: "Toate lunile" },
   { value: "1", label: "Ianuarie" },
@@ -57,8 +76,42 @@ const monthOptions = [
   { value: "12", label: "Decembrie" },
 ];
 
+const createEmptyItem = (): InlineItem => ({
+  item_name: "",
+  quantity: "",
+  unit_price: "",
+  line_total: "",
+});
+
+const createEmptyForm = (): InlineFormState => ({
+  documentDate: "",
+  supplier: "",
+  documentNumber: "",
+  totalWithoutVat: "",
+  totalWithVat: "",
+  notes: "",
+  items: [createEmptyItem()],
+});
+
+const UploadIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    className="h-4 w-4"
+    stroke="currentColor"
+    strokeWidth="2"
+  >
+    <path d="M12 16V4" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M7 9L12 4L17 9" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 20H20" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default function ProiectePage() {
   const router = useRouter();
+
+  const bonInputRef = useRef<HTMLInputElement | null>(null);
+  const facturaInputRef = useRef<HTMLInputElement | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -74,6 +127,18 @@ export default function ProiectePage() {
   const [searchName, setSearchName] = useState("");
   const [selectedYear, setSelectedYear] = useState("toate");
   const [selectedMonth, setSelectedMonth] = useState("toate");
+
+  const [activeInlineProjectId, setActiveInlineProjectId] = useState<string | null>(null);
+  const [activeInlineType, setActiveInlineType] = useState<UploadDocType | null>(null);
+
+  const [imagePreview, setImagePreview] = useState("");
+  const [uploadedImageUrl, setUploadedImageUrl] = useState("");
+  const [formState, setFormState] = useState<InlineFormState>(createEmptyForm());
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractionError, setExtractionError] = useState("");
+  const [savingInline, setSavingInline] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -370,12 +435,379 @@ export default function ProiectePage() {
     </svg>
   );
 
+  const resetInlineState = (projectId: string, type: UploadDocType) => {
+    setActiveInlineProjectId(projectId);
+    setActiveInlineType(type);
+    setImagePreview("");
+    setUploadedImageUrl("");
+    setExtractionError("");
+    setFormState(createEmptyForm());
+  };
+
+  const openCameraFor = (projectId: string, type: UploadDocType) => {
+    resetInlineState(projectId, type);
+
+    if (type === "bon") {
+      bonInputRef.current?.click();
+      return;
+    }
+
+    facturaInputRef.current?.click();
+  };
+
+  const applyExtractedData = (data: any) => {
+    setFormState({
+      documentDate: data.document_date || "",
+      supplier: data.supplier || "",
+      documentNumber: data.document_number || "",
+      totalWithoutVat:
+        data.total_without_vat !== undefined && data.total_without_vat !== null
+          ? String(data.total_without_vat)
+          : "",
+      totalWithVat:
+        data.total_with_vat !== undefined && data.total_with_vat !== null
+          ? String(data.total_with_vat)
+          : "",
+      notes: data.notes || "",
+      items:
+        Array.isArray(data.items) && data.items.length > 0
+          ? data.items.map((item: any) => ({
+              item_name: item.item_name || "",
+              quantity:
+                item.quantity !== undefined && item.quantity !== null
+                  ? String(item.quantity)
+                  : "",
+              unit_price:
+                item.unit_price !== undefined && item.unit_price !== null
+                  ? String(item.unit_price)
+                  : "",
+              line_total:
+                item.line_total !== undefined && item.line_total !== null
+                  ? String(item.line_total)
+                  : "",
+            }))
+          : [createEmptyItem()],
+    });
+  };
+
+  const uploadImageToStorage = async (
+    file: File,
+    projectId: string,
+    type: UploadDocType
+  ) => {
+    setUploadingImage(true);
+
+    const bucket = type === "bon" ? "bonuri-fiscale" : "facturi";
+    const fileExt = file.name.split(".").pop() || "jpg";
+    const fileName = `${projectId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from(bucket)
+      .upload(fileName, file, {
+        upsert: false,
+      });
+
+    if (uploadError) {
+      setUploadingImage(false);
+      alert(`Eroare la încărcarea imaginii: ${uploadError.message}`);
+      return "";
+    }
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
+    const publicUrl = data.publicUrl;
+
+    setUploadedImageUrl(publicUrl);
+    setUploadingImage(false);
+
+    return publicUrl;
+  };
+
+  const handleCapturedDocument = async (
+    e: ChangeEvent<HTMLInputElement>,
+    type: UploadDocType
+  ) => {
+    const file = e.target.files?.[0] || null;
+    const projectId = activeInlineProjectId;
+
+    if (!file || !projectId) return;
+
+    setExtractionError("");
+    setImagePreview(URL.createObjectURL(file));
+
+    const publicUrl = await uploadImageToStorage(file, projectId, type);
+    if (!publicUrl) return;
+
+    setIsExtracting(true);
+
+    try {
+      const endpoint =
+        type === "bon" ? "/api/extract-receipt" : "/api/extract-invoice";
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ imageUrl: publicUrl }),
+      });
+
+      const parsed = await res.json();
+
+      if (!res.ok) {
+        setExtractionError(parsed.error || "Nu s-au putut extrage datele.");
+        setIsExtracting(false);
+        return;
+      }
+
+      applyExtractedData(parsed);
+    } catch {
+      setExtractionError("A apărut o eroare la analiza AI.");
+    } finally {
+      setIsExtracting(false);
+      e.target.value = "";
+    }
+  };
+
+  const updateFormField = (field: keyof Omit<InlineFormState, "items">, value: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const updateItem = (index: number, field: keyof InlineItem, value: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      items: prev.items.map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              [field]: value,
+            }
+          : item
+      ),
+    }));
+  };
+
+  const addItem = () => {
+    setFormState((prev) => ({
+      ...prev,
+      items: [...prev.items, createEmptyItem()],
+    }));
+  };
+
+  const removeItem = (index: number) => {
+    setFormState((prev) => ({
+      ...prev,
+      items:
+        prev.items.length === 1
+          ? prev.items
+          : prev.items.filter((_, i) => i !== index),
+    }));
+  };
+
+  const computedItemsTotal = useMemo(() => {
+    return formState.items.reduce((sum, item) => {
+      return sum + Number(item.line_total || 0);
+    }, 0);
+  }, [formState.items]);
+
+  const handleSaveInline = async () => {
+    if (!activeInlineProjectId || !activeInlineType) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+
+    if (!formState.documentDate) {
+      alert(
+        activeInlineType === "bon"
+          ? "Completează data bonului."
+          : "Completează data facturii."
+      );
+      return;
+    }
+
+    if (!formState.supplier.trim()) {
+      alert("Completează furnizorul.");
+      return;
+    }
+
+    if (!formState.documentNumber.trim()) {
+      alert("Completează numărul documentului.");
+      return;
+    }
+
+    const validItems = formState.items.filter(
+      (item) =>
+        item.item_name.trim() ||
+        Number(item.quantity || 0) > 0 ||
+        Number(item.unit_price || 0) > 0 ||
+        Number(item.line_total || 0) > 0
+    );
+
+    if (validItems.length === 0) {
+      alert("Adaugă cel puțin un material.");
+      return;
+    }
+
+    setSavingInline(true);
+
+    if (activeInlineType === "bon") {
+      const { data: receiptData, error: receiptError } = await supabase
+        .from("fiscal_receipts")
+        .insert({
+          project_id: activeInlineProjectId,
+          uploaded_by: user.id,
+          receipt_image_url: uploadedImageUrl || null,
+          receipt_date: formState.documentDate,
+          supplier: formState.supplier.trim(),
+          document_number: formState.documentNumber.trim(),
+          total_without_vat: Number(formState.totalWithoutVat || 0),
+          total_with_vat: Number(formState.totalWithVat || 0),
+          notes: formState.notes.trim() || null,
+        })
+        .select("id")
+        .single();
+
+      if (receiptError || !receiptData) {
+        alert(`Eroare la salvarea bonului: ${receiptError?.message || ""}`);
+        setSavingInline(false);
+        return;
+      }
+
+      const itemRows = validItems.map((item) => ({
+        receipt_id: receiptData.id,
+        item_name: item.item_name.trim(),
+        quantity: Number(item.quantity || 0),
+        unit_price: Number(item.unit_price || 0),
+        line_total: Number(item.line_total || 0),
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("fiscal_receipt_items")
+        .insert(itemRows);
+
+      if (itemsError) {
+        alert(`Eroare la salvarea materialelor: ${itemsError.message}`);
+        setSavingInline(false);
+        return;
+      }
+    }
+
+    if (activeInlineType === "factura") {
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from("project_invoices")
+        .insert({
+          project_id: activeInlineProjectId,
+          uploaded_by: user.id,
+          invoice_image_url: uploadedImageUrl || null,
+          invoice_date: formState.documentDate,
+          supplier: formState.supplier.trim(),
+          document_number: formState.documentNumber.trim(),
+          total_without_vat: Number(formState.totalWithoutVat || 0),
+          total_with_vat: Number(formState.totalWithVat || 0),
+          notes: formState.notes.trim() || null,
+        })
+        .select("id")
+        .single();
+
+      if (invoiceError || !invoiceData) {
+        alert(`Eroare la salvarea facturii: ${invoiceError?.message || ""}`);
+        setSavingInline(false);
+        return;
+      }
+
+      const itemRows = validItems.map((item) => ({
+        invoice_id: invoiceData.id,
+        item_name: item.item_name.trim(),
+        quantity: Number(item.quantity || 0),
+        unit_price: Number(item.unit_price || 0),
+        line_total: Number(item.line_total || 0),
+      }));
+
+      const { error: itemsError } = await supabase
+        .from("project_invoice_items")
+        .insert(itemRows);
+
+      if (itemsError) {
+        alert(`Eroare la salvarea materialelor: ${itemsError.message}`);
+        setSavingInline(false);
+        return;
+      }
+    }
+
+    alert(
+      activeInlineType === "bon"
+        ? "Bonul fiscal a fost salvat."
+        : "Factura a fost salvată."
+    );
+
+    setSavingInline(false);
+    setActiveInlineProjectId(null);
+    setActiveInlineType(null);
+    setImagePreview("");
+    setUploadedImageUrl("");
+    setExtractionError("");
+    setFormState(createEmptyForm());
+
+    const projectIds = projects.map((project) => project.id);
+
+    if (projectIds.length > 0) {
+      const [receiptsRes, invoicesRes, nondeductiblesRes] = await Promise.all([
+        supabase
+          .from("fiscal_receipts")
+          .select("project_id, total_with_vat")
+          .in("project_id", projectIds),
+
+        supabase
+          .from("project_invoices")
+          .select("project_id, total_with_vat")
+          .in("project_id", projectIds),
+
+        supabase
+          .from("project_nondeductible_expenses")
+          .select("project_id, cost_ron")
+          .in("project_id", projectIds),
+      ]);
+
+      setReceipts((receiptsRes.data as FiscalReceipt[]) || []);
+      setInvoices((invoicesRes.data as ProjectInvoice[]) || []);
+      setNondeductibles(
+        (nondeductiblesRes.data as NondeductibleExpense[]) || []
+      );
+    }
+  };
+
   if (loading) {
     return <div className="p-6">Se încarcă proiectele...</div>;
   }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
+      <input
+        ref={bonInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleCapturedDocument(e, "bon")}
+      />
+
+      <input
+        ref={facturaInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={(e) => handleCapturedDocument(e, "factura")}
+      />
+
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
@@ -470,6 +902,7 @@ export default function ProiectePage() {
             <div className="space-y-4">
               {filteredProjects.map((project) => {
                 const currentCredit = currentCreditByProject.get(project.id) || 0;
+                const isActiveInline = activeInlineProjectId === project.id;
 
                 return (
                   <div
@@ -531,22 +964,20 @@ export default function ProiectePage() {
                       <div className="mt-5 flex flex-col gap-3">
                         <button
                           type="button"
-                          onClick={() =>
-                            router.push(`/proiecte/${project.id}/incarca-bf`)
-                          }
-                          className="w-full rounded-2xl border border-[#cfe4ff] bg-[#eef6ff] px-4 py-3 text-left text-sm font-semibold text-[#1976d2] transition hover:bg-[#e3f0ff]"
+                          onClick={() => openCameraFor(project.id, "bon")}
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#eef6ff] px-4 py-3 text-center text-sm font-semibold text-[#1976d2] transition hover:bg-[#e3f0ff]"
                         >
-                          ⬆️ Bon
+                          <UploadIcon />
+                          Încarcă Bon
                         </button>
 
                         <button
                           type="button"
-                          onClick={() =>
-                            router.push(`/proiecte/${project.id}/incarca-factura`)
-                          }
-                          className="w-full rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-left text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
+                          onClick={() => openCameraFor(project.id, "factura")}
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-purple-50 px-4 py-3 text-center text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
                         >
-                          ⬆️ Factură
+                          <UploadIcon />
+                          Încarcă Factură
                         </button>
 
                         <button
@@ -556,12 +987,306 @@ export default function ProiectePage() {
                               `/proiecte/${project.id}/adauga-nedeductibile`
                             )
                           }
-                          className="w-full rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-left text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-center text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
                         >
-                          ⬆️ Nedeductibilă
+                          <UploadIcon />
+                          Adaugă Nedeductibilă
                         </button>
                       </div>
                     </div>
+
+                    {isActiveInline && (
+                      <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
+                        <div className="mb-4">
+                          <p className="text-base font-semibold text-gray-900">
+                            {activeInlineType === "bon"
+                              ? "Card bon fiscal extras"
+                              : "Card factură extrasă"}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Fotografia este analizată automat, iar datele pot fi corectate înainte de salvare.
+                          </p>
+                        </div>
+
+                        {imagePreview && (
+                          <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-3">
+                            <img
+                              src={imagePreview}
+                              alt="Preview document"
+                              className="max-h-[420px] w-full rounded-xl object-contain"
+                            />
+                          </div>
+                        )}
+
+                        {uploadingImage && (
+                          <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                            <p className="text-sm font-medium text-blue-800">
+                              Se încarcă imaginea...
+                            </p>
+                          </div>
+                        )}
+
+                        {isExtracting && (
+                          <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
+                            <p className="text-sm font-medium text-purple-800">
+                              AI analizează documentul și completează automat datele...
+                            </p>
+                          </div>
+                        )}
+
+                        {extractionError && (
+                          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                            <p className="text-sm font-medium text-red-700">
+                              {extractionError}
+                            </p>
+                          </div>
+                        )}
+
+                        <div className="rounded-2xl bg-white p-4 shadow-sm">
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Data
+                              </label>
+                              <input
+                                type="date"
+                                value={formState.documentDate}
+                                onChange={(e) =>
+                                  updateFormField("documentDate", e.target.value)
+                                }
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Număr document
+                              </label>
+                              <input
+                                type="text"
+                                value={formState.documentNumber}
+                                onChange={(e) =>
+                                  updateFormField("documentNumber", e.target.value)
+                                }
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Furnizor
+                              </label>
+                              <input
+                                type="text"
+                                value={formState.supplier}
+                                onChange={(e) =>
+                                  updateFormField("supplier", e.target.value)
+                                }
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Total fără TVA
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={formState.totalWithoutVat}
+                                onChange={(e) =>
+                                  updateFormField("totalWithoutVat", e.target.value)
+                                }
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Total cu TVA
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={formState.totalWithVat}
+                                onChange={(e) =>
+                                  updateFormField("totalWithVat", e.target.value)
+                                }
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                              />
+                            </div>
+
+                            <div className="md:col-span-2">
+                              <label className="mb-2 block text-sm font-medium text-gray-700">
+                                Observații
+                              </label>
+                              <textarea
+                                value={formState.notes}
+                                onChange={(e) =>
+                                  updateFormField("notes", e.target.value)
+                                }
+                                rows={3}
+                                className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <h3 className="text-base font-semibold text-gray-900">
+                              Materiale extrase
+                            </h3>
+
+                            <button
+                              type="button"
+                              onClick={addItem}
+                              className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+                                activeInlineType === "bon"
+                                  ? "bg-[#0196ff]"
+                                  : "bg-purple-600"
+                              }`}
+                            >
+                              + Adaugă material
+                            </button>
+                          </div>
+
+                          <div className="space-y-4">
+                            {formState.items.map((item, index) => (
+                              <div
+                                key={index}
+                                className="rounded-xl border border-gray-200 bg-gray-50 p-4"
+                              >
+                                <div className="mb-3 flex items-center justify-between">
+                                  <p className="text-sm font-semibold text-gray-800">
+                                    Material {index + 1}
+                                  </p>
+
+                                  {formState.items.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeItem(index)}
+                                      className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white"
+                                    >
+                                      Șterge
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                                  <div className="md:col-span-4">
+                                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                                      Denumire material
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={item.item_name}
+                                      onChange={(e) =>
+                                        updateItem(index, "item_name", e.target.value)
+                                      }
+                                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                                      Cantitate
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.quantity}
+                                      onChange={(e) =>
+                                        updateItem(index, "quantity", e.target.value)
+                                      }
+                                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                                      Preț unitar
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.unit_price}
+                                      onChange={(e) =>
+                                        updateItem(index, "unit_price", e.target.value)
+                                      }
+                                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                                      Total linie
+                                    </label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.line_total}
+                                      onChange={(e) =>
+                                        updateItem(index, "line_total", e.target.value)
+                                      }
+                                      className="w-full rounded-xl border border-gray-300 px-4 py-3"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div
+                            className={`mt-4 rounded-xl px-4 py-3 ${
+                              activeInlineType === "bon"
+                                ? "border border-blue-200 bg-blue-50"
+                                : "border border-purple-200 bg-purple-50"
+                            }`}
+                          >
+                            <p
+                              className={`text-sm font-medium ${
+                                activeInlineType === "bon"
+                                  ? "text-blue-800"
+                                  : "text-purple-800"
+                              }`}
+                            >
+                              Total materiale: {computedItemsTotal.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={handleSaveInline}
+                            disabled={savingInline || uploadingImage || isExtracting}
+                            className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                          >
+                            {savingInline
+                              ? "Se salvează..."
+                              : activeInlineType === "bon"
+                              ? "Salvează Bon"
+                              : "Salvează Factură"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveInlineProjectId(null);
+                              setActiveInlineType(null);
+                              setImagePreview("");
+                              setUploadedImageUrl("");
+                              setExtractionError("");
+                              setFormState(createEmptyForm());
+                            }}
+                            className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                          >
+                            Renunță
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
