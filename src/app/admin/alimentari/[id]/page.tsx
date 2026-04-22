@@ -38,6 +38,7 @@ export default function DetaliuAlimentarePage() {
   const fundingId = params.id as string;
 
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [funding, setFunding] = useState<FundingDetails | null>(null);
 
   useEffect(() => {
@@ -118,6 +119,30 @@ export default function DetaliuAlimentarePage() {
     if (status === "in_lucru") return "bg-yellow-100 text-yellow-800";
     if (status === "finalizat") return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-800";
+  };
+
+  const handleDelete = async () => {
+    const confirmed = window.confirm(
+      "Sigur vrei să ștergi această alimentare?"
+    );
+
+    if (!confirmed) return;
+
+    setDeleting(true);
+
+    const { error } = await supabase
+      .from("project_fundings")
+      .delete()
+      .eq("id", fundingId);
+
+    if (error) {
+      alert(`A apărut o eroare la ștergere: ${error.message}`);
+      setDeleting(false);
+      return;
+    }
+
+    alert("Alimentarea a fost ștearsă.");
+    router.push("/admin/alimentari");
   };
 
   if (loading) {
@@ -249,6 +274,25 @@ export default function DetaliuAlimentarePage() {
                 </div>
               </div>
             )}
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="w-full rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {deleting ? "Se șterge..." : "Șterge alimentarea"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/admin/alimentari")}
+                className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+              >
+                Înapoi
+              </button>
+            </div>
           </div>
         </div>
       </div>
