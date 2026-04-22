@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -131,29 +132,132 @@ export default function AdaugaProiectPage() {
     router.push("/dashboard");
   };
 
+  const renderProjectIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <rect
+        x="4"
+        y="4"
+        width="7"
+        height="7"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <rect
+        x="13"
+        y="4"
+        width="7"
+        height="4"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <rect
+        x="13"
+        y="10"
+        width="7"
+        height="10"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <rect
+        x="4"
+        y="13"
+        width="7"
+        height="7"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+    </svg>
+  );
+
+  const renderTeamIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Adaugă proiect</h1>
-            <p className="text-sm text-gray-600">
-              Completează datele proiectului și selectează șefii de echipă.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
-            className="rounded-lg bg-black px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             Înapoi la dashboard
           </button>
         </div>
+      </header>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Informații proiect</h2>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderProjectIcon()}
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">Administrare proiecte</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Adaugă proiect
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+                Completează datele proiectului și selectează șefii de echipă.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-blue-50">
+                {renderProjectIcon()}
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Informații proiect
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Datele generale ale proiectului.
+                </p>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -165,7 +269,7 @@ export default function AdaugaProiectPage() {
                   value={nume}
                   onChange={(e) => setNume(e.target.value)}
                   placeholder="Introdu numele proiectului"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -178,7 +282,7 @@ export default function AdaugaProiectPage() {
                   value={beneficiar}
                   onChange={(e) => setBeneficiar(e.target.value)}
                   placeholder="Introdu beneficiarul"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -191,7 +295,7 @@ export default function AdaugaProiectPage() {
                   value={locatie}
                   onChange={(e) => setLocatie(e.target.value)}
                   placeholder="Introdu locația proiectului"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -204,7 +308,7 @@ export default function AdaugaProiectPage() {
                   value={tip}
                   onChange={(e) => setTip(e.target.value)}
                   placeholder="Introdu tipul proiectului"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -215,7 +319,7 @@ export default function AdaugaProiectPage() {
                 <select
                   value={grupa}
                   onChange={(e) => setGrupa(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 >
                   <option value="">Selectează grupa</option>
                   <option value="brenado_construct">BRENADO CONSTRUCT</option>
@@ -233,14 +337,21 @@ export default function AdaugaProiectPage() {
                   value={bugetRon}
                   onChange={(e) => setBugetRon(e.target.value)}
                   placeholder="Introdu bugetul proiectului"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Planificare și status</h2>
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Planificare și status
+              </h2>
+              <p className="text-sm text-gray-500">
+                Setează perioada și starea inițială a proiectului.
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
@@ -251,7 +362,7 @@ export default function AdaugaProiectPage() {
                   type="date"
                   value={dataStart}
                   onChange={(e) => setDataStart(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -263,7 +374,7 @@ export default function AdaugaProiectPage() {
                   type="date"
                   value={termen}
                   onChange={(e) => setTermen(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -274,7 +385,7 @@ export default function AdaugaProiectPage() {
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 >
                   <option value="in_asteptare">În așteptare</option>
                   <option value="in_lucru">În lucru</option>
@@ -282,30 +393,39 @@ export default function AdaugaProiectPage() {
                 </select>
               </div>
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="text-2xl font-bold">Șefi de echipă</h2>
-            <p className="mt-3 text-base text-gray-600">
-              Selectează minim un șef de echipă pentru proiect.
-            </p>
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-blue-50">
+                {renderTeamIcon()}
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Șefi de echipă
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Selectează minim un șef de echipă pentru proiect.
+                </p>
+              </div>
+            </div>
 
-            <div className="relative mt-5">
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowTeamLeadsDropdown((prev) => !prev)}
-                className="flex w-full items-center justify-between rounded-xl border border-gray-300 bg-white px-5 py-4 text-left text-lg text-gray-800"
+                className="flex w-full items-center justify-between rounded-2xl border border-gray-300 bg-white px-5 py-4 text-left text-base text-gray-800 transition hover:bg-gray-50"
               >
                 <span>
                   {selectedLeads.length > 0
                     ? `Selectați: ${selectedLeads.length}`
                     : "Selectează șefii de echipă"}
                 </span>
-                <span className="text-xl">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
+                <span className="text-lg">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
               </button>
 
               {showTeamLeadsDropdown && (
-                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-xl border border-gray-300 bg-white p-3 shadow-lg">
+                <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-300 bg-white p-3 shadow-lg">
                   {teamLeads.length === 0 ? (
                     <p className="px-2 py-2 text-sm text-gray-500">
                       Nu există utilizatori cu rol de șef de echipă.
@@ -315,7 +435,7 @@ export default function AdaugaProiectPage() {
                       {teamLeads.map((lead) => (
                         <label
                           key={lead.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 hover:bg-gray-50"
+                          className="flex cursor-pointer items-center gap-3 rounded-xl px-3 py-3 transition hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
@@ -348,13 +468,13 @@ export default function AdaugaProiectPage() {
                   ))}
               </div>
             )}
-          </div>
+          </section>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="submit"
               disabled={loading}
-              className="rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {loading ? "Se salvează..." : "Salvează proiect"}
             </button>
@@ -362,13 +482,13 @@ export default function AdaugaProiectPage() {
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
-              className="rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+              className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Renunță
             </button>
           </div>
         </form>
-      </div>
+      </main>
     </div>
   );
 }
