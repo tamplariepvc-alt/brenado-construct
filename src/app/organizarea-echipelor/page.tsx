@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -327,6 +328,24 @@ export default function OrganizareaEchipelorPage() {
     });
   }, [workers, usedWorkerIds, selectedWorkerIds]);
 
+  const stats = useMemo(() => {
+    return {
+      totalTeams: teams.length,
+      totalWorkers: teams.reduce(
+        (acc, team) =>
+          acc +
+          teamWorkers.filter((item) => item.daily_team_id === team.id).length,
+        0
+      ),
+      totalVehicles: teams.reduce(
+        (acc, team) =>
+          acc +
+          teamVehicles.filter((item) => item.daily_team_id === team.id).length,
+        0
+      ),
+    };
+  }, [teams, teamWorkers, teamVehicles]);
+
   const toggleVehicle = (vehicleId: string) => {
     setSelectedVehicleIds((prev) =>
       prev.includes(vehicleId)
@@ -377,22 +396,22 @@ export default function OrganizareaEchipelorPage() {
     }
 
     if (!selectedWorkDate) {
-      alert("Selecteaza data echipei.");
+      alert("Selectează data echipei.");
       return;
     }
 
     if (!selectedProjectId) {
-      alert("Selecteaza santierul.");
+      alert("Selectează șantierul.");
       return;
     }
 
     if (selectedVehicleIds.length === 0) {
-      alert("Selecteaza cel putin un autoturism.");
+      alert("Selectează cel puțin un autoturism.");
       return;
     }
 
     if (selectedWorkerIds.length === 0) {
-      alert("Selecteaza cel putin un muncitor.");
+      alert("Selectează cel puțin un muncitor.");
       return;
     }
 
@@ -411,7 +430,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (teamError || !teamInsert) {
         alert(
-          `A aparut o eroare la crearea echipei: ${teamError?.message || ""}`
+          `A apărut o eroare la crearea echipei: ${teamError?.message || ""}`
         );
         setSaving(false);
         return;
@@ -433,7 +452,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (workerError) {
         alert(
-          `A aparut o eroare la salvarea muncitorilor: ${workerError.message}`
+          `A apărut o eroare la salvarea muncitorilor: ${workerError.message}`
         );
         setSaving(false);
         return;
@@ -445,7 +464,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (vehicleError) {
         alert(
-          `A aparut o eroare la salvarea masinilor: ${vehicleError.message}`
+          `A apărut o eroare la salvarea mașinilor: ${vehicleError.message}`
         );
         setSaving(false);
         return;
@@ -461,7 +480,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (updateTeamError) {
         alert(
-          `A aparut o eroare la actualizarea echipei: ${updateTeamError.message}`
+          `A apărut o eroare la actualizarea echipei: ${updateTeamError.message}`
         );
         setSaving(false);
         return;
@@ -474,7 +493,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (deleteWorkersError) {
         alert(
-          `A aparut o eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`
+          `A apărut o eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`
         );
         setSaving(false);
         return;
@@ -487,7 +506,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (deleteVehiclesError) {
         alert(
-          `A aparut o eroare la actualizarea masinilor: ${deleteVehiclesError.message}`
+          `A apărut o eroare la actualizarea mașinilor: ${deleteVehiclesError.message}`
         );
         setSaving(false);
         return;
@@ -509,7 +528,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (insertWorkersError) {
         alert(
-          `A aparut o eroare la salvarea muncitorilor: ${insertWorkersError.message}`
+          `A apărut o eroare la salvarea muncitorilor: ${insertWorkersError.message}`
         );
         setSaving(false);
         return;
@@ -521,7 +540,7 @@ export default function OrganizareaEchipelorPage() {
 
       if (insertVehiclesError) {
         alert(
-          `A aparut o eroare la salvarea masinilor: ${insertVehiclesError.message}`
+          `A apărut o eroare la salvarea mașinilor: ${insertVehiclesError.message}`
         );
         setSaving(false);
         return;
@@ -569,44 +588,123 @@ export default function OrganizareaEchipelorPage() {
     return `${regs[0]} +${regs.length - 1}`;
   };
 
+  const renderTeamIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <circle cx="8" cy="9" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="8" r="2.5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M3.5 18c0-2.8 2.4-5 5.5-5s5.5 2.2 5.5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14.5 18c.2-1.8 1.8-3.2 4-3.2 1 0 2 .2 2.8.8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+
   if (loading) {
-    return <div className="p-6">Se incarca organizarea echipelor...</div>;
+    return <div className="p-6">Se încarcă organizarea echipelor...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Organizarea echipelor</h1>
-            <p className="text-sm text-gray-600">
-              {selectedViewDate === todayDate
-                ? "Echipe planificate pentru azi: "
-                : "Echipe planificate pentru ziua urmatoare: "}
-              <span className="font-semibold">{formatDate(selectedViewDate)}</span>
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button
               onClick={() => router.push("/dashboard")}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              Inapoi la dashboard
+              Înapoi la dashboard
             </button>
 
             {isAdmin && (
               <button
                 onClick={openCreateModal}
-                className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
               >
-                Creeaza echipa
+                Creează echipă
               </button>
             )}
+          </div>
+        </div>
+      </header>
 
+      <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderTeamIcon()}
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500">Planificare echipe</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Organizarea echipelor
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+                {selectedViewDate === todayDate
+                  ? "Echipe planificate pentru azi."
+                  : "Echipe planificate pentru ziua următoare."}
+              </p>
+              <p className="mt-2 text-sm font-medium text-gray-400">
+                {formatDate(selectedViewDate)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="rounded-2xl bg-blue-50 px-4 py-4 text-center">
+              <p className="text-2xl font-extrabold tracking-tight text-blue-600 sm:text-3xl">
+                {stats.totalTeams}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-300">
+                Echipe
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-green-50 px-4 py-4 text-center">
+              <p className="text-2xl font-extrabold tracking-tight text-green-600 sm:text-3xl">
+                {stats.totalWorkers}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-300">
+                Muncitori
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-orange-50 px-4 py-4 text-center">
+              <p className="text-2xl font-extrabold tracking-tight text-orange-600 sm:text-3xl">
+                {stats.totalVehicles}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-300">
+                Auto
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <button
               onClick={() => setSelectedViewDate(todayDate)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                 selectedViewDate === todayDate
                   ? "bg-black text-white"
                   : "border border-gray-300 bg-white text-gray-700"
@@ -617,108 +715,117 @@ export default function OrganizareaEchipelorPage() {
 
             <button
               onClick={() => setSelectedViewDate(tomorrowDate)}
-              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
                 selectedViewDate === tomorrowDate
                   ? "bg-black text-white"
                   : "border border-gray-300 bg-white text-gray-700"
               }`}
             >
-              Vezi echipele de maine
+              Vezi echipele de mâine
             </button>
           </div>
-        </div>
+        </section>
 
-        {teams.length === 0 ? (
-          <div className="rounded-2xl bg-white p-6 shadow">
-            <p className="text-sm text-gray-500">
-              {selectedViewDate === todayDate
-                ? "Nu exista echipe postate pentru azi."
-                : "Nu exista echipe postate pentru ziua urmatoare."}
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Echipe planificate
             </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {teams.map((team, index) => {
-              const project = getProjectById(team.project_id);
-              const workerCount = getTeamWorkerIds(team.id).length;
 
-              return (
-                <div
-                  key={team.id}
-                  className="rounded-2xl bg-white p-5 shadow transition hover:shadow-md"
-                >
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/organizarea-echipelor/${team.id}`)}
-                    className="w-full text-left"
+          {teams.length === 0 ? (
+            <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
+              <p className="text-sm text-gray-500">
+                {selectedViewDate === todayDate
+                  ? "Nu există echipe postate pentru azi."
+                  : "Nu există echipe postate pentru ziua următoare."}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {teams.map((team, index) => {
+                const project = getProjectById(team.project_id);
+                const workerCount = getTeamWorkerIds(team.id).length;
+
+                return (
+                  <div
+                    key={team.id}
+                    className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
-                    <div className="mb-4 flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="text-lg font-semibold text-gray-900">
-                          Echipa {index + 1}
-                        </h2>
-                        <p className="mt-1 text-sm font-medium text-gray-500">
-                          {project?.name || "-"}
-                        </p>
-                      </div>
-
-                      <div className="text-3xl font-light text-gray-400">›</div>
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="text-gray-500">Data</span>
-                        <span className="text-right font-medium text-gray-900">
-                          {formatDate(team.work_date)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="text-gray-500">Auto atribuite</span>
-                        <span className="text-right font-medium text-gray-900">
-                          {getVehiclesPreview(team.id)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="text-gray-500">Muncitori</span>
-                        <span className="text-right font-medium text-gray-900">
-                          {workerCount}
-                        </span>
-                      </div>
-
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="text-gray-500">Locatie</span>
-                        <span className="text-right font-medium text-gray-900">
-                          {project?.project_location || "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </button>
-
-                  {isAdmin && (
                     <button
                       type="button"
-                      onClick={() => openEditModal(team)}
-                      className="mt-4 w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+                      onClick={() => router.push(`/organizarea-echipelor/${team.id}`)}
+                      className="w-full text-left"
                     >
-                      Editeaza
+                      <div className="mb-4 flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h2 className="text-lg font-semibold text-gray-900">
+                            Echipa {index + 1}
+                          </h2>
+                          <p className="mt-1 text-sm font-medium text-gray-500">
+                            {project?.name || "-"}
+                          </p>
+                        </div>
+
+                        <div className="text-3xl font-light text-gray-400">›</div>
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500">Data</span>
+                          <span className="text-right font-medium text-gray-900">
+                            {formatDate(team.work_date)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500">Auto atribuite</span>
+                          <span className="text-right font-medium text-gray-900">
+                            {getVehiclesPreview(team.id)}
+                          </span>
+                        </div>
+
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500">Muncitori</span>
+                          <span className="text-right font-medium text-gray-900">
+                            {workerCount}
+                          </span>
+                        </div>
+
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-gray-500">Locație</span>
+                          <span className="text-right font-medium text-gray-900">
+                            {project?.project_location || "-"}
+                          </span>
+                        </div>
+                      </div>
                     </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(team)}
+                        className="mt-4 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                      >
+                        Editează
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </main>
 
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">
-                  {editingTeamId ? "Editeaza echipa" : "Creeaza echipa"}
+                  {editingTeamId ? "Editează echipa" : "Creează echipa"}
                 </h2>
                 <p className="text-sm text-gray-500">
                   Echipa se va salva pentru data de {formatDate(selectedWorkDate)}.
@@ -728,9 +835,9 @@ export default function OrganizareaEchipelorPage() {
               <button
                 type="button"
                 onClick={closeCreateModal}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
               >
-                Inchide
+                Închide
               </button>
             </div>
 
@@ -744,20 +851,20 @@ export default function OrganizareaEchipelorPage() {
                     type="date"
                     value={selectedWorkDate}
                     onChange={(e) => setSelectedWorkDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
                   />
                 </div>
 
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Selectare santier
+                    Selectare șantier
                   </label>
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
                   >
-                    <option value="">Alege santier</option>
+                    <option value="">Alege șantier</option>
                     {availableProjects.map((project) => (
                       <option key={project.id} value={project.id}>
                         {project.name}
@@ -772,15 +879,15 @@ export default function OrganizareaEchipelorPage() {
                   </p>
 
                   {availableVehicles.length === 0 ? (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu exista masini disponibile pentru data selectata.
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                      Nu există mașini disponibile pentru data selectată.
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {availableVehicles.map((vehicle) => (
                         <label
                           key={vehicle.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
@@ -808,15 +915,15 @@ export default function OrganizareaEchipelorPage() {
                   </p>
 
                   {availableWorkers.length === 0 ? (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu exista muncitori disponibili pentru data selectata.
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                      Nu există muncitori disponibili pentru data selectată.
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {availableWorkers.map((worker) => (
                         <label
                           key={worker.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
@@ -833,12 +940,12 @@ export default function OrganizareaEchipelorPage() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-sm font-medium text-blue-800">
-                    Data selectata: {formatDate(selectedWorkDate)}
+                    Data selectată: {formatDate(selectedWorkDate)}
                   </p>
                   <p className="mt-1 text-sm font-medium text-blue-800">
-                    Santier selectat:{" "}
+                    Șantier selectat:{" "}
                     {availableProjects.find((p) => p.id === selectedProjectId)
                       ?.name || "-"}
                   </p>
@@ -846,7 +953,7 @@ export default function OrganizareaEchipelorPage() {
                     Auto selectate: {selectedVehicleIds.length}
                   </p>
                   <p className="mt-1 text-sm text-blue-800">
-                    Muncitori selectati: {selectedWorkerIds.length}
+                    Muncitori selectați: {selectedWorkerIds.length}
                   </p>
                 </div>
 
@@ -855,21 +962,21 @@ export default function OrganizareaEchipelorPage() {
                     type="button"
                     onClick={handleSaveTeam}
                     disabled={saving}
-                    className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
                     {saving
-                      ? "Se salveaza..."
+                      ? "Se salvează..."
                       : editingTeamId
-                      ? "Salveaza modificarile"
-                      : "Posteaza echipa"}
+                      ? "Salvează modificările"
+                      : "Postează echipa"}
                   </button>
 
                   <button
                     type="button"
                     onClick={closeCreateModal}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                   >
-                    Renunta
+                    Renunță
                   </button>
                 </div>
               </div>
