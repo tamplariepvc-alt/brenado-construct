@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -28,6 +29,12 @@ type OrderRow = {
 
 type ProfileNameMap = Record<string, string>;
 
+type StatusFilterKey =
+  | "toate"
+  | "asteapta_confirmare"
+  | "aprobata"
+  | "refuzata";
+
 export default function ComenziPage() {
   const router = useRouter();
 
@@ -36,7 +43,7 @@ export default function ComenziPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [profileNames, setProfileNames] = useState<ProfileNameMap>({});
 
-  const [statusFilter, setStatusFilter] = useState("toate");
+  const [statusFilter, setStatusFilter] = useState<StatusFilterKey>("toate");
   const [searchSantier, setSearchSantier] = useState("");
   const [searchDate, setSearchDate] = useState("");
 
@@ -143,6 +150,17 @@ export default function ComenziPage() {
     });
   }, [orders, statusFilter, searchSantier, searchDate]);
 
+  const stats = useMemo(() => {
+    return {
+      total: orders.length,
+      inAsteptare: orders.filter(
+        (order) => order.status === "asteapta_confirmare"
+      ).length,
+      aprobate: orders.filter((order) => order.status === "aprobata").length,
+      refuzate: orders.filter((order) => order.status === "refuzata").length,
+    };
+  }, [orders]);
+
   const getStatusLabel = (status: string) => {
     if (status === "draft") return "Draft";
     if (status === "asteapta_confirmare") return "Așteaptă";
@@ -167,180 +185,323 @@ export default function ComenziPage() {
     return "bg-gray-100 text-gray-700";
   };
 
+  const getFilterCardClasses = (filter: StatusFilterKey) => {
+    const active = statusFilter === filter;
+
+    if (filter === "toate") {
+      return active
+        ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50"
+        : "border-transparent bg-blue-50";
+    }
+
+    if (filter === "asteapta_confirmare") {
+      return active
+        ? "border-amber-400 ring-2 ring-amber-200 bg-amber-50"
+        : "border-transparent bg-amber-50";
+    }
+
+    if (filter === "aprobata") {
+      return active
+        ? "border-green-400 ring-2 ring-green-200 bg-green-50"
+        : "border-transparent bg-green-50";
+    }
+
+    return active
+      ? "border-red-400 ring-2 ring-red-200 bg-red-50"
+      : "border-transparent bg-red-50";
+  };
+
+  const renderOrderIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <path
+        d="M4 6h2l1.4 6.5h8.8L18 8H8.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="18" r="1.5" fill="currentColor" />
+      <circle cx="17" cy="18" r="1.5" fill="currentColor" />
+    </svg>
+  );
+
   if (loading) {
     return <div className="p-6">Se încarcă comenzile...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Comenzi</h1>
-            <p className="text-sm text-gray-600">
-              {profile?.role === "administrator"
-                ? "Vezi toate comenzile din sistem"
-                : "Vezi comenzile create de tine"}
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/dashboard")}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Înapoi la dashboard
             </button>
 
             <button
               onClick={() => router.push("/comenzi/adauga")}
-              className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
             >
               + Adaugă comandă
             </button>
           </div>
         </div>
+      </header>
 
-        <div className="mb-6 rounded-2xl bg-white p-4 shadow">
-          <div className="mb-4 grid grid-cols-1 gap-3">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderOrderIcon()}
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">
+                {profile?.role === "administrator"
+                  ? "Administrare comenzi"
+                  : "Comenzile tale"}
+              </p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Comenzi
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+                {profile?.role === "administrator"
+                  ? "Vezi toate comenzile din sistem."
+                  : "Vezi comenzile create de tine."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
             <button
+              type="button"
               onClick={() => setStatusFilter("toate")}
-              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-                statusFilter === "toate"
-                  ? "text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-              style={{
-                backgroundColor:
-                  statusFilter === "toate" ? "#0196ff" : undefined,
-              }}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "toate"
+              )}`}
             >
-              Toate comenzile
+              <p className="text-2xl font-extrabold tracking-tight text-blue-600 sm:text-3xl">
+                {stats.total}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-300">
+                Toate
+              </p>
             </button>
 
             <button
+              type="button"
               onClick={() => setStatusFilter("asteapta_confirmare")}
-              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-                statusFilter === "asteapta_confirmare"
-                  ? "text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-              style={{
-                backgroundColor:
-                  statusFilter === "asteapta_confirmare"
-                    ? "#f59e0b"
-                    : undefined,
-              }}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "asteapta_confirmare"
+              )}`}
             >
-              Comenzi în așteptare
+              <p className="text-2xl font-extrabold tracking-tight text-amber-600 sm:text-3xl">
+                {stats.inAsteptare}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300">
+                În așteptare
+              </p>
             </button>
 
             <button
+              type="button"
               onClick={() => setStatusFilter("aprobata")}
-              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-                statusFilter === "aprobata"
-                  ? "text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-              style={{
-                backgroundColor:
-                  statusFilter === "aprobata" ? "#16a34a" : undefined,
-              }}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "aprobata"
+              )}`}
             >
-              Comenzi aprobate
+              <p className="text-2xl font-extrabold tracking-tight text-green-600 sm:text-3xl">
+                {stats.aprobate}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-300">
+                Aprobate
+              </p>
             </button>
 
             <button
+              type="button"
               onClick={() => setStatusFilter("refuzata")}
-              className={`w-full rounded-lg px-4 py-3 text-left text-sm font-semibold ${
-                statusFilter === "refuzata"
-                  ? "text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-              style={{
-                backgroundColor:
-                  statusFilter === "refuzata" ? "#dc2626" : undefined,
-              }}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "refuzata"
+              )}`}
             >
-              Comenzi refuzate
+              <p className="text-2xl font-extrabold tracking-tight text-red-600 sm:text-3xl">
+                {stats.refuzate}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-red-300">
+                Refuzate
+              </p>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Caută după șantier
-              </label>
-              <input
-                type="text"
-                placeholder="Introdu numele șantierului"
-                value={searchSantier}
-                onChange={(e) => setSearchSantier(e.target.value)}
-                className="rounded-lg border border-gray-300 px-4 py-3"
-              />
-            </div>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <input
+              type="text"
+              placeholder="Caută după șantier"
+              value={searchSantier}
+              onChange={(e) => setSearchSantier(e.target.value)}
+              className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black"
+            />
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-gray-700">
-                Caută după data
-              </label>
-              <input
-                type="date"
-                value={searchDate}
-                onChange={(e) => setSearchDate(e.target.value)}
-                className="rounded-lg border border-gray-300 px-4 py-3"
-              />
-            </div>
+            <input
+              type="date"
+              value={searchDate}
+              onChange={(e) => setSearchDate(e.target.value)}
+              className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black"
+            />
           </div>
-        </div>
+        </section>
 
-        <div className="overflow-hidden rounded-2xl bg-white shadow">
-<div className="grid grid-cols-4 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
-  <div>Nr.</div>
-  <div>Data</div>
-  <div>Valoare</div>
-  <div>Status</div>
-</div>
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Lista comenzi
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
 
           {filteredOrders.length === 0 ? (
-            <div className="px-4 py-6 text-sm text-gray-500">
-              Nu există comenzi pentru filtrele selectate.
+            <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+              <p className="text-sm text-gray-500">
+                Nu există comenzi pentru filtrele selectate.
+              </p>
             </div>
           ) : (
-            filteredOrders.map((order, index) => (
-<button
-  key={order.id}
-  onClick={() => router.push(`/comenzi/${order.id}`)}
-  className="grid w-full grid-cols-4 items-center border-b px-4 py-3 text-left text-xs transition hover:bg-gray-50 last:border-b-0"
->
-  <div className="font-semibold">
-    {order.order_number
-      ? order.order_number.replace("CMD-", "")
-      : String(index + 1).padStart(4, "0")}
-  </div>
+            <>
+              <div className="hidden lg:block overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+                <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
+                  <div className="col-span-2">Nr.</div>
+                  <div className="col-span-3">Șantier</div>
+                  <div className="col-span-2">Data</div>
+                  <div className="col-span-2">Valoare</div>
+                  <div className="col-span-2">Status</div>
+                  <div className="col-span-1"></div>
+                </div>
 
-  <div>
-    {new Date(order.order_date).toLocaleDateString("ro-RO")}
-  </div>
+                {filteredOrders.map((order, index) => (
+                  <button
+                    key={order.id}
+                    onClick={() => router.push(`/comenzi/${order.id}`)}
+                    className="grid w-full grid-cols-12 items-center border-b border-[#E8E5DE] px-5 py-4 text-left transition hover:bg-[#FCFBF8] last:border-b-0"
+                  >
+                    <div className="col-span-2 text-sm font-semibold text-gray-900">
+                      {order.order_number
+                        ? order.order_number.replace("CMD-", "")
+                        : String(index + 1).padStart(4, "0")}
+                    </div>
 
-  <div className="font-semibold">
-    {Number(order.total_with_vat || 0).toFixed(2)} lei
-  </div>
+                    <div className="col-span-3 text-sm text-gray-600">
+                      {order.projects?.[0]?.name || "-"}
+                    </div>
 
-  <div>
-    <span
-      className={`inline-block rounded-full px-2 py-1 text-[10px] font-semibold ${getStatusColor(
-        order.status
-      )}`}
-    >
-      {getStatusLabel(order.status)}
-    </span>
-  </div>
-</button>
-            ))
+                    <div className="col-span-2 text-sm text-gray-500">
+                      {new Date(order.order_date).toLocaleDateString("ro-RO")}
+                    </div>
+
+                    <div className="col-span-2 text-sm font-bold text-gray-900">
+                      {Number(order.total_with_vat || 0).toFixed(2)} lei
+                    </div>
+
+                    <div className="col-span-2">
+                      <span
+                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        {getStatusLabel(order.status)}
+                      </span>
+                    </div>
+
+                    <div className="col-span-1 text-right text-2xl font-light text-gray-400">
+                      ›
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3 lg:hidden">
+                {filteredOrders.map((order, index) => (
+                  <button
+                    key={order.id}
+                    onClick={() => router.push(`/comenzi/${order.id}`)}
+                    className="relative w-full overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                            {renderOrderIcon()}
+                          </div>
+
+                          <div className="min-w-0">
+                            <p className="text-[15px] font-bold leading-5 text-gray-900">
+                              {order.order_number
+                                ? order.order_number.replace("CMD-", "")
+                                : String(index + 1).padStart(4, "0")}
+                            </p>
+                            <p className="mt-1 text-sm text-gray-500">
+                              {order.projects?.[0]?.name || "-"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(
+                          order.status
+                        )}`}
+                      >
+                        {getStatusLabel(order.status)}
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 pr-10">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                          Data
+                        </p>
+                        <p className="mt-1 text-sm text-gray-700">
+                          {new Date(order.order_date).toLocaleDateString("ro-RO")}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                          Valoare
+                        </p>
+                        <p className="mt-1 text-sm font-bold text-gray-900">
+                          {Number(order.total_with_vat || 0).toFixed(2)} lei
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EEE9] text-base text-gray-400">
+                      ›
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
