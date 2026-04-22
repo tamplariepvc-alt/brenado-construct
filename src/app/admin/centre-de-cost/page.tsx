@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { getRomanianLegalHolidays } from "@/lib/romanian-working-days";
 
 type CostCenter = {
   id: string;
@@ -15,15 +16,214 @@ type CostCenter = {
   is_cost_center: boolean;
 };
 
+type Worker = {
+  id: string;
+  full_name: string;
+  monthly_salary: number | null;
+  is_active: boolean;
+};
+
+type TimeEntry = {
+  id: string;
+  project_id: string;
+  worker_id: string;
+  start_time: string;
+  end_time: string | null;
+  work_date: string;
+  status: string;
+};
+
+type ExtraWork = {
+  id: string;
+  project_id: string;
+  worker_id: string;
+  work_date: string;
+  extra_hours: number | null;
+  extra_hours_value: number | null;
+  weekend_days_count: number | null;
+  weekend_value: number | null;
+  total_value: number | null;
+};
+
+type ApprovedOrder = {
+  id: string;
+  project_id: string;
+  total_with_vat: number | null;
+  status: string;
+};
+
+type FiscalReceipt = {
+  id: string;
+  project_id: string;
+  total_with_vat: number | null;
+};
+
+type ProjectInvoice = {
+  id: string;
+  project_id: string;
+  total_with_vat: number | null;
+};
+
+type NondeductibleExpense = {
+  id: string;
+  project_id: string;
+  cost_ron: number | null;
+};
+
+type HolidayInfo = {
+  date: string;
+  name: string;
+};
+
+type DisplayMeta = {
+  workingDays: number;
+  normHours: number;
+  legalHolidays: HolidayInfo[];
+};
+
+type FilterKey = "toate" | "in_asteptare" | "in_lucru" | "finalizat";
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const toDateKey = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+const getDateRangeInclusive = (start: Date, end: Date) => {
+  const dates: Date[] = [];
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+
+  while (cursor.getTime() <= last.getTime()) {
+    dates.push(new Date(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return dates;
+};
+
+const getWorkingDaysAndHolidaysInRangeRomania = (
+  start: Date,
+  end: Date
+): DisplayMeta => {
+  const dates = getDateRangeInclusive(start, end);
+  const years = Array.from(new Set(dates.map((date) => date.getFullYear())));
+  const holidaysMap = new Map<string, string>();
+
+  years.forEach((year) => {
+    getRomanianLegalHolidays(year).forEach((holiday) => {
+      holidaysMap.set(holiday.date, holiday.name);
+    });
+  });
+
+  let workingDays = 0;
+  const legalHolidays: HolidayInfo[] = [];
+
+  dates.forEach((date) => {
+    const key = toDateKey(date);
+    const dayOfWeek = date.getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const holidayName = holidaysMap.get(key);
+
+    if (holidayName) {
+      legalHolidays.push({
+        date: key,
+        name: holidayName,
+      });
+    }
+
+    if (!isWeekend && !holidayName) {
+      workingDays += 1;
+    }
+  });
+
+  return {
+    workingDays,
+    normHours: workingDays * 8,
+    legalHolidays,
+  };
+};
+
 export default function CentreDeCostPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [centres, setCentres] = useState<CostCenter[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeFilter, setActiveFilter] = useState<FilterKey>("toate");
+  const [projectTotals, setProjectTotals] = useState<Record<string, number>>({});
+
+  const getPauseWindowForDate = (dateLike: string | Date) => {
+    const d =
+      typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
+
+    const year = d.getFullYear();
+    const month = d.getMonth();
+    const day = d.getDate();
+
+    const pauseStart = new Date(year, month, day, 12, 0, 0, 0).getTime();
+    const pauseEnd = new Date(year, month, day, 13, 0, 0, 0).getTime();
+
+    return { pauseStart, pauseEnd };
+  };
+
+  const getOverlapMs = (
+    startMs: number,
+    endMs: number,
+    overlapStart: number,
+    overlapEnd: number
+  ) => {
+    const start = Math.max(startMs, overlapStart);
+    const end = Math.min(endMs, overlapEnd);
+    return Math.max(0, end - start);
+  };
+
+  const getWorkedMsWithoutPause = (
+    startTime: string,
+    endTime?: string | null
+  ) => {
+    const startMs = new Date(startTime).getTime();
+    const endMs = endTime ? new Date(endTime).getTime() : startMs;
+
+    if (endMs <= startMs) return 0;
+
+    let total = endMs - startMs;
+
+    const startDate = new Date(startMs);
+    const endDate = new Date(endMs);
+
+    const cursor = new Date(
+      startDate.getFullYear(),
+      startDate.getMonth(),
+      startDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+    const last = new Date(
+      endDate.getFullYear(),
+      endDate.getMonth(),
+      endDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    );
+
+    while (cursor.getTime() <= last.getTime()) {
+      const { pauseStart, pauseEnd } = getPauseWindowForDate(cursor);
+      total -= getOverlapMs(startMs, endMs, pauseStart, pauseEnd);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return Math.max(0, total);
+  };
 
   useEffect(() => {
     const loadCentres = async () => {
-      const { data, error } = await supabase
+      setLoading(true);
+
+      const { data: centresData, error: centresError } = await supabase
         .from("projects")
         .select(`
           id,
@@ -37,15 +237,194 @@ export default function CentreDeCostPage() {
         .eq("is_cost_center", true)
         .order("created_at", { ascending: false });
 
-      if (!error && data) {
-        setCentres(data as CostCenter[]);
+      if (centresError || !centresData) {
+        setCentres([]);
+        setProjectTotals({});
+        setLoading(false);
+        return;
       }
 
+      const centresRows = centresData as CostCenter[];
+      setCentres(centresRows);
+
+      const projectIds = centresRows.map((item) => item.id);
+
+      if (projectIds.length === 0) {
+        setProjectTotals({});
+        setLoading(false);
+        return;
+      }
+
+      const [
+        { data: ordersData },
+        { data: receiptsData },
+        { data: invoicesData },
+        { data: nondeductiblesData },
+        { data: workersData },
+        { data: timeEntriesData },
+        { data: extraWorkData },
+      ] = await Promise.all([
+        supabase
+          .from("orders")
+          .select("id, project_id, total_with_vat, status")
+          .in("project_id", projectIds)
+          .eq("status", "aprobata"),
+        supabase
+          .from("fiscal_receipts")
+          .select("id, project_id, total_with_vat")
+          .in("project_id", projectIds),
+        supabase
+          .from("project_invoices")
+          .select("id, project_id, total_with_vat")
+          .in("project_id", projectIds),
+        supabase
+          .from("project_nondeductible_expenses")
+          .select("id, project_id, cost_ron")
+          .in("project_id", projectIds),
+        supabase
+          .from("workers")
+          .select("id, full_name, monthly_salary, is_active")
+          .eq("is_active", true),
+        supabase
+          .from("time_entries")
+          .select("id, project_id, worker_id, start_time, end_time, work_date, status")
+          .in("project_id", projectIds)
+          .not("end_time", "is", null),
+        supabase
+          .from("extra_work")
+          .select("id, project_id, worker_id, work_date, extra_hours, extra_hours_value, weekend_days_count, weekend_value, total_value")
+          .in("project_id", projectIds),
+      ]);
+
+      const orders = (ordersData || []) as ApprovedOrder[];
+      const receipts = (receiptsData || []) as FiscalReceipt[];
+      const invoices = (invoicesData || []) as ProjectInvoice[];
+      const nondeductibles = (nondeductiblesData || []) as NondeductibleExpense[];
+      const workers = (workersData || []) as Worker[];
+      const timeEntries = (timeEntriesData || []) as TimeEntry[];
+      const extraWorkRows = (extraWorkData || []) as ExtraWork[];
+
+      const workerMap = new Map<string, Worker>();
+      workers.forEach((worker) => {
+        workerMap.set(worker.id, worker);
+      });
+
+      const totalsMap: Record<string, number> = {};
+
+      projectIds.forEach((projectId) => {
+        const projectOrdersTotal = orders
+          .filter((item) => item.project_id === projectId)
+          .reduce((sum, item) => sum + Number(item.total_with_vat || 0), 0);
+
+        const projectReceiptsTotal = receipts
+          .filter((item) => item.project_id === projectId)
+          .reduce((sum, item) => sum + Number(item.total_with_vat || 0), 0);
+
+        const projectInvoicesTotal = invoices
+          .filter((item) => item.project_id === projectId)
+          .reduce((sum, item) => sum + Number(item.total_with_vat || 0), 0);
+
+        const projectNondeductiblesTotal = nondeductibles
+          .filter((item) => item.project_id === projectId)
+          .reduce((sum, item) => sum + Number(item.cost_ron || 0), 0);
+
+        const projectTimeEntries = timeEntries.filter(
+          (item) => item.project_id === projectId
+        );
+        const projectExtraWork = extraWorkRows.filter(
+          (item) => item.project_id === projectId
+        );
+
+        const allProjectDates = [
+          ...projectTimeEntries.map((entry) => entry.work_date),
+          ...projectExtraWork.map((row) => row.work_date),
+        ]
+          .filter(Boolean)
+          .sort();
+
+        let projectManoperaTotal = 0;
+
+        if (allProjectDates.length > 0) {
+          const startDate = new Date(`${allProjectDates[0]}T00:00:00`);
+          const endDate = new Date(
+            `${allProjectDates[allProjectDates.length - 1]}T00:00:00`
+          );
+
+          const meta = getWorkingDaysAndHolidaysInRangeRomania(startDate, endDate);
+
+          const hourlyRateMap = new Map<string, number>();
+
+          workers.forEach((worker) => {
+            const monthlySalary = Number(worker.monthly_salary || 0);
+            const hourlyRate = meta.normHours > 0 ? monthlySalary / meta.normHours : 0;
+            hourlyRateMap.set(worker.id, hourlyRate);
+          });
+
+          const normalCost = projectTimeEntries.reduce((sum, entry) => {
+            if (!entry.end_time) return sum;
+
+            const workedMs = getWorkedMsWithoutPause(entry.start_time, entry.end_time);
+            const workedHours = workedMs / (1000 * 60 * 60);
+            const hourlyRate = Number(hourlyRateMap.get(entry.worker_id) || 0);
+
+            return sum + workedHours * hourlyRate;
+          }, 0);
+
+          const extraCost = projectExtraWork.reduce((sum, row) => {
+            return (
+              sum +
+              Number(row.extra_hours_value || 0) +
+              Number(row.weekend_value || 0)
+            );
+          }, 0);
+
+          projectManoperaTotal = normalCost + extraCost;
+        }
+
+        totalsMap[projectId] =
+          projectOrdersTotal +
+          projectReceiptsTotal +
+          projectInvoicesTotal +
+          projectNondeductiblesTotal +
+          projectManoperaTotal;
+      });
+
+      setProjectTotals(totalsMap);
       setLoading(false);
     };
 
     loadCentres();
   }, []);
+
+  const stats = useMemo(() => {
+    return {
+      total: centres.length,
+      inAsteptare: centres.filter((item) => item.status === "in_asteptare").length,
+      inLucru: centres.filter((item) => item.status === "in_lucru").length,
+      finalizate: centres.filter((item) => item.status === "finalizat").length,
+    };
+  }, [centres]);
+
+  const filteredCentres = useMemo(() => {
+    const normalized = searchTerm.trim().toLowerCase();
+
+    return centres.filter((centre) => {
+      const matchesFilter =
+        activeFilter === "toate" ? true : centre.status === activeFilter;
+
+      const haystack = [
+        centre.name || "",
+        centre.beneficiary || "",
+        centre.cost_center_code || "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const matchesSearch = normalized.length === 0 ? true : haystack.includes(normalized);
+
+      return matchesFilter && matchesSearch;
+    });
+  }, [centres, activeFilter, searchTerm]);
 
   const getStatusLabel = (status: string) => {
     if (status === "in_asteptare") return "În așteptare";
@@ -70,14 +449,31 @@ export default function CentreDeCostPage() {
     return "bg-gray-100 text-gray-800";
   };
 
-  const totals = useMemo(() => {
-    return {
-      total: centres.length,
-      inAsteptare: centres.filter((item) => item.status === "in_asteptare").length,
-      inLucru: centres.filter((item) => item.status === "in_lucru").length,
-      finalizate: centres.filter((item) => item.status === "finalizat").length,
-    };
-  }, [centres]);
+  const getFilterCardClasses = (filter: FilterKey) => {
+    const active = activeFilter === filter;
+
+    if (filter === "toate") {
+      return active
+        ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50"
+        : "border-transparent bg-blue-50";
+    }
+
+    if (filter === "in_asteptare") {
+      return active
+        ? "border-sky-400 ring-2 ring-sky-200 bg-sky-50"
+        : "border-transparent bg-sky-50";
+    }
+
+    if (filter === "in_lucru") {
+      return active
+        ? "border-amber-400 ring-2 ring-amber-200 bg-amber-50"
+        : "border-transparent bg-amber-50";
+    }
+
+    return active
+      ? "border-green-400 ring-2 ring-green-200 bg-green-50"
+      : "border-transparent bg-green-50";
+  };
 
   const renderCenterIcon = () => {
     return (
@@ -132,41 +528,75 @@ export default function CentreDeCostPage() {
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="rounded-2xl bg-blue-50 px-3 py-3 text-center">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("toate")}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "toate"
+              )}`}
+            >
               <p className="text-2xl font-extrabold tracking-tight text-blue-600 sm:text-3xl">
-                {totals.total}
+                {stats.total}
               </p>
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-300">
                 Total
               </p>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-sky-50 px-3 py-3 text-center">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("in_asteptare")}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "in_asteptare"
+              )}`}
+            >
               <p className="text-2xl font-extrabold tracking-tight text-sky-600 sm:text-3xl">
-                {totals.inAsteptare}
+                {stats.inAsteptare}
               </p>
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-300">
                 În așteptare
               </p>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-amber-50 px-3 py-3 text-center">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("in_lucru")}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "in_lucru"
+              )}`}
+            >
               <p className="text-2xl font-extrabold tracking-tight text-amber-600 sm:text-3xl">
-                {totals.inLucru}
+                {stats.inLucru}
               </p>
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300">
                 În lucru
               </p>
-            </div>
+            </button>
 
-            <div className="rounded-2xl bg-green-50 px-3 py-3 text-center">
+            <button
+              type="button"
+              onClick={() => setActiveFilter("finalizat")}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
+                "finalizat"
+              )}`}
+            >
               <p className="text-2xl font-extrabold tracking-tight text-green-600 sm:text-3xl">
-                {totals.finalizate}
+                {stats.finalizate}
               </p>
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-300">
                 Finalizate
               </p>
-            </div>
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Caută după nume proiect, beneficiar sau cod CC..."
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black"
+            />
           </div>
         </section>
 
@@ -178,22 +608,25 @@ export default function CentreDeCostPage() {
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
 
-          {centres.length === 0 ? (
+          {filteredCentres.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-              <p className="text-sm text-gray-500">Nu există centre de cost.</p>
+              <p className="text-sm text-gray-500">
+                Nu există centre de cost pentru filtrul selectat.
+              </p>
             </div>
           ) : (
             <>
               <div className="hidden lg:block overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
                 <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
                   <div className="col-span-2">Cod proiect</div>
-                  <div className="col-span-4">Proiect</div>
-                  <div className="col-span-3">Beneficiar</div>
+                  <div className="col-span-3">Proiect</div>
+                  <div className="col-span-2">Beneficiar</div>
                   <div className="col-span-2">Locație</div>
+                  <div className="col-span-2">Total centru cost</div>
                   <div className="col-span-1">Status</div>
                 </div>
 
-                {centres.map((centre) => (
+                {filteredCentres.map((centre) => (
                   <button
                     key={centre.id}
                     type="button"
@@ -204,7 +637,7 @@ export default function CentreDeCostPage() {
                       {centre.cost_center_code || "-"}
                     </div>
 
-                    <div className="col-span-4 flex items-center gap-3">
+                    <div className="col-span-3 flex items-center gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
                         {renderCenterIcon()}
                       </div>
@@ -213,12 +646,16 @@ export default function CentreDeCostPage() {
                       </p>
                     </div>
 
-                    <div className="col-span-3 text-sm text-gray-500">
+                    <div className="col-span-2 text-sm text-gray-500">
                       {centre.beneficiary || "-"}
                     </div>
 
                     <div className="col-span-2 text-sm text-gray-500">
                       {centre.project_location || "-"}
+                    </div>
+
+                    <div className="col-span-2 text-sm font-bold text-gray-900">
+                      {Number(projectTotals[centre.id] || 0).toFixed(2)} lei
                     </div>
 
                     <div className="col-span-1">
@@ -235,7 +672,7 @@ export default function CentreDeCostPage() {
               </div>
 
               <div className="space-y-3 lg:hidden">
-                {centres.map((centre) => (
+                {filteredCentres.map((centre) => (
                   <button
                     key={centre.id}
                     type="button"
@@ -244,16 +681,16 @@ export default function CentreDeCostPage() {
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
                             {renderCenterIcon()}
                           </div>
 
                           <div className="min-w-0">
-                            <p className="text-[15px] font-bold leading-5 text-gray-900">
+                            <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-lg">
                               {centre.name}
                             </p>
-                            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+                            <p className="mt-1 text-sm font-medium text-gray-400">
                               {centre.cost_center_code || "-"}
                             </p>
                           </div>
@@ -284,6 +721,15 @@ export default function CentreDeCostPage() {
                       </p>
                       <p className="mt-1 text-sm text-gray-700">
                         {centre.project_location || "-"}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 pr-10">
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                        Total centru de cost
+                      </p>
+                      <p className="mt-1 text-base font-bold text-gray-900">
+                        {Number(projectTotals[centre.id] || 0).toFixed(2)} lei
                       </p>
                     </div>
 
