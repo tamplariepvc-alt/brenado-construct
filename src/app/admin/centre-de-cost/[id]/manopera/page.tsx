@@ -1032,7 +1032,7 @@ export default function CentruDeCostManoperaPage() {
         )}
 
         <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-          <div className="mb-4 flex flex-wrap gap-3">
+          <div className="mb-4 grid grid-cols-3 gap-3">
             <button
               type="button"
               onClick={() => setActiveTab("sumar")}
