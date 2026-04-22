@@ -148,7 +148,7 @@ export default function DashboardPage() {
     },
     {
       label: "Organizare\nEchipe",
-      sublabel: "3 echipe",
+      sublabel: "Planificare",
       route: "/organizarea-echipelor",
     },
     {
@@ -211,7 +211,7 @@ export default function DashboardPage() {
       : userActions;
 
   const activeProjects = useMemo(() => {
-    return projects.filter((project) => project.status !== "finalizat").slice(0, 3);
+    return projects.filter((project) => project.status !== "finalizat").slice(0, 6);
   }, [projects]);
 
   const getProjectPercent = (project: ActiveProject) => {
@@ -421,81 +421,81 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      <div className="mx-auto max-w-md pb-8">
-        <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 px-4 py-4 backdrop-blur">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center">
-              <Image
-                src="/logo.png"
-                alt="Logo"
-                width={130}
-                height={42}
-                className="h-10 w-auto object-contain"
-              />
-            </div>
-
-            <button
-              onClick={handleLogout}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              Deconectare
-            </button>
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
-        </header>
 
-        <main className="px-4 pt-4">
-          <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm text-gray-500">Bun venit,</p>
-                <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900">
-                  {profile?.full_name}
-                </h1>
+          <button
+            onClick={handleLogout}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            Deconectare
+          </button>
+        </div>
+      </header>
 
-                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
-                  <span className="h-2 w-2 rounded-full bg-blue-600" />
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-                    {getRoleLabel(profile?.role)}
-                  </span>
-                </div>
-              </div>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+        <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Bun venit,</p>
+              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                {profile?.full_name}
+              </h1>
 
-              <div className="text-right text-xs uppercase tracking-[0.18em] text-gray-400">
-                {todayLabel}
-              </div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 gap-2">
-              <div className="rounded-2xl bg-blue-50 px-3 py-3 text-center">
-                <p className="text-3xl font-extrabold tracking-tight text-blue-600">
-                  {stats.total}
-                </p>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-300">
-                  Total
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-amber-50 px-3 py-3 text-center">
-                <p className="text-3xl font-extrabold tracking-tight text-amber-600">
-                  {stats.inCurs}
-                </p>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
-                  În curs
-                </p>
-              </div>
-
-              <div className="rounded-2xl bg-green-50 px-3 py-3 text-center">
-                <p className="text-3xl font-extrabold tracking-tight text-green-600">
-                  {stats.finalizate}
-                </p>
-                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
-                  Finalizate
-                </p>
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
+                <span className="h-2 w-2 rounded-full bg-blue-600" />
+                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+                  {getRoleLabel(profile?.role)}
+                </span>
               </div>
             </div>
-          </section>
 
-          <section className="mt-6">
+            <div className="text-left text-xs uppercase tracking-[0.18em] text-gray-400 lg:text-right">
+              {todayLabel}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="rounded-2xl bg-blue-50 px-3 py-4 text-center">
+              <p className="text-3xl font-extrabold tracking-tight text-blue-600 sm:text-4xl">
+                {stats.total}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-300">
+                Total
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-amber-50 px-3 py-4 text-center">
+              <p className="text-3xl font-extrabold tracking-tight text-amber-600 sm:text-4xl">
+                {stats.inCurs}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+                În curs
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-green-50 px-3 py-4 text-center">
+              <p className="text-3xl font-extrabold tracking-tight text-green-600 sm:text-4xl">
+                {stats.finalizate}
+              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
+                Finalizate
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+          <section>
             <div className="mb-3 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
                 Acțiuni rapide
@@ -503,13 +503,13 @@ export default function DashboardPage() {
               <div className="h-px flex-1 bg-[#E8E5DE]" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
               {quickActions.map((action) => (
                 <button
                   key={`${action.label}-${action.sublabel}`}
                   type="button"
                   onClick={() => action.route && router.push(action.route)}
-                  className={`relative overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  className={`relative min-h-[190px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
                     action.dark
                       ? "border-slate-800 bg-slate-800 text-white"
                       : "border-[#E8E5DE] bg-white text-gray-900"
@@ -533,12 +533,12 @@ export default function DashboardPage() {
                     {renderActionIcon(action.label, action.dark)}
                   </div>
 
-                  <p className="whitespace-pre-line text-sm font-bold leading-5">
+                  <p className="whitespace-pre-line text-sm font-bold leading-5 sm:text-base">
                     {action.label}
                   </p>
 
                   <p
-                    className={`mt-1 text-xs ${
+                    className={`mt-1 text-xs sm:text-sm ${
                       action.dark ? "text-slate-400" : "text-gray-400"
                     }`}
                   >
@@ -546,7 +546,7 @@ export default function DashboardPage() {
                   </p>
 
                   <div
-                    className={`absolute bottom-3 right-3 flex h-6 w-6 items-center justify-center rounded-full text-sm ${
+                    className={`absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-base ${
                       action.dark
                         ? "bg-slate-700 text-slate-300"
                         : "bg-[#F0EEE9] text-gray-400"
@@ -559,7 +559,7 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          <section className="mt-6">
+          <section>
             <div className="mb-3 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
                 Proiecte active
@@ -589,7 +589,7 @@ export default function DashboardPage() {
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
-                          <p className="text-sm font-semibold text-gray-900">
+                          <p className="text-sm font-semibold text-gray-900 sm:text-base">
                             {project.name}
                           </p>
                         </div>
@@ -606,7 +606,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
 
-                      <p className="mb-3 text-xs text-gray-500">
+                      <p className="mb-3 text-xs text-gray-500 sm:text-sm">
                         {project.beneficiary || "-"}
                       </p>
 
@@ -622,44 +622,44 @@ export default function DashboardPage() {
               )}
             </div>
           </section>
+        </div>
+      </main>
 
-          <nav className="sticky bottom-0 mt-8 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur">
-            <div className="grid grid-cols-4">
-              <button className="flex flex-col items-center gap-1 py-1 text-blue-600">
-                <span className="text-2xl">🏠</span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
-                  Acasă
-                </span>
-                <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-600" />
-              </button>
+      <nav className="fixed bottom-0 left-0 right-0 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur lg:hidden">
+        <div className="mx-auto grid max-w-md grid-cols-4">
+          <button className="flex flex-col items-center gap-1 py-1 text-blue-600">
+            <span className="text-2xl">🏠</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+              Acasă
+            </span>
+            <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-600" />
+          </button>
 
-              <button
-                onClick={() => router.push("/proiecte")}
-                className="flex flex-col items-center gap-1 py-1 text-gray-400"
-              >
-                <span className="text-2xl">📋</span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
-                  Proiecte
-                </span>
-              </button>
+          <button
+            onClick={() => router.push("/proiecte")}
+            className="flex flex-col items-center gap-1 py-1 text-gray-400"
+          >
+            <span className="text-2xl">📋</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+              Proiecte
+            </span>
+          </button>
 
-              <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
-                <span className="text-2xl">🔔</span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
-                  Notificări
-                </span>
-              </button>
+          <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
+            <span className="text-2xl">🔔</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+              Notificări
+            </span>
+          </button>
 
-              <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
-                <span className="text-2xl">👤</span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
-                  Profil
-                </span>
-              </button>
-            </div>
-          </nav>
-        </main>
-      </div>
+          <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
+            <span className="text-2xl">👤</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+              Profil
+            </span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }
