@@ -50,6 +50,15 @@ type ProjectInvoice = {
   created_at: string;
 };
 
+type NondeductibleExpense = {
+  id: string;
+  expense_date: string;
+  service_name: string | null;
+  cost_ron: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
 type Worker = {
   id: string;
   full_name: string;
@@ -174,6 +183,7 @@ export default function CentruDeCostDetaliuPage() {
   const [orders, setOrders] = useState<ApprovedOrder[]>([]);
   const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
   const [invoices, setInvoices] = useState<ProjectInvoice[]>([]);
+  const [nondeductibles, setNondeductibles] = useState<NondeductibleExpense[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [timeEntries, setTimeEntries] = useState<TimeEntry[]>([]);
   const [extraWorkRows, setExtraWorkRows] = useState<ExtraWork[]>([]);
@@ -318,6 +328,20 @@ export default function CentruDeCostDetaliuPage() {
         .order("invoice_date", { ascending: false })
         .order("created_at", { ascending: false });
 
+      const { data: nondeductiblesData } = await supabase
+        .from("project_nondeductible_expenses")
+        .select(`
+          id,
+          expense_date,
+          service_name,
+          cost_ron,
+          notes,
+          created_at
+        `)
+        .eq("project_id", projectId)
+        .order("expense_date", { ascending: false })
+        .order("created_at", { ascending: false });
+
       const { data: workersData } = await supabase
         .from("workers")
         .select("id, full_name, monthly_salary, is_active")
@@ -360,6 +384,7 @@ export default function CentruDeCostDetaliuPage() {
       setOrders((ordersData as ApprovedOrder[]) || []);
       setReceipts((receiptsData as FiscalReceipt[]) || []);
       setInvoices((invoicesData as ProjectInvoice[]) || []);
+      setNondeductibles((nondeductiblesData as NondeductibleExpense[]) || []);
       setWorkers((workersData as Worker[]) || []);
       setTimeEntries((timeEntriesData as TimeEntry[]) || []);
       setExtraWorkRows((extraWorkData as ExtraWork[]) || []);
@@ -402,6 +427,17 @@ export default function CentruDeCostDetaliuPage() {
       { count: 0, total: 0 }
     );
   }, [invoices]);
+
+  const nondeductibleTotals = useMemo(() => {
+    return nondeductibles.reduce(
+      (acc, item) => {
+        acc.count += 1;
+        acc.total += Number(item.cost_ron || 0);
+        return acc;
+      },
+      { count: 0, total: 0 }
+    );
+  }, [nondeductibles]);
 
   const projectMeta = useMemo<DisplayMeta>(() => {
     const allProjectDates = [
@@ -512,9 +548,9 @@ export default function CentruDeCostDetaliuPage() {
       facturi: invoiceTotals.total,
       transport: 0,
       manopera: manoperaSummary.totalCost,
-      nedeductibile: 0,
+      nedeductibile: nondeductibleTotals.total,
     };
-  }, [orderTotals, receiptTotals, invoiceTotals, manoperaSummary]);
+  }, [orderTotals, receiptTotals, invoiceTotals, manoperaSummary, nondeductibleTotals]);
 
   const projectGrandTotal = useMemo(() => {
     return (
@@ -535,50 +571,19 @@ export default function CentruDeCostDetaliuPage() {
   };
 
   const getProjectStatusStyle = (status: string) => {
-    if (status === "in_asteptare") {
-      return "bg-blue-100 text-blue-800";
-    }
-
-    if (status === "in_lucru") {
-      return "bg-yellow-100 text-yellow-800";
-    }
-
-    if (status === "finalizat") {
-      return "bg-green-100 text-green-800";
-    }
-
+    if (status === "in_asteptare") return "bg-blue-100 text-blue-800";
+    if (status === "in_lucru") return "bg-yellow-100 text-yellow-800";
+    if (status === "finalizat") return "bg-green-100 text-green-800";
     return "bg-gray-100 text-gray-800";
   };
 
   const handleCategoryClick = (key: string) => {
-    if (key === "comenzi") {
-      router.push(`/admin/centre-de-cost/${projectId}/comenzi`);
-      return;
-    }
-
-    if (key === "bonuri") {
-      router.push(`/admin/centre-de-cost/${projectId}/bonuri`);
-      return;
-    }
-
-    if (key === "facturi") {
-      router.push(`/admin/centre-de-cost/${projectId}/facturi`);
-      return;
-    }
-
-    if (key === "transport") {
-      router.push(`/admin/centre-de-cost/${projectId}/transport`);
-      return;
-    }
-
-    if (key === "manopera") {
-      router.push(`/admin/centre-de-cost/${projectId}/manopera`);
-      return;
-    }
-
-    if (key === "nedeductibile") {
-      router.push(`/admin/centre-de-cost/${projectId}/nedeductibile`);
-    }
+    if (key === "comenzi") return router.push(`/admin/centre-de-cost/${projectId}/comenzi`);
+    if (key === "bonuri") return router.push(`/admin/centre-de-cost/${projectId}/bonuri`);
+    if (key === "facturi") return router.push(`/admin/centre-de-cost/${projectId}/facturi`);
+    if (key === "transport") return router.push(`/admin/centre-de-cost/${projectId}/transport`);
+    if (key === "manopera") return router.push(`/admin/centre-de-cost/${projectId}/manopera`);
+    if (key === "nedeductibile") return router.push(`/admin/centre-de-cost/${projectId}/nedeductibile`);
   };
 
   const categoryCards = [
@@ -642,10 +647,10 @@ export default function CentruDeCostDetaliuPage() {
       title: "Nedeductibile",
       value: categoryTotals.nedeductibile,
       description: "Cheltuieli nedeductibile",
-      active: false,
+      active: true,
       color: "bg-white text-gray-900",
       subColor: "text-gray-500",
-      details: [] as string[],
+      details: [`Total înregistrări: ${nondeductibleTotals.count}`] as string[],
     },
   ];
 
@@ -698,30 +703,22 @@ export default function CentruDeCostDetaliuPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <div>
                 <p className="text-xs font-medium text-gray-500">Beneficiar</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.beneficiary || "-"}
-                </p>
+                <p className="mt-1 text-sm font-semibold">{project.beneficiary || "-"}</p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Locație</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.project_location || "-"}
-                </p>
+                <p className="mt-1 text-sm font-semibold">{project.project_location || "-"}</p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Tip proiect</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.project_type || "-"}
-                </p>
+                <p className="mt-1 text-sm font-semibold">{project.project_type || "-"}</p>
               </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500">Grupă</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.project_group || "-"}
-                </p>
+                <p className="mt-1 text-sm font-semibold">{project.project_group || "-"}</p>
               </div>
 
               <div>
@@ -734,14 +731,10 @@ export default function CentruDeCostDetaliuPage() {
               </div>
 
               <div>
-                <p className="text-xs font-medium text-gray-500">
-                  Termen execuție
-                </p>
+                <p className="text-xs font-medium text-gray-500">Termen execuție</p>
                 <p className="mt-1 text-sm font-semibold">
                   {project.execution_deadline
-                    ? new Date(project.execution_deadline).toLocaleDateString(
-                        "ro-RO"
-                      )
+                    ? new Date(project.execution_deadline).toLocaleDateString("ro-RO")
                     : "-"}
                 </p>
               </div>
@@ -767,9 +760,7 @@ export default function CentruDeCostDetaliuPage() {
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold">{card.title}</h3>
-                      <p className={`mt-1 text-sm ${card.subColor}`}>
-                        {card.description}
-                      </p>
+                      <p className={`mt-1 text-sm ${card.subColor}`}>{card.description}</p>
 
                       <p className="mt-4 text-2xl font-bold">
                         {card.value.toFixed(2)} lei
@@ -778,10 +769,7 @@ export default function CentruDeCostDetaliuPage() {
                       {card.details.length > 0 && (
                         <div className="mt-3 space-y-1">
                           {card.details.map((detail) => (
-                            <p
-                              key={detail}
-                              className={`text-xs font-medium ${card.subColor}`}
-                            >
+                            <p key={detail} className={`text-xs font-medium ${card.subColor}`}>
                               {detail}
                             </p>
                           ))}
@@ -793,9 +781,7 @@ export default function CentruDeCostDetaliuPage() {
                       </p>
                     </div>
 
-                    <div className="shrink-0 text-4xl font-light text-gray-400">
-                      →
-                    </div>
+                    <div className="shrink-0 text-4xl font-light text-gray-400">→</div>
                   </div>
                 </button>
               ))}
