@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -592,6 +593,76 @@ export default function CentruDeCostDetaliuPage() {
     if (key === "nedeductibile") return router.push(`/admin/centre-de-cost/${projectId}/nedeductibile`);
   };
 
+  const renderProjectIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
+      <rect x="4" y="4" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="4" width="7" height="4" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="10" width="7" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="4" y="13" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+
+  const renderCategoryIcon = (key: string) => {
+    const iconClass = "h-6 w-6 text-blue-600 sm:h-7 sm:w-7";
+
+    if (key === "comenzi") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path d="M4 6h2l1.4 6.5h8.8L18 8H8.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="10" cy="18" r="1.5" fill="currentColor" />
+          <circle cx="17" cy="18" r="1.5" fill="currentColor" />
+        </svg>
+      );
+    }
+
+    if (key === "bonuri") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path d="M7 5h10l2 2v12H7V5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M10 10h5M10 14h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    if (key === "facturi") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <rect x="6" y="4" width="12" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+          <path d="M9 9h6M9 13h6M9 17h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    if (key === "transport") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path d="M6 16h12l-1-5a2 2 0 0 0-2-1.6H9A2 2 0 0 0 7 11l-1 5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M5 16v2M19 16v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <circle cx="8" cy="17" r="1.5" fill="currentColor" />
+          <circle cx="16" cy="17" r="1.5" fill="currentColor" />
+        </svg>
+      );
+    }
+
+    if (key === "manopera") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+          <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="2" />
+          <path d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <path d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    }
+
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M7 5h10l2 2v12H7V5Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M10 10h6M10 14h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    );
+  };
+
   const categoryCards = [
     {
       key: "comenzi",
@@ -599,8 +670,6 @@ export default function CentruDeCostDetaliuPage() {
       value: categoryTotals.comenzi,
       description: "Comenzi aprobate din proiect",
       active: true,
-      color: "bg-white text-gray-900",
-      subColor: "text-gray-500",
       details: [] as string[],
     },
     {
@@ -609,8 +678,6 @@ export default function CentruDeCostDetaliuPage() {
       value: categoryTotals.bonuri,
       description: "Bonuri fiscale aferente proiectului",
       active: true,
-      color: "bg-white text-gray-900",
-      subColor: "text-gray-500",
       details: [`Total bonuri: ${receiptTotals.count}`] as string[],
     },
     {
@@ -619,8 +686,6 @@ export default function CentruDeCostDetaliuPage() {
       value: categoryTotals.facturi,
       description: "Facturi aferente proiectului",
       active: true,
-      color: "bg-white text-gray-900",
-      subColor: "text-gray-500",
       details: [`Total facturi: ${invoiceTotals.count}`] as string[],
     },
     {
@@ -629,8 +694,6 @@ export default function CentruDeCostDetaliuPage() {
       value: categoryTotals.transport,
       description: "Cheltuieli de transport",
       active: false,
-      color: "bg-white text-gray-900",
-      subColor: "text-gray-500",
       details: [] as string[],
     },
     {
@@ -639,8 +702,6 @@ export default function CentruDeCostDetaliuPage() {
       value: categoryTotals.manopera,
       description: "Costuri reale din ore lucrate, extra și weekend",
       active: true,
-      color: "bg-white text-gray-900",
-      subColor: "text-gray-500",
       details: [
         `Ore normale: ${manoperaSummary.normalHours.toFixed(2)} h`,
         `Ore extra: ${manoperaSummary.extraHours.toFixed(2)} h`,
@@ -654,8 +715,6 @@ export default function CentruDeCostDetaliuPage() {
       value: categoryTotals.nedeductibile,
       description: "Cheltuieli nedeductibile",
       active: true,
-      color: "bg-white text-gray-900",
-      subColor: "text-gray-500",
       details: [`Total înregistrări: ${nondeductibleTotals.count}`] as string[],
     },
   ];
@@ -669,184 +728,237 @@ export default function CentruDeCostDetaliuPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Detaliu centru de cost</h1>
-            <p className="text-sm text-gray-600">
-              Vezi structura costurilor pe proiect.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             onClick={() => router.push("/admin/centre-de-cost")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             Înapoi la centre de cost
           </button>
         </div>
+      </header>
 
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold">{project.name}</h2>
-                <p className="text-sm text-gray-500">
-                  Cod centru de cost: {project.cost_center_code || "-"}
-                </p>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+                  {renderProjectIcon()}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-500">Detaliu centru de cost</p>
+                  <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    {project.name}
+                  </h1>
+                  <p className="mt-1 text-sm font-medium text-gray-400">
+                    Cod centru de cost: {project.cost_center_code || "-"}
+                  </p>
+                </div>
               </div>
 
-              <span
-                className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getProjectStatusStyle(
-                  project.status
-                )}`}
-              >
-                {getProjectStatusLabel(project.status)}
-              </span>
+              <p className="mt-4 max-w-3xl text-sm text-gray-500 sm:text-base">
+                Vezi structura costurilor pe proiect, bugetul disponibil și fiecare
+                categorie de cheltuială.
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <div>
-                <p className="text-xs font-medium text-gray-500">Beneficiar</p>
-                <p className="mt-1 text-sm font-semibold">{project.beneficiary || "-"}</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500">Locație</p>
-                <p className="mt-1 text-sm font-semibold">{project.project_location || "-"}</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500">Tip proiect</p>
-                <p className="mt-1 text-sm font-semibold">{project.project_type || "-"}</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500">Grupă</p>
-                <p className="mt-1 text-sm font-semibold">{project.project_group || "-"}</p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500">Data început</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.start_date
-                    ? new Date(project.start_date).toLocaleDateString("ro-RO")
-                    : "-"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500">Termen execuție</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.execution_deadline
-                    ? new Date(project.execution_deadline).toLocaleDateString("ro-RO")
-                    : "-"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs font-medium text-gray-500">Buget</p>
-                <p className="mt-1 text-sm font-semibold">
-                  {project.budget_ron !== null && project.budget_ron !== undefined
-                    ? `${Number(project.budget_ron).toFixed(2)} lei`
-                    : "-"}
-                </p>
-              </div>
-            </div>
+            <span
+              className={`inline-flex w-fit rounded-full px-3 py-1 text-sm font-semibold ${getProjectStatusStyle(
+                project.status
+              )}`}
+            >
+              {getProjectStatusLabel(project.status)}
+            </span>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Beneficiar
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.beneficiary || "-"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Locație
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.project_location || "-"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Tip proiect
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.project_type || "-"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Grupă
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.project_group || "-"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Data început
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.start_date
+                  ? new Date(project.start_date).toLocaleDateString("ro-RO")
+                  : "-"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Termen execuție
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.execution_deadline
+                  ? new Date(project.execution_deadline).toLocaleDateString("ro-RO")
+                  : "-"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Buget
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {project.budget_ron !== null && project.budget_ron !== undefined
+                  ? `${Number(project.budget_ron).toFixed(2)} lei`
+                  : "-"}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
               <p className="text-sm text-gray-500">Buget proiect</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="mt-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
                 {Number(project.budget_ron || 0).toFixed(2)} lei
               </p>
             </div>
 
-            <div className="rounded-2xl bg-white p-5 shadow">
+            <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
               <p className="text-sm text-gray-500">Total cheltuit</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="mt-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
                 {projectGrandTotal.toFixed(2)} lei
               </p>
             </div>
 
             <div
-              className={`rounded-2xl p-5 shadow ${
+              className={`rounded-[22px] p-4 shadow-sm ${
                 remainingBudget >= 0
                   ? "bg-green-600 text-white"
                   : "bg-red-600 text-white"
               }`}
             >
               <p className="text-sm text-white/80">Diferență rămasă</p>
-              <p className="mt-2 text-3xl font-bold">
+              <p className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
                 {remainingBudget.toFixed(2)} lei
               </p>
             </div>
           </div>
+        </section>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Categorii centru de cost</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Fiecare categorie va avea propria funcție și propriile înregistrări.
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Categorii centru de cost
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {categoryCards.map((card) => (
+              <button
+                key={card.key}
+                type="button"
+                onClick={() => handleCategoryClick(card.key)}
+                className="relative min-h-[180px] overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[190px] sm:p-5"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+                    {renderCategoryIcon(card.key)}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-lg sm:leading-6">
+                      {card.title}
+                    </p>
+                    <p className="mt-1 text-[11px] text-gray-400 sm:text-sm">
+                      {card.description}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="mt-5 text-2xl font-extrabold tracking-tight text-gray-900">
+                  {card.value.toFixed(2)} lei
+                </p>
+
+                {card.details.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    {card.details.map((detail) => (
+                      <p key={detail} className="text-[11px] text-gray-500 sm:text-xs">
+                        {detail}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mt-4 pr-12 text-[11px] font-medium text-gray-400">
+                  {card.active ? "Funcție activă" : "În dezvoltare"}
+                </p>
+
+                <div className="absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full bg-[#F0EEE9] text-sm text-gray-400 sm:h-8 sm:w-8 sm:text-base">
+                  ›
+                </div>
+              </button>
+            ))}
+
+            <div className="rounded-[22px] bg-[#0196ff] p-4 text-white shadow-sm sm:p-5">
+              <h3 className="text-lg font-semibold">Total general proiect</h3>
+              <p className="mt-1 text-sm text-white/80">
+                Total cumulat din toate categoriile
+              </p>
+              <p className="mt-4 text-2xl font-extrabold tracking-tight sm:text-3xl">
+                {projectGrandTotal.toFixed(2)} lei
+              </p>
+              <p className="mt-2 text-lg font-bold">(TVA Inclus)</p>
+              <p className="mt-2 text-xs text-white/80">
+                Sumar total centru de cost
               </p>
             </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {categoryCards.map((card) => (
-                <button
-                  key={card.key}
-                  type="button"
-                  onClick={() => handleCategoryClick(card.key)}
-                  className={`rounded-2xl p-5 text-left shadow transition hover:shadow-md ${card.color}`}
-                >
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold">{card.title}</h3>
-                      <p className={`mt-1 text-sm ${card.subColor}`}>{card.description}</p>
-
-                      <p className="mt-4 text-2xl font-bold">
-                        {card.value.toFixed(2)} lei
-                      </p>
-
-                      {card.details.length > 0 && (
-                        <div className="mt-3 space-y-1">
-                          {card.details.map((detail) => (
-                            <p key={detail} className={`text-xs font-medium ${card.subColor}`}>
-                              {detail}
-                            </p>
-                          ))}
-                        </div>
-                      )}
-
-                      <p className={`mt-3 text-xs ${card.subColor}`}>
-                        {card.active ? "Funcție activă" : "În dezvoltare"}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 text-4xl font-light text-gray-400">→</div>
-                  </div>
-                </button>
-              ))}
-
-              <div className="rounded-2xl bg-[#0196ff] p-5 text-left text-white shadow">
-                <h3 className="text-lg font-semibold">Total general proiect</h3>
-                <p className="mt-1 text-sm text-white/80">
-                  Total cumulat din toate categoriile
-                </p>
-                <p className="mt-4 text-2xl font-bold">
-                  {projectGrandTotal.toFixed(2)} lei
-                </p>
-                <p className="mt-2 text-xl font-bold">(TVA Inclus)</p>
-                <p className="mt-2 text-xs text-white/80">
-                  Sumar total centru de cost
-                </p>
-              </div>
-            </div>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }
