@@ -41,8 +41,6 @@ type NondeductibleExpense = {
   cost_ron: number | null;
 };
 
-type ProjectSectionTab = "financiara" | "tehnica";
-
 const monthOptions = [
   { value: "toate", label: "Toate lunile" },
   { value: "1", label: "Ianuarie" },
@@ -76,11 +74,7 @@ export default function ProiectePage() {
   const [searchName, setSearchName] = useState("");
   const [selectedYear, setSelectedYear] = useState("toate");
   const [selectedMonth, setSelectedMonth] = useState("toate");
-
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [showProjectModal, setShowProjectModal] = useState(false);
-  const [activeSectionTab, setActiveSectionTab] =
-    useState<ProjectSectionTab>("financiara");
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -227,9 +221,11 @@ export default function ProiectePage() {
       const projectYear = projectDate.getFullYear().toString();
       const projectMonth = (projectDate.getMonth() + 1).toString();
 
-      const matchesName = project.name
-        .toLowerCase()
-        .includes(searchName.toLowerCase());
+      const matchesName =
+        project.name.toLowerCase().includes(searchName.toLowerCase()) ||
+        (project.beneficiary || "")
+          .toLowerCase()
+          .includes(searchName.toLowerCase());
 
       const matchesYear =
         selectedYear === "toate" || projectYear === selectedYear;
@@ -330,18 +326,6 @@ export default function ProiectePage() {
     return "bg-gray-100 text-gray-700";
   };
 
-  const openProjectModal = (project: Project) => {
-    setSelectedProject(project);
-    setActiveSectionTab("financiara");
-    setShowProjectModal(true);
-  };
-
-  const closeProjectModal = () => {
-    setShowProjectModal(false);
-    setSelectedProject(null);
-    setActiveSectionTab("financiara");
-  };
-
   const renderProjectIcon = () => (
     <svg
       viewBox="0 0 24 24"
@@ -387,13 +371,13 @@ export default function ProiectePage() {
     </svg>
   );
 
+  const toggleExpanded = (projectId: string) => {
+    setExpandedProjectId((prev) => (prev === projectId ? null : projectId));
+  };
+
   if (loading) {
     return <div className="p-6">Se încarcă proiectele...</div>;
   }
-
-  const selectedProjectCredit = selectedProject
-    ? currentCreditByProject.get(selectedProject.id) || 0
-    : 0;
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
@@ -441,7 +425,7 @@ export default function ProiectePage() {
           <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
             <input
               type="text"
-              placeholder="Caută după nume proiect"
+              placeholder="Caută după nume proiect sau beneficiar"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
               className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black"
@@ -488,264 +472,161 @@ export default function ProiectePage() {
               </p>
             </div>
           ) : (
-            <>
-              <div className="hidden lg:block overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
-                <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
-                  <div className="col-span-1">Nr.</div>
-                  <div className="col-span-4">Nume proiect</div>
-                  <div className="col-span-3">Beneficiar</div>
-                  <div className="col-span-2">Status</div>
-                  <div className="col-span-2">Data</div>
-                </div>
+            <div className="space-y-4">
+              {filteredProjects.map((project, index) => {
+                const isExpanded = expandedProjectId === project.id;
+                const currentCredit = currentCreditByProject.get(project.id) || 0;
 
-                {filteredProjects.map((project, index) => (
-                  <button
+                return (
+                  <div
                     key={project.id}
-                    type="button"
-                    onClick={() => openProjectModal(project)}
-                    className="grid w-full grid-cols-12 items-center border-b border-[#E8E5DE] px-5 py-4 text-left transition hover:bg-[#FCFBF8] last:border-b-0"
+                    className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm"
                   >
-                    <div className="col-span-1 text-sm font-semibold text-gray-900">
-                      {index + 1}
-                    </div>
+                    <div className="p-4 sm:p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                              {renderProjectIcon()}
+                            </div>
 
-                    <div className="col-span-4 flex items-center gap-3">
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
-                        {renderProjectIcon()}
+                            <div className="min-w-0">
+                              <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-xl">
+                                {project.name}
+                              </p>
+                              <p className="mt-1 text-sm text-gray-500">
+                                {project.beneficiary || "-"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                            project.status
+                          )}`}
+                        >
+                          {getStatusLabel(project.status)}
+                        </span>
                       </div>
-                      <p className="text-sm font-semibold text-gray-900">
-                        {project.name}
-                      </p>
-                    </div>
 
-                    <div className="col-span-3 text-sm text-gray-500">
-                      {project.beneficiary || "-"}
-                    </div>
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                            Data creare
+                          </p>
+                          <p className="mt-1 text-sm text-gray-700">
+                            {new Date(project.created_at).toLocaleDateString("ro-RO")}
+                          </p>
+                        </div>
 
-                    <div className="col-span-2">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                          project.status
-                        )}`}
-                      >
-                        {getStatusLabel(project.status)}
-                      </span>
-                    </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                            Credit curent
+                          </p>
+                          <p
+                            className={`mt-1 text-sm font-semibold ${
+                              currentCredit >= 0 ? "text-green-700" : "text-red-700"
+                            }`}
+                          >
+                            {currentCredit.toFixed(2)} lei
+                          </p>
+                        </div>
 
-                    <div className="col-span-2 text-sm text-gray-500">
-                      {new Date(project.created_at).toLocaleDateString("ro-RO")}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-3 lg:hidden">
-                {filteredProjects.map((project) => (
-                  <button
-                    key={project.id}
-                    type="button"
-                    onClick={() => openProjectModal(project)}
-                    className="relative w-full overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
-                            {renderProjectIcon()}
-                          </div>
-
-                          <div className="min-w-0">
-                            <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-lg">
-                              {project.name}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {project.beneficiary || "-"}
-                            </p>
-                          </div>
+                        <div className="sm:text-right">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpanded(project.id)}
+                            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                          >
+                            {isExpanded ? "Ascunde acțiuni" : "Acțiuni rapide"}
+                          </button>
                         </div>
                       </div>
 
-                      <span
-                        className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                          project.status
-                        )}`}
-                      >
-                        {getStatusLabel(project.status)}
-                      </span>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                        <button
+                          type="button"
+                          onClick={() => router.push(`/proiecte/${project.id}`)}
+                          className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto"
+                        >
+                          Deschide proiect
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(project.id)}
+                          className="w-full rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto"
+                        >
+                          {isExpanded ? "Închide secțiunea" : "Încarcă documente"}
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="mt-4 pr-10">
-                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                        Data creare
-                      </p>
-                      <p className="mt-1 text-sm text-gray-700">
-                        {new Date(project.created_at).toLocaleDateString("ro-RO")}
-                      </p>
-                    </div>
+                    {isExpanded && (
+                      <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
+                        <div className="mb-4">
+                          <p className="text-sm font-semibold text-gray-900">
+                            Acțiuni financiare rapide
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Încarcă direct documentele pentru proiectul selectat.
+                          </p>
+                        </div>
 
-                    <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EEE9] text-base text-gray-400">
-                      ›
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </>
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(`/proiecte/${project.id}/incarca-bf`)
+                            }
+                            className="rounded-2xl bg-[#0196ff] px-4 py-4 text-left text-white transition hover:opacity-90"
+                          >
+                            <p className="text-base font-semibold">Încarcă BF</p>
+                            <p className="mt-1 text-xs text-white/80">
+                              Adaugă bon fiscal pentru acest proiect.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(`/proiecte/${project.id}/incarca-factura`)
+                            }
+                            className="rounded-2xl bg-purple-600 px-4 py-4 text-left text-white transition hover:opacity-90"
+                          >
+                            <p className="text-base font-semibold">Încarcă Factură</p>
+                            <p className="mt-1 text-xs text-white/80">
+                              Adaugă factură nouă în proiect.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                `/proiecte/${project.id}/adauga-nedeductibile`
+                              )
+                            }
+                            className="rounded-2xl bg-orange-600 px-4 py-4 text-left text-white transition hover:opacity-90"
+                          >
+                            <p className="text-base font-semibold">
+                              Adaugă Nedeductibile
+                            </p>
+                            <p className="mt-1 text-xs text-white/80">
+                              Înregistrează cheltuieli nedeductibile.
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </section>
       </main>
-
-      {showProjectModal && selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-2xl">
-            <div className="mb-5 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">
-                  {selectedProject.name}
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  {selectedProject.beneficiary || "-"}
-                </p>
-              </div>
-
-              <span
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                  selectedProject.status
-                )}`}
-              >
-                {getStatusLabel(selectedProject.status)}
-              </span>
-            </div>
-
-            <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => setActiveSectionTab("financiara")}
-                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  activeSectionTab === "financiara"
-                    ? "bg-[#0196ff] text-white"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                Secțiune Financiară
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveSectionTab("tehnica")}
-                className={`rounded-xl px-4 py-3 text-sm font-semibold transition ${
-                  activeSectionTab === "tehnica"
-                    ? "bg-[#0196ff] text-white"
-                    : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                Secțiune Tehnică
-              </button>
-            </div>
-
-            {activeSectionTab === "financiara" && (
-              <div className="space-y-3">
-                <div
-                  className={`rounded-xl px-4 py-3 ${
-                    selectedProjectCredit >= 0
-                      ? "border border-green-200 bg-green-50"
-                      : "border border-red-200 bg-red-50"
-                  }`}
-                >
-                  <p
-                    className={`text-sm font-medium ${
-                      selectedProjectCredit >= 0
-                        ? "text-green-800"
-                        : "text-red-800"
-                    }`}
-                  >
-                    Credit curent:
-                  </p>
-                  <p
-                    className={`mt-1 text-xl font-bold ${
-                      selectedProjectCredit >= 0
-                        ? "text-green-900"
-                        : "text-red-900"
-                    }`}
-                  >
-                    {selectedProjectCredit.toFixed(2)} lei
-                  </p>
-                  <p
-                    className={`mt-1 text-xs ${
-                      selectedProjectCredit >= 0
-                        ? "text-green-700"
-                        : "text-red-700"
-                    }`}
-                  >
-                    Credit alimentat minus bonuri, facturi și nedeductibile.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(`/proiecte/${selectedProject.id}/incarca-bf`)
-                  }
-                  className="w-full rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Încarcă BF
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(`/proiecte/${selectedProject.id}/incarca-factura`)
-                  }
-                  className="w-full rounded-xl bg-purple-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Încarcă Facturi
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    router.push(`/proiecte/${selectedProject.id}/adauga-nedeductibile`)
-                  }
-                  className="w-full rounded-xl bg-orange-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Adaugă Nedeductibile
-                </button>
-              </div>
-            )}
-
-            {activeSectionTab === "tehnica" && (
-              <div className="space-y-3">
-                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4">
-                  <p className="text-sm font-medium text-gray-800">
-                    Secțiunea tehnică este pregătită.
-                  </p>
-                  <p className="mt-1 text-xs text-gray-500">
-                    Aici putem adăuga ulterior documente tehnice, montaj,
-                    observații, schițe, procese sau alte opțiuni.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={() => router.push(`/proiecte/${selectedProject.id}`)}
-                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Deschide proiect
-              </button>
-
-              <button
-                type="button"
-                onClick={closeProjectModal}
-                className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                Închide
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
