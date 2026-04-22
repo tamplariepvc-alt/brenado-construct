@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -19,6 +19,23 @@ type ProjectStats = {
   finalizate: number;
 };
 
+type ActiveProject = {
+  id: string;
+  name: string;
+  beneficiary: string | null;
+  status: string | null;
+  start_date?: string | null;
+  execution_deadline?: string | null;
+  created_at: string;
+};
+
+type QuickAction = {
+  label: string;
+  sublabel: string;
+  route?: string;
+  dark?: boolean;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -29,6 +46,7 @@ export default function DashboardPage() {
     inCurs: 0,
     finalizate: 0,
   });
+  const [projects, setProjects] = useState<ActiveProject[]>([]);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -54,14 +72,19 @@ export default function DashboardPage() {
 
       const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
-        .select("id, status");
+        .select(
+          "id, name, beneficiary, status, start_date, execution_deadline, created_at"
+        )
+        .order("created_at", { ascending: false });
 
       if (!projectsError && projectsData) {
-        const total = projectsData.length;
-        const inCurs = projectsData.filter(
+        const parsedProjects = projectsData as ActiveProject[];
+
+        const total = parsedProjects.length;
+        const inCurs = parsedProjects.filter(
           (project) => project.status === "in_lucru"
         ).length;
-        const finalizate = projectsData.filter(
+        const finalizate = parsedProjects.filter(
           (project) => project.status === "finalizat"
         ).length;
 
@@ -70,6 +93,8 @@ export default function DashboardPage() {
           inCurs,
           finalizate,
         });
+
+        setProjects(parsedProjects);
       }
 
       setProfile(profileData as Profile);
@@ -84,172 +109,391 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
+  const todayLabel = useMemo(() => {
+    return new Date().toLocaleDateString("ro-RO", {
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  }, []);
+
+  const getRoleLabel = (role?: Role) => {
+    if (role === "administrator") return "Administrator";
+    if (role === "sef_echipa") return "Șef de echipă";
+    if (role === "user") return "Utilizator";
+    return "-";
+  };
+
+  const adminActions: QuickAction[] = [
+    {
+      label: "Adaugă\nProiect",
+      sublabel: "Proiect nou",
+      route: "/proiecte/adauga",
+    },
+    {
+      label: "Vezi\nProiecte",
+      sublabel: `${stats.total} proiecte`,
+      route: "/proiecte",
+    },
+    {
+      label: "Comenzi\nMateriale",
+      sublabel: "Gestionează",
+      route: "/comenzi",
+    },
+    {
+      label: "Pontaje\nEchipe",
+      sublabel: "Ore lucrate",
+      route: "/pontaje",
+    },
+    {
+      label: "Organizare\nEchipe",
+      sublabel: "Planificare",
+      route: "/organizarea-echipelor",
+    },
+    {
+      label: "Panou\nAdmin",
+      sublabel: "Setări sistem",
+      route: "/admin",
+      dark: true,
+    },
+  ];
+
+  const teamLeadActions: QuickAction[] = [
+    {
+      label: "Proiectele\nMele",
+      sublabel: "Șantiere active",
+      route: "/proiecte",
+    },
+    {
+      label: "Comenzi\nMateriale",
+      sublabel: "Gestionează",
+      route: "/comenzi",
+    },
+    {
+      label: "Pontaje\nEchipe",
+      sublabel: "Ore lucrate",
+      route: "/pontaje",
+    },
+    {
+      label: "Organizare\nEchipe",
+      sublabel: "Planificare",
+      route: "/organizarea-echipelor",
+    },
+    {
+      label: "Cerere\nTransfer",
+      sublabel: "Financiar",
+    },
+  ];
+
+  const userActions: QuickAction[] = [
+    {
+      label: "Dashboard\nUser",
+      sublabel: "Rezumat",
+    },
+    {
+      label: "Vezi\nProiecte",
+      sublabel: "Listă proiecte",
+      route: "/proiecte",
+    },
+    {
+      label: "Organizare\nEchipe",
+      sublabel: "Programări",
+      route: "/organizarea-echipelor",
+    },
+  ];
+
+  const quickActions =
+    profile?.role === "administrator"
+      ? adminActions
+      : profile?.role === "sef_echipa"
+      ? teamLeadActions
+      : userActions;
+
+  const activeProjects = useMemo(() => {
+    return projects.filter((project) => project.status !== "finalizat").slice(0, 3);
+  }, [projects]);
+
+  const getProjectPercent = (project: ActiveProject) => {
+    if (project.status === "finalizat") return 100;
+    if (project.status === "in_asteptare") return 15;
+    if (project.status === "in_lucru") return 65;
+    return 20;
+  };
+
+  const getProjectStatusLabel = (status: string | null) => {
+    if (status === "in_asteptare") return "În așteptare";
+    if (status === "in_lucru") return "Activ";
+    if (status === "finalizat") return "Final";
+    return "-";
+  };
+
+  const getProjectTheme = (status: string | null) => {
+    if (status === "in_asteptare") {
+      return {
+        dot: "bg-amber-600",
+        text: "text-amber-700",
+        badge: "bg-amber-50 text-amber-700",
+        bar: "from-amber-500 to-yellow-300",
+      };
+    }
+
+    if (status === "in_lucru") {
+      return {
+        dot: "bg-blue-600",
+        text: "text-blue-700",
+        badge: "bg-blue-50 text-blue-700",
+        bar: "from-blue-600 to-blue-300",
+      };
+    }
+
+    return {
+      dot: "bg-green-600",
+      text: "text-green-700",
+      badge: "bg-green-50 text-green-700",
+      bar: "from-green-600 to-green-300",
+    };
+  };
+
   if (loading) {
-    return (
-      <div className="p-8 text-lg font-medium">
-        Se încarcă dashboard-ul...
-      </div>
-    );
+    return <div className="p-8 text-lg font-medium">Se încarcă dashboard-ul...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="flex items-center justify-between border-b bg-white px-6 py-4 shadow-sm">
-        <button
-          onClick={handleLogout}
-          className="rounded-lg bg-red-600 px-4 py-2 text-white"
-        >
-          Ieșire
-        </button>
-
-        <div className="flex justify-center">
-          <Image
-            src="/logo.png"
-            alt="Logo"
-            width={140}
-            height={50}
-            className="object-contain"
-          />
-        </div>
-
-        <button className="relative rounded-full border px-3 py-2 text-xl">
-          🔔
-          <span
-            className="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white"
-            style={{ backgroundColor: "#0196ff" }}
-          ></span>
-        </button>
-      </header>
-
-      <main className="p-6">
-        <h1 className="mb-2 text-2xl font-bold">
-          Bun venit, {profile?.full_name}
-        </h1>
-        <p className="mb-6 text-gray-600">
-          Rol: <span className="font-semibold">{profile?.role}</span>
-        </p>
-
-        {profile?.role === "administrator" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
-            <button
-              onClick={() => router.push("/proiecte/adauga")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              ADAUGĂ PROIECT
-            </button>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <div className="mx-auto max-w-md pb-8">
+        <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 px-4 py-4 backdrop-blur">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={130}
+                height={42}
+                className="h-10 w-auto object-contain"
+              />
+            </div>
 
             <button
-              onClick={() => router.push("/proiecte")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
+              onClick={handleLogout}
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              VEZI PROIECTE
-            </button>
-
-            <button
-              onClick={() => router.push("/comenzi")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              COMENZI
-            </button>
-
-            <button
-              onClick={() => router.push("/pontaje")}
-              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              PONTAJE
-            </button>
-
-            <button
-              onClick={() => router.push("/organizarea-echipelor")}
-              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              ORGANIZAREA ECHIPELOR
-            </button>
-
-            <button
-              onClick={() => router.push("/admin")}
-              className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow"
-            >
-              PANOU ADMINISTRATOR
+              Deconectare
             </button>
           </div>
-        )}
+        </header>
 
-        {profile?.role === "sef_echipa" && (
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <button
-              onClick={() => router.push("/proiecte")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              PROIECTELE MELE
-            </button>
+        <main className="px-4 pt-4">
+          <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-gray-500">Bun venit,</p>
+                <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900">
+                  {profile?.full_name}
+                </h1>
 
-            <button
-              onClick={() => router.push("/comenzi")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              COMENZI
-            </button>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
+                  <span className="h-2 w-2 rounded-full bg-blue-600" />
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+                    {getRoleLabel(profile?.role)}
+                  </span>
+                </div>
+              </div>
 
-            <button
-              onClick={() => router.push("/pontaje")}
-              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              PONTAJE
-            </button>
+              <div className="text-right text-xs uppercase tracking-[0.18em] text-gray-400">
+                {todayLabel}
+              </div>
+            </div>
 
-            <button
-              onClick={() => router.push("/organizarea-echipelor")}
-              className="rounded-2xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              ORGANIZAREA ECHIPELOR
-            </button>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              <div className="rounded-2xl bg-blue-50 px-3 py-3 text-center">
+                <p className="text-3xl font-extrabold tracking-tight text-blue-600">
+                  {stats.total}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-300">
+                  Total
+                </p>
+              </div>
 
-            <button className="mb-4 rounded-2xl bg-black px-4 py-3 text-left text-white shadow">
-              CERERE TRANSFER DE BANI
-            </button>
-          </div>
-        )}
+              <div className="rounded-2xl bg-amber-50 px-3 py-3 text-center">
+                <p className="text-3xl font-extrabold tracking-tight text-amber-600">
+                  {stats.inCurs}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+                  În curs
+                </p>
+              </div>
 
-        {profile?.role === "user" && (
-          <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-            <button className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow">
-              DASHBOARD USER
-            </button>
+              <div className="rounded-2xl bg-green-50 px-3 py-3 text-center">
+                <p className="text-3xl font-extrabold tracking-tight text-green-600">
+                  {stats.finalizate}
+                </p>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
+                  Finalizate
+                </p>
+              </div>
+            </div>
+          </section>
 
-            <button className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow">
-              VEZI PROIECTE
-            </button>
+          <section className="mt-6">
+            <div className="mb-3 flex items-center gap-3 px-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                Acțiuni rapide
+              </p>
+              <div className="h-px flex-1 bg-[#E8E5DE]" />
+            </div>
 
-            <button
-              onClick={() => router.push("/organizarea-echipelor")}
-              className="rounded-xl bg-white px-4 py-3 text-left text-sm font-semibold shadow"
-            >
-              ORGANIZAREA ECHIPELOR
-            </button>
-          </div>
-        )}
+            <div className="grid grid-cols-2 gap-3">
+              {quickActions.map((action) => (
+                <button
+                  key={`${action.label}-${action.sublabel}`}
+                  type="button"
+                  onClick={() => action.route && router.push(action.route)}
+                  className={`relative overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                    action.dark
+                      ? "border-slate-800 bg-slate-800 text-white"
+                      : "border-[#E8E5DE] bg-white text-gray-900"
+                  }`}
+                >
+                  <div
+                    className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${
+                      action.dark ? "bg-slate-700" : "bg-[#EFF6FF]"
+                    }`}
+                  >
+                    <span className={`text-lg ${action.dark ? "text-slate-300" : "text-blue-600"}`}>
+                      ◆
+                    </span>
+                  </div>
 
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div
-            className="rounded-xl px-4 py-3 text-white shadow"
-            style={{ backgroundColor: "#0196ff" }}
-          >
-            <p className="text-xs opacity-90">TOTAL PROIECTE</p>
-            <p className="mt-1 text-xl font-bold">{stats.total}</p>
-          </div>
+                  <p className="whitespace-pre-line text-sm font-bold leading-5">
+                    {action.label}
+                  </p>
 
-          <div className="rounded-xl bg-yellow-500 px-4 py-3 text-white shadow">
-            <p className="text-xs opacity-90">PROIECTE ÎN CURS</p>
-            <p className="mt-1 text-xl font-bold">{stats.inCurs}</p>
-          </div>
+                  <p
+                    className={`mt-1 text-xs ${
+                      action.dark ? "text-slate-400" : "text-gray-400"
+                    }`}
+                  >
+                    {action.sublabel}
+                  </p>
 
-          <div className="rounded-xl bg-green-600 px-4 py-3 text-white shadow">
-            <p className="text-xs opacity-90">PROIECTE FINALIZATE</p>
-            <p className="mt-1 text-xl font-bold">{stats.finalizate}</p>
-          </div>
-        </div>
-      </main>
+                  <div
+                    className={`absolute bottom-3 right-3 flex h-6 w-6 items-center justify-center rounded-full text-sm ${
+                      action.dark
+                        ? "bg-slate-700 text-slate-300"
+                        : "bg-[#F0EEE9] text-gray-400"
+                    }`}
+                  >
+                    ›
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-6">
+            <div className="mb-3 flex items-center gap-3 px-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                Proiecte active
+              </p>
+              <div className="h-px flex-1 bg-[#E8E5DE]" />
+            </div>
+
+            <div className="space-y-3">
+              {activeProjects.length === 0 ? (
+                <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4 shadow-sm">
+                  <p className="text-sm text-gray-500">
+                    Nu există proiecte active momentan.
+                  </p>
+                </div>
+              ) : (
+                activeProjects.map((project) => {
+                  const percent = getProjectPercent(project);
+                  const theme = getProjectTheme(project.status);
+
+                  return (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => router.push("/proiecte")}
+                      className="w-full rounded-2xl border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                    >
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+                          <p className="text-sm font-semibold text-gray-900">
+                            {project.name}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold ${theme.text}`}>
+                            {percent}%
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${theme.badge}`}
+                          >
+                            {getProjectStatusLabel(project.status)}
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="mb-3 text-xs text-gray-500">
+                        {project.beneficiary || "-"}
+                      </p>
+
+                      <div className="h-1.5 overflow-hidden rounded-full bg-[#F0EEE9]">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${theme.bar}`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </section>
+
+          <nav className="sticky bottom-0 mt-8 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur">
+            <div className="grid grid-cols-4">
+              <button className="flex flex-col items-center gap-1 py-1 text-blue-600">
+                <span className="text-lg">🏠</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+                  Acasă
+                </span>
+              </button>
+
+              <button
+                onClick={() => router.push("/proiecte")}
+                className="flex flex-col items-center gap-1 py-1 text-gray-400"
+              >
+                <span className="text-lg">📋</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+                  Proiecte
+                </span>
+              </button>
+
+              <button
+                onClick={() => router.push("/pontaje")}
+                className="flex flex-col items-center gap-1 py-1 text-gray-400"
+              >
+                <span className="text-lg">⏱️</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+                  Pontaje
+                </span>
+              </button>
+
+              <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
+                <span className="text-lg">👤</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">
+                  Profil
+                </span>
+              </button>
+            </div>
+          </nav>
+        </main>
+      </div>
     </div>
   );
 }
