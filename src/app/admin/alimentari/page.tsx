@@ -16,11 +16,11 @@ type FundingRow = {
     id: string;
     name: string;
     beneficiary: string | null;
-  } | null;
+  }[] | null;
   profiles?: {
     id: string;
     full_name: string;
-  } | null;
+  }[] | null;
 };
 
 export default function AlimentariPage() {
@@ -57,7 +57,9 @@ export default function AlimentariPage() {
         .order("created_at", { ascending: false });
 
       if (!error && data) {
-        setFundings((data as FundingRow[]) || []);
+        setFundings((data as unknown as FundingRow[]) || []);
+      } else {
+        setFundings([]);
       }
 
       setLoading(false);
@@ -146,49 +148,54 @@ export default function AlimentariPage() {
               Nu există alimentări înregistrate.
             </div>
           ) : (
-            fundings.map((row) => (
-              <div
-                key={row.id}
-                className="grid grid-cols-12 items-center border-b px-4 py-3 text-sm last:border-b-0"
-              >
-                <div className="col-span-3">
-                  <p className="font-semibold text-gray-900">
-                    {row.projects?.name || "-"}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {row.projects?.beneficiary || "-"}
-                  </p>
-                </div>
+            fundings.map((row) => {
+              const project = row.projects?.[0] || null;
+              const lead = row.profiles?.[0] || null;
 
-                <div className="col-span-2">
-                  {row.profiles?.full_name || "-"}
-                </div>
+              return (
+                <div
+                  key={row.id}
+                  className="grid grid-cols-12 items-center border-b px-4 py-3 text-sm last:border-b-0"
+                >
+                  <div className="col-span-3">
+                    <p className="font-semibold text-gray-900">
+                      {project?.name || "-"}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {project?.beneficiary || "-"}
+                    </p>
+                  </div>
 
-                <div className="col-span-2">
-                  {getFundingTypeLabel(row.funding_type)}
-                </div>
+                  <div className="col-span-2">
+                    {lead?.full_name || "-"}
+                  </div>
 
-                <div className="col-span-2 font-semibold">
-                  {Number(row.amount_ron || 0).toFixed(2)} lei
-                </div>
+                  <div className="col-span-2">
+                    {getFundingTypeLabel(row.funding_type)}
+                  </div>
 
-                <div className="col-span-2">
-                  {row.funding_date
-                    ? new Date(row.funding_date).toLocaleDateString("ro-RO")
-                    : "-"}
-                </div>
+                  <div className="col-span-2 font-semibold">
+                    {Number(row.amount_ron || 0).toFixed(2)} lei
+                  </div>
 
-                <div className="col-span-1">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/admin/alimentari/${row.id}`)}
-                    className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700"
-                  >
-                    Vezi
-                  </button>
+                  <div className="col-span-2">
+                    {row.funding_date
+                      ? new Date(row.funding_date).toLocaleDateString("ro-RO")
+                      : "-"}
+                  </div>
+
+                  <div className="col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/admin/alimentari/${row.id}`)}
+                      className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-semibold text-gray-700"
+                    >
+                      Vezi
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
