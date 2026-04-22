@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -163,11 +164,11 @@ export default function AdaugaComandaPage() {
         }
       }
 
-const articlesData = await fetchAllArticles();
+      const articlesData = await fetchAllArticles();
 
-if (articlesData) {
-  setArticles(articlesData);
-}
+      if (articlesData) {
+        setArticles(articlesData);
+      }
 
       setLoading(false);
     };
@@ -175,18 +176,18 @@ if (articlesData) {
     loadData();
   }, [router]);
 
-const filteredArticles = useMemo(() => {
-  const q = articleSearch.trim().toLowerCase();
-  if (!q) return articles;
+  const filteredArticles = useMemo(() => {
+    const q = articleSearch.trim().toLowerCase();
+    if (!q) return articles;
 
-  return articles.filter((article) => {
-    return (
-      article.name.toLowerCase().includes(q) ||
-      (article.article_code || "").toLowerCase().includes(q) ||
-      (article.article_number || "").toLowerCase().includes(q)
-    );
-  });
-}, [articles, articleSearch]);
+    return articles.filter((article) => {
+      return (
+        article.name.toLowerCase().includes(q) ||
+        (article.article_code || "").toLowerCase().includes(q) ||
+        (article.article_number || "").toLowerCase().includes(q)
+      );
+    });
+  }, [articles, articleSearch]);
 
   const openAddArticlePopup = (article: Article) => {
     setSelectedArticleForPopup(article);
@@ -362,32 +363,80 @@ const filteredArticles = useMemo(() => {
     setSendingOrder(false);
   };
 
+  const renderOrderIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <path
+        d="M4 6h2l1.4 6.5h8.8L18 8H8.2"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="18" r="1.5" fill="currentColor" />
+      <circle cx="17" cy="18" r="1.5" fill="currentColor" />
+    </svg>
+  );
+
   if (loading) {
     return <div className="p-6">Se încarcă formularul...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Adaugă comandă</h1>
-            <p className="text-sm text-gray-600">
-              Creează o comandă nouă pentru șantierul selectat.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             onClick={() => router.push("/comenzi")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             Înapoi la comenzi
           </button>
         </div>
+      </header>
 
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Informații comandă</h2>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderOrderIcon()}
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-500">Administrare comenzi</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Adaugă comandă
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+                Creează o comandă nouă pentru șantierul selectat.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-6 space-y-6">
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Informații comandă
+              </h2>
+              <p className="text-sm text-gray-500">
+                Completează datele generale ale comenzii.
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -398,7 +447,7 @@ const filteredArticles = useMemo(() => {
                   type="date"
                   value={orderDate}
                   disabled
-                  className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-600"
+                  className="w-full rounded-2xl border border-gray-300 bg-gray-50 px-4 py-3 text-gray-600"
                 />
               </div>
 
@@ -409,7 +458,7 @@ const filteredArticles = useMemo(() => {
                 <select
                   value={selectedProjectId}
                   onChange={(e) => setSelectedProjectId(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 >
                   <option value="">Selectează șantier</option>
                   {projects.map((project) => (
@@ -430,13 +479,20 @@ const filteredArticles = useMemo(() => {
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Adaugă observații pentru comandă"
                 rows={3}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
               />
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Selectează articol</h2>
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Selectează articol
+              </h2>
+              <p className="text-sm text-gray-500">
+                Caută rapid și adaugă articole în comandă.
+              </p>
+            </div>
 
             <div className="mb-4">
               <input
@@ -444,17 +500,16 @@ const filteredArticles = useMemo(() => {
                 value={articleSearch}
                 onChange={(e) => setArticleSearch(e.target.value)}
                 placeholder="Caută după număr, cod sau denumire articol"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
               />
-			  
-			  <p className="mt-2 text-xs text-gray-500">
-  Derulează în listă pentru a vedea mai multe articole sau caută după nume sau cod.
-</p>
-			  
+
+              <p className="mt-2 text-xs text-gray-500">
+                Derulează în listă pentru a vedea mai multe articole sau caută după nume sau cod.
+              </p>
             </div>
 
-            <div className="max-h-75 overflow-y-auto rounded-xl border border-gray-200">
-              <div className="grid grid-cols-12 border-b bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-600">
+            <div className="max-h-[420px] overflow-y-auto rounded-2xl border border-[#E8E5DE]">
+              <div className="grid grid-cols-12 border-b bg-[#F8F7F3] px-4 py-3 text-xs font-semibold text-gray-600">
                 <div className="col-span-3">Cod</div>
                 <div className="col-span-6">Denumire</div>
                 <div className="col-span-3 text-right">Acțiune</div>
@@ -468,13 +523,13 @@ const filteredArticles = useMemo(() => {
                 filteredArticles.map((article) => (
                   <div
                     key={article.id}
-                    className="grid grid-cols-12 items-center border-b px-4 py-2 text-xs last:border-b-0"
+                    className="grid grid-cols-12 items-center border-b px-4 py-3 text-sm last:border-b-0"
                   >
-                    <div className="col-span-3 break-words">
+                    <div className="col-span-3 break-words text-gray-600">
                       {article.article_code || "-"}
                     </div>
 
-                    <div className="col-span-6 break-words text-[#0196ff] font-medium">
+                    <div className="col-span-6 break-words font-medium text-[#0196ff]">
                       {article.name}
                     </div>
 
@@ -482,7 +537,7 @@ const filteredArticles = useMemo(() => {
                       <button
                         type="button"
                         onClick={() => openAddArticlePopup(article)}
-                        className="rounded-lg bg-[#0196ff] px-3 py-2 text-xs font-semibold text-white"
+                        className="rounded-xl bg-[#0196ff] px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90"
                       >
                         Adaugă
                       </button>
@@ -491,109 +546,228 @@ const filteredArticles = useMemo(() => {
                 ))
               )}
             </div>
-          </div>
+          </section>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Articole selectate</h2>
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Articole selectate
+              </h2>
+              <p className="text-sm text-gray-500">
+                Ajustează cantitățile și verifică valorile.
+              </p>
+            </div>
 
             {items.length === 0 ? (
               <p className="text-sm text-gray-500">
                 Nu ai adăugat încă niciun articol în comandă.
               </p>
             ) : (
-<div className="overflow-hidden rounded-xl border border-gray-200">
-  <div className="grid grid-cols-12 border-b bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-600">
-    <div className="col-span-1">Nr.</div>
-    <div className="col-span-2">Cod</div>
-    <div className="col-span-4">Denumire</div>
-    <div className="col-span-2">Qty</div>
-    <div className="col-span-2 text-right">Val.(lei)</div>
-    <div className="col-span-1 text-center"> </div>
-  </div>
+              <>
+                <div className="hidden lg:block overflow-hidden rounded-2xl border border-[#E8E5DE]">
+                  <div className="grid grid-cols-12 border-b bg-[#F8F7F3] px-4 py-3 text-sm font-semibold text-gray-700">
+                    <div className="col-span-1">Nr.</div>
+                    <div className="col-span-2">Cod</div>
+                    <div className="col-span-4">Denumire</div>
+                    <div className="col-span-1">U.M.</div>
+                    <div className="col-span-1">Qty</div>
+                    <div className="col-span-2 text-right">Val.(lei)</div>
+                    <div className="col-span-1 text-center"></div>
+                  </div>
 
-  {items.map((item, index) => {
-    const qty = Number(item.quantity) || 0;
-    const lineTotal = item.unit_price * qty;
+                  {items.map((item, index) => {
+                    const qty = Number(item.quantity) || 0;
+                    const lineTotal = item.unit_price * qty;
 
-    return (
-      <div
-        key={item.localId}
-        className="grid grid-cols-12 items-center border-b px-3 py-2 text-[11px] last:border-b-0"
-      >
-        <div className="col-span-1 font-medium">
-          {index + 1}
-        </div>
+                    return (
+                      <div
+                        key={item.localId}
+                        className="grid grid-cols-12 items-center border-b px-4 py-3 text-sm last:border-b-0"
+                      >
+                        <div className="col-span-1 font-semibold text-gray-900">
+                          {index + 1}
+                        </div>
 
-        <div className="col-span-2 break-words">
-          {item.article_code || "-"}
-        </div>
+                        <div className="col-span-2 break-words text-gray-600">
+                          {item.article_code || "-"}
+                        </div>
 
-        <div className="col-span-4 break-words font-medium text-[#0196ff] leading-4">
-          {item.article_name}
-        </div>
+                        <div className="col-span-4 break-words font-medium text-[#0196ff]">
+                          {item.article_name}
+                        </div>
 
-        <div className="col-span-2 flex justify-center">
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={item.quantity}
-            onChange={(e) =>
-              updateItemQuantity(item.localId, e.target.value)
-            }
-            onBlur={() => {
-              if (!item.quantity || Number(item.quantity) < 1) {
-                updateItemQuantity(item.localId, "1");
-              }
-            }}
-className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
-          />
-        </div>
+                        <div className="col-span-1 text-gray-600">
+                          {item.unit || "-"}
+                        </div>
 
-        <div className="col-span-2 font-semibold text-right leading-4">
-          {lineTotal.toFixed(2)}
-        </div>
+                        <div className="col-span-1">
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateItemQuantity(item.localId, e.target.value)
+                            }
+                            onBlur={() => {
+                              if (!item.quantity || Number(item.quantity) < 1) {
+                                updateItemQuantity(item.localId, "1");
+                              }
+                            }}
+                            className="h-9 w-16 rounded-xl border border-gray-300 px-2 text-center text-sm"
+                          />
+                        </div>
 
-        <div className="col-span-1 text-center">
-          <button
-            type="button"
-            onClick={() => removeItem(item.localId)}
-            className="text-red-600 text-sm font-bold leading-none"
-            aria-label="Șterge articol"
-            title="Șterge articol"
-          >
-            ×
-          </button>
-        </div>
-      </div>
-    );
-  })}
-</div>
+                        <div className="col-span-2 text-right font-semibold text-gray-900">
+                          {lineTotal.toFixed(2)}
+                        </div>
+
+                        <div className="col-span-1 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.localId)}
+                            className="text-lg font-bold leading-none text-red-600"
+                            aria-label="Șterge articol"
+                            title="Șterge articol"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="space-y-3 lg:hidden">
+                  {items.map((item, index) => {
+                    const qty = Number(item.quantity) || 0;
+                    const lineTotal = item.unit_price * qty;
+
+                    return (
+                      <div
+                        key={item.localId}
+                        className="rounded-2xl border border-[#E8E5DE] bg-gray-50 p-4"
+                      >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                              Nr.
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-gray-900">
+                              {index + 1}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.localId)}
+                            className="text-lg font-bold leading-none text-red-600"
+                            aria-label="Șterge articol"
+                            title="Șterge articol"
+                          >
+                            ×
+                          </button>
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                            Cod
+                          </p>
+                          <p className="mt-1 text-sm text-gray-700">
+                            {item.article_code || "-"}
+                          </p>
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                            Denumire
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-[#0196ff]">
+                            {item.article_name}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                              U.M.
+                            </p>
+                            <p className="mt-1 text-sm text-gray-700">
+                              {item.unit || "-"}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                              Qty
+                            </p>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              value={item.quantity}
+                              onChange={(e) =>
+                                updateItemQuantity(item.localId, e.target.value)
+                              }
+                              onBlur={() => {
+                                if (!item.quantity || Number(item.quantity) < 1) {
+                                  updateItemQuantity(item.localId, "1");
+                                }
+                              }}
+                              className="mt-1 h-9 w-full rounded-xl border border-gray-300 px-2 text-center text-sm"
+                            />
+                          </div>
+
+                          <div className="col-span-2">
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                              Valoare
+                            </p>
+                            <p className="mt-1 text-sm font-semibold text-gray-900">
+                              {lineTotal.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
-          </div>
+          </section>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <h2 className="mb-4 text-lg font-semibold">Total comandă</h2>
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Total comandă
+              </h2>
+              <p className="text-sm text-gray-500">
+                Verifică valorile înainte de salvare sau trimitere.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="rounded-xl bg-gray-50 p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4">
                 <p className="text-sm text-gray-500">Subtotal articole</p>
-                <p className="mt-1 text-xl font-bold">{subtotal.toFixed(2)} lei</p>
+                <p className="mt-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
+                  {subtotal.toFixed(2)} lei
+                </p>
               </div>
 
-              <div className="rounded-xl bg-gray-50 p-4">
+              <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4">
                 <p className="text-sm text-gray-500">TVA 21%</p>
-                <p className="mt-1 text-xl font-bold">{vatTotal.toFixed(2)} lei</p>
+                <p className="mt-2 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">
+                  {vatTotal.toFixed(2)} lei
+                </p>
               </div>
 
-              <div className="rounded-xl bg-[#0196ff] p-4 text-white">
-                <p className="text-sm opacity-90">Total cu TVA</p>
-                <p className="mt-1 text-xl font-bold">
+              <div className="rounded-2xl bg-[#0196ff] p-4 text-white">
+                <p className="text-sm text-white/80">Total cu TVA</p>
+                <p className="mt-2 text-2xl font-extrabold tracking-tight sm:text-3xl">
                   {totalWithVat.toFixed(2)} lei
                 </p>
               </div>
             </div>
-          </div>
+          </section>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <div className="flex flex-col">
@@ -601,7 +775,7 @@ className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
                 type="button"
                 onClick={handleSaveDraft}
                 disabled={savingDraft || sendingOrder}
-                className="rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
               >
                 {savingDraft ? "Se salvează..." : "Salvează comanda"}
               </button>
@@ -614,7 +788,7 @@ className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
               type="button"
               onClick={handleSendOrder}
               disabled={savingDraft || sendingOrder}
-              className="rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {sendingOrder ? "Se trimite..." : "Trimite comanda"}
             </button>
@@ -623,67 +797,64 @@ className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
 
         {selectedArticleForPopup && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl">
-              <h3 className="text-lg font-semibold">Adaugă articol</h3>
+            <div className="w-full max-w-sm rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-xl">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Adaugă articol
+              </h3>
 
-<div className="mt-4 space-y-3">
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Cod</p>
+                    <p className="text-sm font-medium break-words">
+                      {selectedArticleForPopup.article_code || "-"}
+                    </p>
+                  </div>
 
-  {/* Cod + UM */}
-  <div className="flex justify-between items-center">
-    <div>
-      <p className="text-xs text-gray-500">Cod</p>
-      <p className="text-sm font-medium break-words">
-        {selectedArticleForPopup.article_code || "-"}
-      </p>
-    </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-500">U.M.</p>
+                    <p className="text-sm font-semibold">
+                      {selectedArticleForPopup.unit || "-"}
+                    </p>
+                  </div>
+                </div>
 
-    <div className="text-right">
-      <p className="text-xs text-gray-500">U.M.</p>
-      <p className="text-sm font-semibold">
-        {selectedArticleForPopup.unit || "-"}
-      </p>
-    </div>
-  </div>
+                <div>
+                  <p className="text-xs text-gray-500">Denumire</p>
+                  <p className="text-sm font-semibold text-[#0196ff] break-words">
+                    {selectedArticleForPopup.name}
+                  </p>
+                </div>
 
-  {/* Denumire */}
-  <div>
-    <p className="text-xs text-gray-500">Denumire</p>
-    <p className="text-sm font-semibold text-[#0196ff] break-words">
-      {selectedArticleForPopup.name}
-    </p>
-  </div>
+                <div className="flex items-end justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-gray-500">Preț unitar</p>
+                    <p className="text-sm font-semibold">
+                      {Number(selectedArticleForPopup.unit_price).toFixed(2)} lei
+                    </p>
+                  </div>
 
-  {/* Pret + Cantitate pe acelasi rand */}
-  <div className="flex items-end justify-between gap-4">
-    <div>
-      <p className="text-xs text-gray-500">Preț unitar</p>
-      <p className="text-sm font-semibold">
-        {Number(selectedArticleForPopup.unit_price).toFixed(2)} lei
-      </p>
-    </div>
-
-    <div className="w-24">
-      <label className="mb-1 block text-xs text-gray-500">
-        Cantitate
-      </label>
-      <input
-        type="number"
-        min="1"
-        step="1"
-        value={popupQuantity}
-        onChange={(e) => setPopupQuantity(e.target.value)}
-        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-      />
-    </div>
-  </div>
-
-</div>
+                  <div className="w-24">
+                    <label className="mb-1 block text-xs text-gray-500">
+                      Cantitate
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={popupQuantity}
+                      onChange={(e) => setPopupQuantity(e.target.value)}
+                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div className="mt-5 flex gap-3">
                 <button
                   type="button"
                   onClick={closeAddArticlePopup}
-                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700"
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                 >
                   Renunță
                 </button>
@@ -691,7 +862,7 @@ className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
                 <button
                   type="button"
                   onClick={confirmAddArticle}
-                  className="flex-1 rounded-lg bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white"
+                  className="flex-1 rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                 >
                   Confirmă
                 </button>
@@ -699,7 +870,7 @@ className="w-10 h-7 rounded border border-gray-300 px-1 text-[11px] text-center"
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }
