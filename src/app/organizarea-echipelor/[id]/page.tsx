@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -96,7 +97,11 @@ export default function DetaliuEchipaPage() {
 
   const getVehicleComputedStatus = (vehicle: Vehicle) => {
     const today = new Date();
-    const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const todayOnly = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
 
     const rca = parseDate(vehicle.rca_valid_until);
     const itp = parseDate(vehicle.itp_valid_until);
@@ -165,7 +170,9 @@ export default function DetaliuEchipaPage() {
 
       supabase
         .from("vehicles")
-        .select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until")
+        .select(
+          "id, brand, model, registration_number, status, rca_valid_until, itp_valid_until"
+        )
         .order("registration_number", { ascending: true }),
 
       supabase
@@ -281,17 +288,17 @@ export default function DetaliuEchipaPage() {
     if (!team) return;
 
     if (!selectedProjectId) {
-      alert("Selecteaza santierul.");
+      alert("Selectează șantierul.");
       return;
     }
 
     if (selectedVehicleIds.length === 0) {
-      alert("Selecteaza cel putin un autoturism.");
+      alert("Selectează cel puțin un autoturism.");
       return;
     }
 
     if (selectedWorkerIds.length === 0) {
-      alert("Selecteaza cel putin un muncitor.");
+      alert("Selectează cel puțin un muncitor.");
       return;
     }
 
@@ -305,7 +312,9 @@ export default function DetaliuEchipaPage() {
       .eq("id", team.id);
 
     if (updateTeamError) {
-      alert(`A aparut o eroare la actualizarea echipei: ${updateTeamError.message}`);
+      alert(
+        `A apărut o eroare la actualizarea echipei: ${updateTeamError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -316,7 +325,9 @@ export default function DetaliuEchipaPage() {
       .eq("daily_team_id", team.id);
 
     if (deleteWorkersError) {
-      alert(`A aparut o eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`);
+      alert(
+        `A apărut o eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -327,7 +338,9 @@ export default function DetaliuEchipaPage() {
       .eq("daily_team_id", team.id);
 
     if (deleteVehiclesError) {
-      alert(`A aparut o eroare la actualizarea masinilor: ${deleteVehiclesError.message}`);
+      alert(
+        `A apărut o eroare la actualizarea mașinilor: ${deleteVehiclesError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -347,7 +360,9 @@ export default function DetaliuEchipaPage() {
       .insert(workerRows);
 
     if (insertWorkersError) {
-      alert(`A aparut o eroare la salvarea muncitorilor: ${insertWorkersError.message}`);
+      alert(
+        `A apărut o eroare la salvarea muncitorilor: ${insertWorkersError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -357,7 +372,9 @@ export default function DetaliuEchipaPage() {
       .insert(vehicleRows);
 
     if (insertVehiclesError) {
-      alert(`A aparut o eroare la salvarea masinilor: ${insertVehiclesError.message}`);
+      alert(
+        `A apărut o eroare la salvarea mașinilor: ${insertVehiclesError.message}`
+      );
       setSaving(false);
       return;
     }
@@ -387,154 +404,186 @@ export default function DetaliuEchipaPage() {
     currentTeamWorkerIds.includes(worker.id)
   );
 
+  const renderTeamIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <circle cx="8" cy="9" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="8" r="2.5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M3.5 18c0-2.8 2.4-5 5.5-5s5.5 2.2 5.5 5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14.5 18c.2-1.8 1.8-3.2 4-3.2 1 0 2 .2 2.8.8"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+
   if (loading) {
-    return <div className="p-6">Se incarca echipa...</div>;
+    return <div className="p-6">Se încarcă echipa...</div>;
   }
 
   if (!team) {
-    return <div className="p-6">Echipa nu a fost gasita.</div>;
+    return <div className="p-6">Echipa nu a fost găsită.</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Detaliu echipa</h1>
-            <p className="text-sm text-gray-600">
-              Vezi componenta echipei planificate pentru{" "}
-              {formatDate(team.work_date)}.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/organizarea-echipelor")}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              Inapoi la echipe
+              Înapoi la echipe
             </button>
 
             {isAdmin && (
               <button
                 onClick={() => setShowEditModal(true)}
-                className="rounded-lg bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white"
+                className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
               >
-                Editeaza echipa
+                Editează echipa
               </button>
             )}
           </div>
         </div>
+      </header>
 
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {project?.name || "-"}
-              </h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Data echipei: {formatDate(team.work_date)}
-              </p>
+      <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderTeamIcon()}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">Beneficiar</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {project?.beneficiary || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">Locatie</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {project?.project_location || "-"}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                <p className="text-xs font-medium text-gray-500">Muncitori</p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {currentWorkers.length}
-                </p>
-              </div>
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500">Detaliu echipă</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                {project?.name || "Echipă"}
+              </h1>
+              <p className="mt-2 text-sm text-gray-500">
+                Planificată pentru {formatDate(team.work_date)}
+              </p>
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Auto atribuite</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Vehiculele alocate acestei echipe.
+          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4">
+              <p className="text-sm text-gray-500">Beneficiar</p>
+              <p className="mt-2 text-base font-bold text-gray-900">
+                {project?.beneficiary || "-"}
               </p>
             </div>
 
-            {currentVehicles.length === 0 ? (
-              <p className="text-sm text-gray-500">Nu exista auto atribuite.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {currentVehicles.map((vehicle) => (
-                  <div
-                    key={vehicle.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                  >
-                    <p className="text-sm font-semibold text-gray-900">
-                      {vehicle.registration_number}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      {vehicle.brand} {vehicle.model}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold">Muncitori echipa</h2>
-              <p className="mt-1 text-sm text-gray-500">
-                Toti muncitorii alocati acestei echipe.
+            <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4">
+              <p className="text-sm text-gray-500">Locație</p>
+              <p className="mt-2 text-base font-bold text-gray-900">
+                {project?.project_location || "-"}
               </p>
             </div>
 
-            {currentWorkers.length === 0 ? (
-              <p className="text-sm text-gray-500">Nu exista muncitori in echipa.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                {currentWorkers.map((worker) => (
-                  <div
-                    key={worker.id}
-                    className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                  >
-                    <p className="text-sm font-medium text-gray-800">
-                      {worker.full_name}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4">
+              <p className="text-sm text-gray-500">Muncitori</p>
+              <p className="mt-2 text-base font-bold text-gray-900">
+                {currentWorkers.length}
+              </p>
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
+
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">Auto atribuite</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Vehiculele alocate acestei echipe.
+            </p>
+          </div>
+
+          {currentVehicles.length === 0 ? (
+            <p className="text-sm text-gray-500">Nu există auto atribuite.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {currentVehicles.map((vehicle) => (
+                <div
+                  key={vehicle.id}
+                  className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4"
+                >
+                  <p className="text-sm font-semibold text-gray-900">
+                    {vehicle.registration_number}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {vehicle.brand} {vehicle.model}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <div className="mb-4">
+            <h2 className="text-lg font-semibold">Muncitori echipă</h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Toți muncitorii alocați acestei echipe.
+            </p>
+          </div>
+
+          {currentWorkers.length === 0 ? (
+            <p className="text-sm text-gray-500">Nu există muncitori în echipă.</p>
+          ) : (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              {currentWorkers.map((worker) => (
+                <div
+                  key={worker.id}
+                  className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-4"
+                >
+                  <p className="text-sm font-medium text-gray-800">
+                    {worker.full_name}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
 
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
-                <h2 className="text-lg font-semibold">Editeaza echipa</h2>
+                <h2 className="text-lg font-semibold">Editează echipa</h2>
                 <p className="text-sm text-gray-500">
-                  Modifica santierul, masinile si muncitorii pentru aceasta echipa.
+                  Modifică șantierul, mașinile și muncitorii pentru această echipă.
                 </p>
               </div>
 
               <button
                 type="button"
                 onClick={() => setShowEditModal(false)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
               >
-                Inchide
+                Închide
               </button>
             </div>
 
@@ -542,14 +591,14 @@ export default function DetaliuEchipaPage() {
               <div className="space-y-6">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Selectare santier
+                    Selectare șantier
                   </label>
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
                   >
-                    <option value="">Alege santier</option>
+                    <option value="">Alege șantier</option>
                     {availableProjects.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.name}
@@ -564,15 +613,15 @@ export default function DetaliuEchipaPage() {
                   </p>
 
                   {availableVehicles.length === 0 ? (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu exista masini disponibile.
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                      Nu există mașini disponibile.
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {availableVehicles.map((vehicle) => (
                         <label
                           key={vehicle.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
@@ -600,15 +649,15 @@ export default function DetaliuEchipaPage() {
                   </p>
 
                   {availableWorkers.length === 0 ? (
-                    <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu exista muncitori disponibili.
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                      Nu există muncitori disponibili.
                     </div>
                   ) : (
                     <div className="space-y-2">
                       {availableWorkers.map((worker) => (
                         <label
                           key={worker.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
@@ -625,16 +674,16 @@ export default function DetaliuEchipaPage() {
                   )}
                 </div>
 
-                <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
+                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-sm font-medium text-blue-800">
-                    Santier selectat:{" "}
+                    Șantier selectat:{" "}
                     {availableProjects.find((p) => p.id === selectedProjectId)?.name || "-"}
                   </p>
                   <p className="mt-1 text-sm text-blue-800">
                     Auto selectate: {selectedVehicleIds.length}
                   </p>
                   <p className="mt-1 text-sm text-blue-800">
-                    Muncitori selectati: {selectedWorkerIds.length}
+                    Muncitori selectați: {selectedWorkerIds.length}
                   </p>
                 </div>
 
@@ -643,17 +692,17 @@ export default function DetaliuEchipaPage() {
                     type="button"
                     onClick={handleSave}
                     disabled={saving}
-                    className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
-                    {saving ? "Se salveaza..." : "Salveaza modificarile"}
+                    {saving ? "Se salvează..." : "Salvează modificările"}
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setShowEditModal(false)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                   >
-                    Renunta
+                    Renunță
                   </button>
                 </div>
               </div>
