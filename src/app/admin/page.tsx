@@ -86,7 +86,7 @@ export default function AdminPage() {
         ? "currentColor"
         : "#2563EB";
 
-    const iconClass = `h-7 w-7 ${
+    const iconClass = `h-6 w-6 sm:h-7 sm:w-7 ${
       dark
         ? "text-slate-300"
         : highlight === "blue"
@@ -204,12 +204,12 @@ export default function AdminPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
-        <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm sm:p-6">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <p className="text-sm text-gray-500">Modul administrativ</p>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
                 Panou Admin
               </h1>
               <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
@@ -217,14 +217,16 @@ export default function AdminPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-500">
-                Ore neplătite
-              </p>
-              <p className="mt-1 text-3xl font-extrabold tracking-tight text-red-600">
-                {unpaidCount}
-              </p>
-            </div>
+            {unpaidCount > 0 && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-500">
+                  Ore neplătite
+                </p>
+                <p className="mt-1 text-3xl font-extrabold tracking-tight text-red-600">
+                  {unpaidCount}
+                </p>
+              </div>
+            )}
           </div>
         </section>
 
@@ -246,7 +248,7 @@ export default function AdminPage() {
                   key={`${action.label}-${action.route}`}
                   type="button"
                   onClick={() => router.push(action.route)}
-                  className={`relative min-h-[190px] overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  className={`relative min-h-[150px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[170px] sm:p-5 ${
                     isBlue
                       ? "border-[#0196ff] bg-[#0196ff] text-white"
                       : isGreen
@@ -261,7 +263,7 @@ export default function AdminPage() {
                   )}
 
                   <div
-                    className={`mb-4 flex h-14 w-14 items-center justify-center rounded-3xl ${
+                    className={`mb-3 flex h-12 w-12 items-center justify-center rounded-3xl sm:mb-4 sm:h-14 sm:w-14 ${
                       isBlue
                         ? "bg-white/15"
                         : isGreen
@@ -278,12 +280,12 @@ export default function AdminPage() {
                     {renderAdminIcon(action.label, false, action.highlight)}
                   </div>
 
-                  <p className="whitespace-pre-line text-lg font-bold leading-6">
+                  <p className="whitespace-pre-line text-[15px] font-bold leading-5 sm:text-lg sm:leading-6">
                     {action.label}
                   </p>
 
                   <p
-                    className={`mt-2 text-sm leading-5 ${
+                    className={`mt-2 text-[11px] leading-5 sm:text-sm ${
                       isBlue || isGreen ? "text-white/80" : "text-gray-400"
                     }`}
                   >
@@ -291,7 +293,7 @@ export default function AdminPage() {
                   </p>
 
                   <div
-                    className={`absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-base ${
+                    className={`absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm sm:h-8 sm:w-8 sm:text-base ${
                       isBlue || isGreen
                         ? "bg-white/15 text-white"
                         : "bg-[#F0EEE9] text-gray-400"
