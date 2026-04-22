@@ -41,6 +41,18 @@ export default function AlimentariPage() {
   const [fundings, setFundings] = useState<FundingRow[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
 
+  const getFundingTypeLabel = (type: string) => {
+    if (type === "card") return "Card";
+    if (type === "cont") return "Cont";
+    return type;
+  };
+
+  const getFundingTypeClasses = (type: string) => {
+    if (type === "card") return "bg-green-100 text-green-700";
+    if (type === "cont") return "bg-blue-100 text-blue-700";
+    return "bg-gray-100 text-gray-700";
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -75,9 +87,7 @@ export default function AlimentariPage() {
 
       const profileIds = Array.from(
         new Set(
-          baseRows
-            .flatMap((row) => [row.team_lead_user_id, row.added_by])
-            .filter(Boolean)
+          baseRows.flatMap((row) => [row.team_lead_user_id, row.added_by]).filter(Boolean)
         )
       );
 
@@ -136,8 +146,9 @@ export default function AlimentariPage() {
     if (!q) return fundings;
 
     return fundings.filter((funding) => {
-      const amountText = Number(funding.amount_ron || 0).toFixed(2);
-      const amountTextNoDecimals = String(Number(funding.amount_ron || 0));
+      const amount = Number(funding.amount_ron || 0);
+      const amountFixed = amount.toFixed(2).toLowerCase();
+      const amountSimple = String(amount).toLowerCase();
 
       return (
         funding.project_name.toLowerCase().includes(q) ||
@@ -145,8 +156,8 @@ export default function AlimentariPage() {
         funding.team_lead_name.toLowerCase().includes(q) ||
         funding.added_by_name.toLowerCase().includes(q) ||
         getFundingTypeLabel(funding.funding_type).toLowerCase().includes(q) ||
-        amountText.includes(q) ||
-        amountTextNoDecimals.includes(q)
+        amountFixed.includes(q) ||
+        amountSimple.includes(q)
       );
     });
   }, [fundings, searchTerm]);
@@ -161,24 +172,6 @@ export default function AlimentariPage() {
       { count: 0, total: 0 }
     );
   }, [filteredFundings]);
-
-  const getFundingTypeLabel = (type: string) => {
-    if (type === "card") return "Card";
-    if (type === "cont") return "Cont";
-    return type;
-  };
-
-  const getFundingTypeClasses = (type: string) => {
-    if (type === "card") {
-      return "bg-green-100 text-green-700";
-    }
-
-    if (type === "cont") {
-      return "bg-blue-100 text-blue-700";
-    }
-
-    return "bg-gray-100 text-gray-700";
-  };
 
   const handleExportPdf = () => {
     const rowsHtml = filteredFundings
@@ -345,7 +338,7 @@ export default function AlimentariPage() {
           <div className="flex flex-col gap-3 md:flex-row">
             <input
               type="text"
-              placeholder="Caută după șantier, șef de echipă, alimentat de sau valoare"
+              placeholder="Caută după șantier, șef de echipă, alimentat de, tip sau valoare"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
@@ -400,25 +393,19 @@ export default function AlimentariPage() {
 
                 <div className="mt-4 space-y-2 text-sm text-gray-700">
                   <p>
-                    <span className="font-medium text-gray-500">
-                      Șef șantier:
-                    </span>{" "}
+                    <span className="font-medium text-gray-500">Șef șantier:</span>{" "}
                     {funding.team_lead_name}
                   </p>
 
                   <p>
-                    <span className="font-medium text-gray-500">
-                      Alimentat de:
-                    </span>{" "}
+                    <span className="font-medium text-gray-500">Alimentat de:</span>{" "}
                     {funding.added_by_name}
                   </p>
 
                   <p>
                     <span className="font-medium text-gray-500">Data:</span>{" "}
                     {funding.funding_date
-                      ? new Date(funding.funding_date).toLocaleDateString(
-                          "ro-RO"
-                        )
+                      ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
                       : "-"}
                   </p>
                 </div>
