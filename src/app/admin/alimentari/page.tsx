@@ -40,6 +40,10 @@ export default function AlimentariPage() {
   const [loading, setLoading] = useState(true);
   const [fundings, setFundings] = useState<FundingRow[]>([]);
 
+  const [searchProject, setSearchProject] = useState("");
+  const [searchTeamLead, setSearchTeamLead] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
@@ -129,8 +133,25 @@ export default function AlimentariPage() {
     loadData();
   }, []);
 
+  const filteredFundings = useMemo(() => {
+    return fundings.filter((funding) => {
+      const matchesProject = funding.project_name
+        .toLowerCase()
+        .includes(searchProject.toLowerCase());
+
+      const matchesTeamLead = funding.team_lead_name
+        .toLowerCase()
+        .includes(searchTeamLead.toLowerCase());
+
+      const matchesMinAmount =
+        !minAmount || Number(funding.amount_ron || 0) >= Number(minAmount);
+
+      return matchesProject && matchesTeamLead && matchesMinAmount;
+    });
+  }, [fundings, searchProject, searchTeamLead, minAmount]);
+
   const totals = useMemo(() => {
-    return fundings.reduce(
+    return filteredFundings.reduce(
       (acc, row) => {
         acc.count += 1;
         acc.total += Number(row.amount_ron || 0);
@@ -138,7 +159,7 @@ export default function AlimentariPage() {
       },
       { count: 0, total: 0 }
     );
-  }, [fundings]);
+  }, [filteredFundings]);
 
   const getFundingTypeLabel = (type: string) => {
     if (type === "card") return "Card";
@@ -190,31 +211,66 @@ export default function AlimentariPage() {
           </div>
         </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <p className="text-sm text-gray-500">Total alimentări</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900">
+        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="rounded-2xl bg-white p-4 shadow">
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Total alimentări
+            </p>
+            <p className="mt-2 text-2xl font-bold text-gray-900">
               {totals.count}
             </p>
           </div>
 
-          <div className="rounded-2xl bg-[#0196ff] p-5 text-white shadow">
-            <p className="text-sm text-white/80">Valoare totală alimentată</p>
-            <p className="mt-2 text-3xl font-bold">
+          <div className="rounded-2xl bg-[#0196ff] p-4 text-white shadow">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/80">
+              Valoare totală alimentată
+            </p>
+            <p className="mt-2 text-2xl font-bold">
               {totals.total.toFixed(2)} lei
             </p>
           </div>
         </div>
 
-        {fundings.length === 0 ? (
+        <div className="mb-6 rounded-2xl bg-white p-4 shadow">
+          <h2 className="mb-3 text-lg font-semibold">Filtrare alimentări</h2>
+
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <input
+              type="text"
+              placeholder="Caută după șantier"
+              value={searchProject}
+              onChange={(e) => setSearchProject(e.target.value)}
+              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+            />
+
+            <input
+              type="text"
+              placeholder="Caută după șef de echipă"
+              value={searchTeamLead}
+              onChange={(e) => setSearchTeamLead(e.target.value)}
+              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+            />
+
+            <input
+              type="number"
+              step="0.01"
+              placeholder="Valoare minimă (lei)"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+            />
+          </div>
+        </div>
+
+        {filteredFundings.length === 0 ? (
           <div className="rounded-2xl bg-white px-5 py-6 shadow">
             <p className="text-sm text-gray-500">
-              Nu există alimentări înregistrate.
+              Nu există alimentări pentru filtrele selectate.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {fundings.map((funding) => (
+            {filteredFundings.map((funding) => (
               <div
                 key={funding.id}
                 className="rounded-2xl bg-white p-4 shadow"
