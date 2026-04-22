@@ -39,10 +39,7 @@ export default function AlimentariPage() {
 
   const [loading, setLoading] = useState(true);
   const [fundings, setFundings] = useState<FundingRow[]>([]);
-
-  const [searchProject, setSearchProject] = useState("");
-  const [searchTeamLead, setSearchTeamLead] = useState("");
-  const [minAmount, setMinAmount] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
@@ -134,21 +131,25 @@ export default function AlimentariPage() {
   }, []);
 
   const filteredFundings = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+
+    if (!q) return fundings;
+
     return fundings.filter((funding) => {
-      const matchesProject = funding.project_name
-        .toLowerCase()
-        .includes(searchProject.toLowerCase());
+      const amountText = Number(funding.amount_ron || 0).toFixed(2);
+      const amountTextNoDecimals = String(Number(funding.amount_ron || 0));
 
-      const matchesTeamLead = funding.team_lead_name
-        .toLowerCase()
-        .includes(searchTeamLead.toLowerCase());
-
-      const matchesMinAmount =
-        !minAmount || Number(funding.amount_ron || 0) >= Number(minAmount);
-
-      return matchesProject && matchesTeamLead && matchesMinAmount;
+      return (
+        funding.project_name.toLowerCase().includes(q) ||
+        (funding.project_beneficiary || "").toLowerCase().includes(q) ||
+        funding.team_lead_name.toLowerCase().includes(q) ||
+        funding.added_by_name.toLowerCase().includes(q) ||
+        getFundingTypeLabel(funding.funding_type).toLowerCase().includes(q) ||
+        amountText.includes(q) ||
+        amountTextNoDecimals.includes(q)
+      );
     });
-  }, [fundings, searchProject, searchTeamLead, minAmount]);
+  }, [fundings, searchTerm]);
 
   const totals = useMemo(() => {
     return filteredFundings.reduce(
@@ -177,6 +178,115 @@ export default function AlimentariPage() {
     }
 
     return "bg-gray-100 text-gray-700";
+  };
+
+  const handleExportPdf = () => {
+    const rowsHtml = filteredFundings
+      .map((funding, index) => {
+        const dateText = funding.funding_date
+          ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
+          : "-";
+
+        return `
+          <tr>
+            <td>${index + 1}</td>
+            <td>${funding.project_name}</td>
+            <td>${funding.project_beneficiary || "-"}</td>
+            <td>${funding.team_lead_name}</td>
+            <td>${funding.added_by_name}</td>
+            <td>${getFundingTypeLabel(funding.funding_type)}</td>
+            <td>${Number(funding.amount_ron || 0).toFixed(2)} lei</td>
+            <td>${dateText}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const html = `
+      <html>
+        <head>
+          <title>Raport alimentări</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 24px;
+              color: #111827;
+            }
+            h1 {
+              font-size: 24px;
+              margin-bottom: 6px;
+            }
+            p {
+              margin-top: 0;
+              margin-bottom: 16px;
+              color: #4b5563;
+            }
+            .summary {
+              margin-bottom: 20px;
+              padding: 12px;
+              border: 1px solid #d1d5db;
+              border-radius: 10px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+            }
+            th, td {
+              border: 1px solid #d1d5db;
+              padding: 10px;
+              text-align: left;
+              font-size: 12px;
+              vertical-align: top;
+            }
+            th {
+              background: #f3f4f6;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Raport alimentări carduri / conturi</h1>
+          <p>Generat la ${new Date().toLocaleString("ro-RO")}</p>
+
+          <div class="summary">
+            <strong>Total alimentări:</strong> ${totals.count}<br />
+            <strong>Valoare totală alimentată:</strong> ${totals.total.toFixed(2)} lei
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Nr.</th>
+                <th>Proiect</th>
+                <th>Beneficiar</th>
+                <th>Șef șantier</th>
+                <th>Alimentat de</th>
+                <th>Tip</th>
+                <th>Sumă</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || `<tr><td colspan="8">Nu există alimentări pentru export.</td></tr>`}
+            </tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      alert("Nu s-a putut deschide fereastra pentru export PDF.");
+      return;
+    }
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
   };
 
   if (loading) {
@@ -232,40 +342,29 @@ export default function AlimentariPage() {
         </div>
 
         <div className="mb-6 rounded-2xl bg-white p-4 shadow">
-          <h2 className="mb-3 text-lg font-semibold">Filtrare alimentări</h2>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="flex flex-col gap-3 md:flex-row">
             <input
               type="text"
-              placeholder="Caută după șantier"
-              value={searchProject}
-              onChange={(e) => setSearchProject(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              placeholder="Caută după șantier, șef de echipă, alimentat de sau valoare"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
             />
 
-            <input
-              type="text"
-              placeholder="Caută după șef de echipă"
-              value={searchTeamLead}
-              onChange={(e) => setSearchTeamLead(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-            />
-
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Valoare minimă (lei)"
-              value={minAmount}
-              onChange={(e) => setMinAmount(e.target.value)}
-              className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-            />
+            <button
+              type="button"
+              onClick={handleExportPdf}
+              className="rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white whitespace-nowrap"
+            >
+              Export PDF
+            </button>
           </div>
         </div>
 
         {filteredFundings.length === 0 ? (
           <div className="rounded-2xl bg-white px-5 py-6 shadow">
             <p className="text-sm text-gray-500">
-              Nu există alimentări pentru filtrele selectate.
+              Nu există alimentări pentru criteriul introdus.
             </p>
           </div>
         ) : (
