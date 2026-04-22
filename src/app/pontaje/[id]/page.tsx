@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -1076,6 +1077,30 @@ export default function PontajSantierPage() {
     alert("Zilele lucrate în weekend au fost salvate.");
   };
 
+  const renderPontajIcon = () => (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
+    >
+      <rect
+        x="5"
+        y="4"
+        width="14"
+        height="16"
+        rx="2"
+        stroke="currentColor"
+        strokeWidth="2"
+      />
+      <path
+        d="M9 2v4M15 2v4M8 10h8M8 14h5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+
   if (loading) {
     return <div className="p-6">Se încarcă datele șantierului...</div>;
   }
@@ -1085,283 +1110,293 @@ export default function PontajSantierPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Pontaj șantier</h1>
-            <p className="text-sm text-gray-600">
-              Selectează echipa care intră la lucru și gestionează pontajele
-              active.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             onClick={() => router.push("/pontaje")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             Înapoi la șantiere
           </button>
         </div>
+      </header>
 
-        <div className="space-y-4">
-          <div className="rounded-2xl bg-white p-4 shadow">
-            <div className="grid grid-cols-1 gap-3">
-              <button
-                type="button"
-                onClick={() => setShowHistoryModal(true)}
-                className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-              >
-                Vezi istoric pontaje
-              </button>
-
-              {canOpenExtraModal && (
-                <button
-                  type="button"
-                  onClick={handleOpenExtraModal}
-                  className="w-full rounded-lg bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Adăugare ore extra
-                </button>
-              )}
-
-              {canOpenWeekendModal && (
-                <button
-                  type="button"
-                  onClick={handleOpenWeekendModal}
-                  className="w-full rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Zile lucrate în weekend
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl bg-white p-4 shadow">
-            <h2 className="text-lg font-semibold">{project.name}</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {project.beneficiary || "-"}
-            </p>
-            <p className="mt-2 text-sm">
-              <span className="font-medium text-gray-500">Locație:</span>{" "}
-              {project.project_location || "-"}
-            </p>
-          </div>
-
-          <div className="rounded-2xl bg-white p-4 shadow">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Pontaje active</h2>
-              <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                {activeEntries.length} activi
-              </span>
+      <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderPontajIcon()}
             </div>
 
-            {activeEntries.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există muncitori pontați în acest moment.
+            <div className="min-w-0">
+              <p className="text-sm text-gray-500">Pontaj șantier</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                {project.name}
+              </h1>
+              <p className="mt-2 text-sm text-gray-500">
+                {project.beneficiary || "-"}
               </p>
-            ) : (
-              <div className="space-y-2">
-                {activeEntries.map((entry) => {
-                  const inPause = isNowInPauseForEntry(entry.start_time);
+              <p className="mt-1 text-sm text-gray-500">
+                {project.project_location || "-"}
+              </p>
+            </div>
+          </div>
+        </section>
 
-                  return (
-                    <div
-                      key={entry.id}
-                      className="rounded-lg border border-green-200 bg-green-50 p-3"
-                    >
-                      <div className="space-y-2">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">
-                            {entry.worker_name || "-"}
-                          </p>
-                          <p className="text-xs text-gray-600">
-                            Intrare:{" "}
-                            {new Date(entry.start_time).toLocaleTimeString(
-                              "ro-RO",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              }
-                            )}
-                          </p>
-                        </div>
+        <section className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => setShowHistoryModal(true)}
+            className="rounded-[20px] bg-[#0196ff] px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+          >
+            Vezi istoric pontaje
+          </button>
 
-                        <div className="rounded-md bg-white px-3 py-2 shadow-sm">
-                          <p className="text-xs font-medium text-gray-500">
-                            Cronometru
-                          </p>
+          {canOpenExtraModal && (
+            <button
+              type="button"
+              onClick={handleOpenExtraModal}
+              className="rounded-[20px] bg-purple-600 px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              Adăugare ore extra
+            </button>
+          )}
 
-                          {inPause ? (
-                            <div className="mt-1 flex items-center justify-between">
-                              <p className="text-lg font-bold text-orange-600">
-                                Pauză
-                              </p>
-                              <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-700">
-                                12:00 - 13:00
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="mt-1 text-lg font-bold text-green-700">
-                              {formatDuration(entry.start_time)}
+          {canOpenWeekendModal && (
+            <button
+              type="button"
+              onClick={handleOpenWeekendModal}
+              className="rounded-[20px] bg-orange-600 px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              Zile lucrate în weekend
+            </button>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold text-gray-900">Pontaje active</h2>
+            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+              {activeEntries.length} activi
+            </span>
+          </div>
+
+          {activeEntries.length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Nu există muncitori pontați în acest moment.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {activeEntries.map((entry) => {
+                const inPause = isNowInPauseForEntry(entry.start_time);
+
+                return (
+                  <div
+                    key={entry.id}
+                    className="rounded-2xl border border-green-200 bg-green-50 p-4"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-base font-semibold text-gray-900">
+                          {entry.worker_name || "-"}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-600">
+                          Intrare:{" "}
+                          {new Date(entry.start_time).toLocaleTimeString("ro-RO", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl bg-white px-4 py-3 shadow-sm">
+                        <p className="text-xs font-medium text-gray-500">
+                          Cronometru
+                        </p>
+
+                        {inPause ? (
+                          <div className="mt-1 flex items-center gap-2">
+                            <p className="text-lg font-bold text-orange-600">
+                              Pauză
                             </p>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleStopTimeEntry(entry.id)}
-                          disabled={stoppingId === entry.id || submitting}
-                          className="w-full rounded-md bg-red-600 px-3 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                        >
-                          {stoppingId === entry.id
-                            ? "Se oprește..."
-                            : "Oprește pontajul"}
-                        </button>
+                            <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-semibold text-orange-700">
+                              12:00 - 13:00
+                            </span>
+                          </div>
+                        ) : (
+                          <p className="mt-1 text-lg font-bold text-green-700">
+                            {formatDuration(entry.start_time)}
+                          </p>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
 
-                <button
-                  type="button"
-                  onClick={handleStopAllTimeEntries}
-                  disabled={submitting || activeEntries.length === 0}
-                  className="w-full rounded-lg bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                >
-                  {submitting
-                    ? "Se procesează..."
-                    : "Oprește pontajul pentru toți"}
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-2xl bg-white p-4 shadow">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Echipa de azi</h2>
+                    <button
+                      type="button"
+                      onClick={() => handleStopTimeEntry(entry.id)}
+                      disabled={stoppingId === entry.id || submitting}
+                      className="mt-4 w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                    >
+                      {stoppingId === entry.id
+                        ? "Se oprește..."
+                        : "Oprește pontajul"}
+                    </button>
+                  </div>
+                );
+              })}
 
               <button
                 type="button"
-                onClick={() => setShowWorkersList((prev) => !prev)}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 ${
-                  showWorkersList ? "bg-gray-600" : "bg-[#0196ff]"
-                }`}
+                onClick={handleStopAllTimeEntries}
+                disabled={submitting || activeEntries.length === 0}
+                className="w-full rounded-xl bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
               >
-                {showWorkersList ? "Ascunde lista" : "Arată lista"}
+                {submitting
+                  ? "Se procesează..."
+                  : "Oprește pontajul pentru toți"}
               </button>
             </div>
+          )}
+        </section>
 
-            {!plannedTeamExists && (
-              <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3">
-                <p className="text-sm font-medium text-yellow-800">
-                  Nu există echipă organizată pentru azi pe acest șantier.
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Echipa de azi</h2>
+              <p className="text-sm text-gray-500">
+                Selectează cine intră azi la lucru.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowWorkersList((prev) => !prev)}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 ${
+                showWorkersList ? "bg-gray-600" : "bg-[#0196ff]"
+              }`}
+            >
+              {showWorkersList ? "Ascunde lista" : "Arată lista"}
+            </button>
+          </div>
+
+          {!plannedTeamExists && (
+            <div className="mb-4 rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
+              <p className="text-sm font-medium text-yellow-800">
+                Nu există echipă organizată pentru azi pe acest șantier.
+              </p>
+              <p className="mt-1 text-xs text-yellow-700">
+                Administratorul poate ponta manual, dacă este necesar.
+              </p>
+            </div>
+          )}
+
+          {plannedTeamExists && (
+            <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+              <p className="text-sm font-medium text-green-800">
+                Echipa organizată pentru azi a fost încărcată automat.
+              </p>
+              <p className="mt-1 text-xs text-green-700">
+                Toți muncitorii atribuiți sunt bifați automat. Poți debifa muncitorii lipsă.
+              </p>
+            </div>
+          )}
+
+          {!plannedTeamExists && (
+            <div className="mb-4 rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={sameTeamAsYesterday}
+                  onChange={(e) =>
+                    handleToggleSameTeamAsYesterday(e.target.checked)
+                  }
+                  className="h-5 w-5"
+                />
+                <span className="text-sm font-medium text-gray-800">
+                  Aceeași echipă ca ieri
+                </span>
+              </label>
+
+              <p className="mt-2 text-xs text-gray-500">
+                Selectează automat muncitorii care au fost pontați ieri pe acest șantier.
+              </p>
+            </div>
+          )}
+
+          {showWorkersList && (
+            <div className="space-y-2">
+              {availableWorkers.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Nu există muncitori disponibili pentru pontare.
                 </p>
-                <p className="mt-1 text-xs text-yellow-700">
-                  Administratorul poate ponta manual, dacă este necesar.
-                </p>
-              </div>
-            )}
-
-            {plannedTeamExists && (
-              <div className="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3">
-                <p className="text-sm font-medium text-green-800">
-                  Echipa organizată pentru azi a fost încărcată automat.
-                </p>
-                <p className="mt-1 text-xs text-green-700">
-                  Toți muncitorii atribuiți sunt bifați automat. Poți debifa
-                  muncitorii lipsă.
-                </p>
-              </div>
-            )}
-
-            {!plannedTeamExists && (
-              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={sameTeamAsYesterday}
-                    onChange={(e) =>
-                      handleToggleSameTeamAsYesterday(e.target.checked)
-                    }
-                    className="h-5 w-5"
-                  />
-                  <span className="text-sm font-medium text-gray-800">
-                    Aceeași echipă ca ieri
-                  </span>
-                </label>
-
-                <p className="mt-2 text-xs text-gray-500">
-                  Selectează automat muncitorii care au fost pontați ieri pe acest
-                  șantier.
-                </p>
-              </div>
-            )}
-
-            {showWorkersList && (
-              <div className="space-y-2">
-                {availableWorkers.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Nu există muncitori disponibili pentru pontare.
-                  </p>
-                ) : (
-                  availableWorkers.map((worker) => (
-                    <label
-                      key={worker.id}
-                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedWorkers.includes(worker.id)}
-                        onChange={() => toggleWorker(worker.id)}
-                        className="h-5 w-5"
-                      />
-                      <span className="text-sm font-medium text-gray-800">
-                        {worker.full_name}
-                      </span>
-                    </label>
-                  ))
-                )}
-              </div>
-            )}
-
-            {selectedWorkersList.length > 0 && (
-              <div className="mt-5">
-                <p className="mb-3 text-sm font-medium text-gray-700">
-                  Selectați pentru pontaj:
-                </p>
-
-                <div className="flex flex-wrap gap-2">
-                  {selectedWorkersList.map((worker) => (
-                    <span
-                      key={worker.id}
-                      className="rounded-full bg-[#66CC99]/15 px-3 py-2 text-sm font-medium text-[#2f855a]"
-                    >
+              ) : (
+                availableWorkers.map((worker) => (
+                  <label
+                    key={worker.id}
+                    className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedWorkers.includes(worker.id)}
+                      onChange={() => toggleWorker(worker.id)}
+                      className="h-5 w-5"
+                    />
+                    <span className="text-sm font-medium text-gray-800">
                       {worker.full_name}
                     </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={handleStartTimeEntries}
-                disabled={submitting || selectedWorkers.length === 0}
-                className="w-full rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-              >
-                {submitting ? "Se pontează..." : "PONTEAZĂ"}
-              </button>
+                  </label>
+                ))
+              )}
             </div>
+          )}
+
+          {selectedWorkersList.length > 0 && (
+            <div className="mt-5">
+              <p className="mb-3 text-sm font-medium text-gray-700">
+                Selectați pentru pontaj:
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                {selectedWorkersList.map((worker) => (
+                  <span
+                    key={worker.id}
+                    className="rounded-full bg-[#66CC99]/15 px-3 py-2 text-sm font-medium text-[#2f855a]"
+                  >
+                    {worker.full_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-6">
+            <button
+              type="button"
+              onClick={handleStartTimeEntries}
+              disabled={submitting || selectedWorkers.length === 0}
+              className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+            >
+              {submitting ? "Se pontează..." : "PONTEAZĂ"}
+            </button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
       {showHistoryModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[88vh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Istoric pontaje</h2>
@@ -1373,7 +1408,7 @@ export default function PontajSantierPage() {
               <button
                 type="button"
                 onClick={() => setShowHistoryModal(false)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
               >
                 Închide
               </button>
@@ -1384,7 +1419,7 @@ export default function PontajSantierPage() {
                 <button
                   type="button"
                   onClick={() => setHistoryFilter("azi")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${
                     historyFilter === "azi"
                       ? "bg-[#0196ff] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -1396,7 +1431,7 @@ export default function PontajSantierPage() {
                 <button
                   type="button"
                   onClick={() => setHistoryFilter("lunar")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${
                     historyFilter === "lunar"
                       ? "bg-[#0196ff] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -1408,7 +1443,7 @@ export default function PontajSantierPage() {
                 <button
                   type="button"
                   onClick={() => setHistoryFilter("data")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${
                     historyFilter === "data"
                       ? "bg-[#0196ff] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -1420,7 +1455,7 @@ export default function PontajSantierPage() {
                 <button
                   type="button"
                   onClick={() => setHistoryFilter("proiect")}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                  className={`rounded-xl px-4 py-2 text-sm font-semibold ${
                     historyFilter === "proiect"
                       ? "bg-[#0196ff] text-white"
                       : "bg-gray-100 text-gray-700"
@@ -1439,7 +1474,7 @@ export default function PontajSantierPage() {
                     type="date"
                     value={selectedHistoryDate}
                     onChange={(e) => setSelectedHistoryDate(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
                   />
                 </div>
               )}
@@ -1453,7 +1488,7 @@ export default function PontajSantierPage() {
                     type="month"
                     value={selectedHistoryMonth}
                     onChange={(e) => setSelectedHistoryMonth(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
                   />
                 </div>
               )}
@@ -1469,65 +1504,51 @@ export default function PontajSantierPage() {
                   {filteredHistoryGrouped.map((item) => (
                     <div
                       key={item.key}
-                      className="rounded-lg border border-gray-200 bg-gray-50 p-4"
+                      className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
                     >
-                      <div className="space-y-2">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {item.worker_name}
-                        </p>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {item.worker_name}
+                      </p>
 
-                        <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-4">
-                          <div>
-                            <span className="font-medium text-gray-500">
-                              Data:
-                            </span>{" "}
-                            {new Date(item.work_date).toLocaleDateString(
-                              "ro-RO"
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="font-medium text-gray-500">
-                              Prima intrare:
-                            </span>{" "}
-                            {new Date(item.first_start).toLocaleTimeString(
-                              "ro-RO",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              }
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="font-medium text-gray-500">
-                              Ultima ieșire:
-                            </span>{" "}
-                            {new Date(item.last_end).toLocaleTimeString(
-                              "ro-RO",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                                second: "2-digit",
-                              }
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="font-medium text-gray-500">
-                              Total:
-                            </span>{" "}
-                            <span className="font-semibold text-gray-900">
-                              {formatMsToHHMMSS(item.total_ms)}
-                            </span>
-                          </div>
+                      <div className="mt-3 grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2">
+                        <div>
+                          <span className="font-medium text-gray-500">Data:</span>{" "}
+                          {new Date(item.work_date).toLocaleDateString("ro-RO")}
                         </div>
 
-                        <p className="text-xs font-medium text-red-600">
-                          Pauza 12:00 - 13:00 este exclusă automat din calcul.
-                        </p>
+                        <div>
+                          <span className="font-medium text-gray-500">
+                            Prima intrare:
+                          </span>{" "}
+                          {new Date(item.first_start).toLocaleTimeString("ro-RO", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </div>
+
+                        <div>
+                          <span className="font-medium text-gray-500">
+                            Ultima ieșire:
+                          </span>{" "}
+                          {new Date(item.last_end).toLocaleTimeString("ro-RO", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            second: "2-digit",
+                          })}
+                        </div>
+
+                        <div>
+                          <span className="font-medium text-gray-500">Total:</span>{" "}
+                          <span className="font-semibold text-gray-900">
+                            {formatMsToHHMMSS(item.total_ms)}
+                          </span>
+                        </div>
                       </div>
+
+                      <p className="mt-3 text-xs font-medium text-red-600">
+                        Pauza 12:00 - 13:00 este exclusă automat din calcul.
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -1539,7 +1560,7 @@ export default function PontajSantierPage() {
 
       {showExtraModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[88vh] w-full max-w-2xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Adăugare ore extra</h2>
@@ -1551,7 +1572,7 @@ export default function PontajSantierPage() {
               <button
                 type="button"
                 onClick={() => setShowExtraModal(false)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
               >
                 Închide
               </button>
@@ -1570,11 +1591,11 @@ export default function PontajSantierPage() {
                     value={extraHours}
                     onChange={(e) => setExtraHours(e.target.value)}
                     placeholder="Ex: 2"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                    className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-black"
                   />
                 </div>
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                   <label className="flex cursor-pointer items-center gap-3">
                     <input
                       type="checkbox"
@@ -1598,7 +1619,7 @@ export default function PontajSantierPage() {
                       {todayWorkedWorkers.map((worker) => (
                         <label
                           key={worker.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 hover:bg-gray-50"
                         >
                           <input
                             type="checkbox"
@@ -1615,7 +1636,7 @@ export default function PontajSantierPage() {
                   </div>
                 )}
 
-                <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">
+                <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3">
                   <p className="text-sm font-medium text-purple-800">
                     Muncitori selectați: {selectedExtraWorkersDetails.length}
                   </p>
@@ -1629,7 +1650,7 @@ export default function PontajSantierPage() {
                     type="button"
                     onClick={handleSaveExtraWork}
                     disabled={savingExtra}
-                    className="w-full rounded-lg bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                    className="w-full rounded-xl bg-purple-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
                     {savingExtra ? "Se salvează..." : "Salvează"}
                   </button>
@@ -1637,7 +1658,7 @@ export default function PontajSantierPage() {
                   <button
                     type="button"
                     onClick={() => setShowExtraModal(false)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
                   >
                     Renunță
                   </button>
@@ -1650,7 +1671,7 @@ export default function PontajSantierPage() {
 
       {showWeekendModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Zile lucrate în weekend</h2>
@@ -1662,14 +1683,14 @@ export default function PontajSantierPage() {
               <button
                 type="button"
                 onClick={() => setShowWeekendModal(false)}
-                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
+                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700"
               >
                 Închide
               </button>
             </div>
 
             <div className="max-h-[78vh] overflow-y-auto px-5 py-4">
-              <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+              <div className="mb-4 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
                 <p className="text-sm font-medium text-orange-800">
                   Weekend selectat:
                 </p>
@@ -1679,8 +1700,8 @@ export default function PontajSantierPage() {
                 </p>
               </div>
 
-              <div className="overflow-hidden rounded-xl border border-gray-200">
-                <div className="grid grid-cols-[2fr_1fr_1fr] bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700">
+              <div className="overflow-hidden rounded-2xl border border-gray-200">
+                <div className="grid grid-cols-[2fr_1fr_1fr] bg-[#F8F7F3] px-4 py-3 text-sm font-semibold text-gray-700">
                   <div>Nume</div>
                   <div className="text-center">
                     <div>Sâmbătă</div>
@@ -1740,7 +1761,7 @@ export default function PontajSantierPage() {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3">
+              <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3">
                 <p className="text-sm font-medium text-orange-800">
                   Muncitori selectați: {weekendSelectedWorkersCount}
                 </p>
@@ -1757,7 +1778,7 @@ export default function PontajSantierPage() {
                   type="button"
                   onClick={handleSaveWeekendWork}
                   disabled={savingWeekend}
-                  className="w-full rounded-lg bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                  className="w-full rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                 >
                   {savingWeekend ? "Se salvează..." : "Salvează"}
                 </button>
@@ -1765,7 +1786,7 @@ export default function PontajSantierPage() {
                 <button
                   type="button"
                   onClick={() => setShowWeekendModal(false)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+                  className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
                 >
                   Renunță
                 </button>
