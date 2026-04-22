@@ -74,7 +74,6 @@ export default function ProiectePage() {
   const [searchName, setSearchName] = useState("");
   const [selectedYear, setSelectedYear] = useState("toate");
   const [selectedMonth, setSelectedMonth] = useState("toate");
-  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -221,11 +220,11 @@ export default function ProiectePage() {
       const projectYear = projectDate.getFullYear().toString();
       const projectMonth = (projectDate.getMonth() + 1).toString();
 
+      const q = searchName.toLowerCase();
+
       const matchesName =
-        project.name.toLowerCase().includes(searchName.toLowerCase()) ||
-        (project.beneficiary || "")
-          .toLowerCase()
-          .includes(searchName.toLowerCase());
+        project.name.toLowerCase().includes(q) ||
+        (project.beneficiary || "").toLowerCase().includes(q);
 
       const matchesYear =
         selectedYear === "toate" || projectYear === selectedYear;
@@ -371,10 +370,6 @@ export default function ProiectePage() {
     </svg>
   );
 
-  const toggleExpanded = (projectId: string) => {
-    setExpandedProjectId((prev) => (prev === projectId ? null : projectId));
-  };
-
   if (loading) {
     return <div className="p-6">Se încarcă proiectele...</div>;
   }
@@ -473,8 +468,7 @@ export default function ProiectePage() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredProjects.map((project, index) => {
-                const isExpanded = expandedProjectId === project.id;
+              {filteredProjects.map((project) => {
                 const currentCredit = currentCreditByProject.get(project.id) || 0;
 
                 return (
@@ -510,7 +504,7 @@ export default function ProiectePage() {
                         </span>
                       </div>
 
-                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
                             Data creare
@@ -532,94 +526,42 @@ export default function ProiectePage() {
                             {currentCredit.toFixed(2)} lei
                           </p>
                         </div>
-
-                        <div className="sm:text-right">
-                          <button
-                            type="button"
-                            onClick={() => toggleExpanded(project.id)}
-                            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                          >
-                            {isExpanded ? "Ascunde acțiuni" : "Acțiuni rapide"}
-                          </button>
-                        </div>
                       </div>
 
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                      <div className="mt-5 flex flex-col gap-3">
                         <button
                           type="button"
-                          onClick={() => router.push(`/proiecte/${project.id}`)}
-                          className="w-full rounded-xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto"
+                          onClick={() =>
+                            router.push(`/proiecte/${project.id}/incarca-bf`)
+                          }
+                          className="w-full rounded-2xl border border-[#cfe4ff] bg-[#eef6ff] px-4 py-3 text-left text-sm font-semibold text-[#1976d2] transition hover:bg-[#e3f0ff]"
                         >
-                          Deschide proiect
+                          ⬆️ Bon
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => toggleExpanded(project.id)}
-                          className="w-full rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto"
+                          onClick={() =>
+                            router.push(`/proiecte/${project.id}/incarca-factura`)
+                          }
+                          className="w-full rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-left text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
                         >
-                          {isExpanded ? "Închide secțiunea" : "Încarcă documente"}
+                          ⬆️ Factură
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              `/proiecte/${project.id}/adauga-nedeductibile`
+                            )
+                          }
+                          className="w-full rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-left text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                        >
+                          ⬆️ Nedeductibilă
                         </button>
                       </div>
                     </div>
-
-                    {isExpanded && (
-                      <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
-                        <div className="mb-4">
-                          <p className="text-sm font-semibold text-gray-900">
-                            Acțiuni financiare rapide
-                          </p>
-                          <p className="mt-1 text-xs text-gray-500">
-                            Încarcă direct documentele pentru proiectul selectat.
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              router.push(`/proiecte/${project.id}/incarca-bf`)
-                            }
-                            className="rounded-2xl bg-[#0196ff] px-4 py-4 text-left text-white transition hover:opacity-90"
-                          >
-                            <p className="text-base font-semibold">Încarcă BF</p>
-                            <p className="mt-1 text-xs text-white/80">
-                              Adaugă bon fiscal pentru acest proiect.
-                            </p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              router.push(`/proiecte/${project.id}/incarca-factura`)
-                            }
-                            className="rounded-2xl bg-purple-600 px-4 py-4 text-left text-white transition hover:opacity-90"
-                          >
-                            <p className="text-base font-semibold">Încarcă Factură</p>
-                            <p className="mt-1 text-xs text-white/80">
-                              Adaugă factură nouă în proiect.
-                            </p>
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              router.push(
-                                `/proiecte/${project.id}/adauga-nedeductibile`
-                              )
-                            }
-                            className="rounded-2xl bg-orange-600 px-4 py-4 text-left text-white transition hover:opacity-90"
-                          >
-                            <p className="text-base font-semibold">
-                              Adaugă Nedeductibile
-                            </p>
-                            <p className="mt-1 text-xs text-white/80">
-                              Înregistrează cheltuieli nedeductibile.
-                            </p>
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
