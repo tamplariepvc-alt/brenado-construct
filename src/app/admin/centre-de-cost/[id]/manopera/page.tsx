@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -820,6 +821,25 @@ export default function CentruDeCostManoperaPage() {
       : "bg-gray-100 text-gray-700";
   };
 
+  const renderWorkIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
+      <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
+      <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+
   if (loading) {
     return <div className="p-6">Se incarca manopera...</div>;
   }
@@ -829,594 +849,613 @@ export default function CentruDeCostManoperaPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Manopera</h1>
-            <p className="text-sm text-gray-600">
-              Cost real calculat din salarii, pontaje, ore extra si weekend.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-row">
             <button
               onClick={() => router.push(`/admin/centre-de-cost/${projectId}`)}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700"
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Inapoi la centrul de cost
             </button>
 
             <button
               onClick={handleExportPdf}
-              className="rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white"
+              className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
             >
               Export PDF
             </button>
           </div>
         </div>
+      </header>
 
-        <div className="space-y-6">
-          <div className="rounded-2xl bg-white p-4 shadow md:p-5">
-            <div className="mb-3">
-              <h2 className="text-xl font-bold text-gray-900 md:text-lg">
-                {project.name}
-              </h2>
-              <p className="text-sm text-gray-500">
-                Cod centru de cost: {project.cost_center_code || "-"}
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+                  {renderWorkIcon()}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-500">Manopera</p>
+                  <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    {project.name}
+                  </h1>
+                  <p className="mt-1 text-sm font-medium text-gray-400">
+                    Cod centru de cost: {project.cost_center_code || "-"}
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-4 max-w-3xl text-sm text-gray-500 sm:text-base">
+                Cost real calculat din salarii, pontaje, ore extra si weekend.
               </p>
-              <p className="mt-1 text-sm text-gray-600">
+
+              <p className="mt-2 text-sm text-gray-600">
                 {project.beneficiary || "-"} • {project.project_location || "-"}
               </p>
             </div>
-
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Perioada
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {periodLabel}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Zile lucratoare
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {displayMeta.workingDays}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  {periodMode === "tot_proiectul" ? "Norma proiect" : "Norma lunara"}
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {displayMeta.normHours} ore
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Sarbatori legale
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {displayMeta.legalHolidays.length}
-                </p>
-              </div>
-
-              <div className="rounded-xl border border-gray-200 bg-gray-50 p-3">
-                <p className="text-[11px] font-medium text-gray-500 md:text-xs">
-                  Muncitori
-                </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900 md:text-sm">
-                  {summaryCards.workersCount}
-                </p>
-              </div>
-            </div>
           </div>
 
-          <div className="rounded-2xl bg-white p-5 shadow">
+          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <div className="rounded-2xl bg-gray-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Perioada
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {periodLabel}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-gray-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Zile lucratoare
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {displayMeta.workingDays}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-gray-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                {periodMode === "tot_proiectul" ? "Norma proiect" : "Norma lunara"}
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {displayMeta.normHours} ore
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-gray-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Sarbatori legale
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {displayMeta.legalHolidays.length}
+              </p>
+            </div>
+
+            <div className="rounded-2xl bg-gray-50 px-3 py-3">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Muncitori
+              </p>
+              <p className="mt-1 text-sm font-semibold text-gray-900">
+                {summaryCards.workersCount}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <button
+            type="button"
+            onClick={() => setShowFilters((prev) => !prev)}
+            className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition ${
+              showFilters
+                ? "bg-gray-500 hover:bg-gray-600"
+                : "bg-[#0196ff] hover:opacity-90"
+            }`}
+          >
+            {showFilters ? "ASCUNDE FILTRE MANOPERA" : "ARATA FILTRE MANOPERA"}
+          </button>
+        </section>
+
+        {showFilters && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Filtre</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Filtreaza manopera dupa perioada si muncitor.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Tip perioada
+                </label>
+                <select
+                  value={periodMode}
+                  onChange={(e) => setPeriodMode(e.target.value as PeriodMode)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                >
+                  <option value="tot_proiectul">De la inceputul proiectului</option>
+                  <option value="luna">Pe luna</option>
+                </select>
+              </div>
+
+              {periodMode === "luna" && (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Luna
+                  </label>
+                  <input
+                    type="month"
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Muncitor
+                </label>
+                <select
+                  value={selectedWorkerId}
+                  onChange={(e) => setSelectedWorkerId(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                >
+                  <option value="toate">Toti muncitorii</option>
+                  {workers.map((worker) => (
+                    <option key={worker.id} value={worker.id}>
+                      {worker.full_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+        )}
+
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => setShowFilters((prev) => !prev)}
-              className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition ${
-                showFilters
-                  ? "bg-gray-500 hover:bg-gray-600"
-                  : "bg-[#0196ff] hover:opacity-90"
-              }`}
+              onClick={() => setActiveTab("sumar")}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
+                "sumar"
+              )}`}
             >
-              {showFilters ? "ASCUNDE FILTRE MANOPERA" : "ARATA FILTRE MANOPERA"}
+              Sumar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("detaliu")}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
+                "detaliu"
+              )}`}
+            >
+              Detaliu
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("muncitori")}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
+                "muncitori"
+              )}`}
+            >
+              Pe muncitori
             </button>
           </div>
 
-          {showFilters && (
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">Filtre</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Filtreaza manopera dupa perioada si muncitor.
+          <p className="text-sm text-gray-500">
+            La export PDF se va salva tabul selectat si perioada curenta.
+          </p>
+        </section>
+
+        {activeTab === "sumar" && (
+          <div className="mt-6 space-y-6">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">
+                  Total manopera
+                </p>
+                <p className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
+                  {summaryCards.totalCost.toFixed(2)} lei
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Tip perioada
-                  </label>
-                  <select
-                    value={periodMode}
-                    onChange={(e) => setPeriodMode(e.target.value as PeriodMode)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-                  >
-                    <option value="tot_proiectul">De la inceputul proiectului</option>
-                    <option value="luna">Pe luna</option>
-                  </select>
-                </div>
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">Ore normale</p>
+                <p className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
+                  {summaryCards.normalHours.toFixed(2)} h
+                </p>
+              </div>
 
-                {periodMode === "luna" && (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
-                      Luna
-                    </label>
-                    <input
-                      type="month"
-                      value={selectedMonth}
-                      onChange={(e) => setSelectedMonth(e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-                    />
-                  </div>
-                )}
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">Ore extra</p>
+                <p className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
+                  {summaryCards.extraHours.toFixed(2)} h
+                </p>
+              </div>
 
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Muncitor
-                  </label>
-                  <select
-                    value={selectedWorkerId}
-                    onChange={(e) => setSelectedWorkerId(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-                  >
-                    <option value="toate">Toti muncitorii</option>
-                    {workers.map((worker) => (
-                      <option key={worker.id} value={worker.id}>
-                        {worker.full_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-gray-500">
+                  Zile weekend
+                </p>
+                <p className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
+                  {summaryCards.weekendDays}
+                </p>
               </div>
             </div>
-          )}
 
-          <div className="rounded-2xl bg-white p-5 shadow">
-            <div className="mb-4 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab("sumar")}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
-                  "sumar"
-                )}`}
-              >
-                Sumar
-              </button>
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-semibold">Defalcare costuri</h2>
 
-              <button
-                type="button"
-                onClick={() => setActiveTab("detaliu")}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
-                  "detaliu"
-                )}`}
-              >
-                Detaliu
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveTab("muncitori")}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold ${getTabClasses(
-                  "muncitori"
-                )}`}
-              >
-                Pe muncitori
-              </button>
-            </div>
-
-            <p className="text-sm text-gray-500">
-              La export PDF se va salva tabul selectat si perioada curenta.
-            </p>
-          </div>
-
-          {activeTab === "sumar" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <p className="text-sm font-medium text-gray-500">
-                    Total manopera
-                  </p>
-                  <p className="mt-3 text-2xl font-bold text-gray-900">
-                    {summaryCards.totalCost.toFixed(2)} lei
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <p className="text-sm font-medium text-gray-500">Ore normale</p>
-                  <p className="mt-3 text-2xl font-bold text-gray-900">
-                    {summaryCards.normalHours.toFixed(2)} h
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <p className="text-sm font-medium text-gray-500">Ore extra</p>
-                  <p className="mt-3 text-2xl font-bold text-gray-900">
-                    {summaryCards.extraHours.toFixed(2)} h
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <p className="text-sm font-medium text-gray-500">
-                    Zile weekend
-                  </p>
-                  <p className="mt-3 text-2xl font-bold text-gray-900">
-                    {summaryCards.weekendDays}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <h2 className="text-lg font-semibold">Defalcare costuri</h2>
-
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Cost ore normale
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {summaryCards.normalCost.toFixed(2)} lei
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Cost ore extra
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {summaryCards.extraCost.toFixed(2)} lei
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Cost weekend
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {summaryCards.weekendCost.toFixed(2)} lei
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg bg-[#0196ff] px-4 py-3 text-white">
-                      <span className="text-sm font-semibold">
-                        Total manopera
-                      </span>
-                      <span className="text-sm font-bold">
-                        {summaryCards.totalCost.toFixed(2)} lei
-                      </span>
-                    </div>
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Cost ore normale
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {summaryCards.normalCost.toFixed(2)} lei
+                    </span>
                   </div>
-                </div>
 
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <h2 className="text-lg font-semibold">Indicatori rapizi</h2>
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Cost ore extra
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {summaryCards.extraCost.toFixed(2)} lei
+                    </span>
+                  </div>
 
-                  <div className="mt-4 space-y-3">
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Muncitori implicati
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {summaryCards.workersCount}
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Cost weekend
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {summaryCards.weekendCost.toFixed(2)} lei
+                    </span>
+                  </div>
 
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Cost mediu / ora normala
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {summaryCards.averageHourlyCost.toFixed(2)} lei
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        {periodMode === "tot_proiectul"
-                          ? "Zile lucratoare proiect"
-                          : "Zile lucratoare luna"}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {displayMeta.workingDays}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        {periodMode === "tot_proiectul" ? "Norma proiect" : "Norma lunara"}
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {displayMeta.normHours} ore
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Sarbatori legale
-                      </span>
-                      <span className="text-sm font-semibold text-gray-900">
-                        {displayMeta.legalHolidays.length}
-                      </span>
-                    </div>
+                  <div className="flex items-center justify-between rounded-lg bg-[#0196ff] px-4 py-3 text-white">
+                    <span className="text-sm font-semibold">
+                      Total manopera
+                    </span>
+                    <span className="text-sm font-bold">
+                      {summaryCards.totalCost.toFixed(2)} lei
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {displayMeta.legalHolidays.length > 0 && (
-                <div className="rounded-2xl bg-white p-5 shadow">
-                  <div className="mb-4">
-                    <h2 className="text-lg font-semibold">
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-semibold">Indicatori rapizi</h2>
+
+                <div className="mt-4 space-y-3">
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Muncitori implicati
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {summaryCards.workersCount}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Cost mediu / ora normala
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {summaryCards.averageHourlyCost.toFixed(2)} lei
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
                       {periodMode === "tot_proiectul"
-                        ? "Sarbatori legale prinse in proiect"
-                        : "Sarbatori legale din luna selectata"}
-                    </h2>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Aceste zile nu sunt considerate zile lucratoare la calcul.
-                    </p>
+                        ? "Zile lucratoare proiect"
+                        : "Zile lucratoare luna"}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {displayMeta.workingDays}
+                    </span>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    {displayMeta.legalHolidays.map((holiday) => (
-                      <div
-                        key={`${holiday.date}-${holiday.name}`}
-                        className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
-                      >
-                        <p className="text-sm font-semibold text-gray-900">
-                          {new Date(holiday.date).toLocaleDateString("ro-RO")}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-600">
-                          {holiday.name}
-                        </p>
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      {periodMode === "tot_proiectul" ? "Norma proiect" : "Norma lunara"}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {displayMeta.normHours} ore
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+                    <span className="text-sm font-medium text-gray-700">
+                      Sarbatori legale
+                    </span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {displayMeta.legalHolidays.length}
+                    </span>
                   </div>
                 </div>
-              )}
+              </div>
+            </div>
 
-              <div className="rounded-2xl bg-white p-5 shadow">
+            {displayMeta.legalHolidays.length > 0 && (
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
                 <div className="mb-4">
                   <h2 className="text-lg font-semibold">
-                    Top muncitori dupa cost
+                    {periodMode === "tot_proiectul"
+                      ? "Sarbatori legale prinse in proiect"
+                      : "Sarbatori legale din luna selectata"}
                   </h2>
                   <p className="mt-1 text-sm text-gray-500">
-                    Primii 5 muncitori cu cea mai mare manopera pentru perioada selectata.
+                    Aceste zile nu sunt considerate zile lucratoare la calcul.
                   </p>
                 </div>
 
-                {topWorkers.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Nu exista date pentru filtrul selectat.
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {topWorkers.map((worker, index) => (
-                      <div
-                        key={worker.worker_id}
-                        className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4"
-                      >
-                        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">
-                              #{index + 1} {worker.worker_name}
-                            </p>
-                            <p className="mt-1 text-xs text-gray-500">
-                              Ore normale: {worker.normal_hours.toFixed(2)} h •
-                              Ore extra: {worker.extra_hours.toFixed(2)} h •
-                              Weekend: {worker.weekend_days}
-                            </p>
-                          </div>
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  {displayMeta.legalHolidays.map((holiday) => (
+                    <div
+                      key={`${holiday.date}-${holiday.name}`}
+                      className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3"
+                    >
+                      <p className="text-sm font-semibold text-gray-900">
+                        {new Date(holiday.date).toLocaleDateString("ro-RO")}
+                      </p>
+                      <p className="mt-1 text-sm text-gray-600">
+                        {holiday.name}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-                          <div className="text-sm font-bold text-gray-900">
-                            {worker.total_cost.toFixed(2)} lei
-                          </div>
+            <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+              <div className="mb-4">
+                <h2 className="text-lg font-semibold">
+                  Top muncitori dupa cost
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Primii 5 muncitori cu cea mai mare manopera pentru perioada selectata.
+                </p>
+              </div>
+
+              {topWorkers.length === 0 ? (
+                <p className="text-sm text-gray-500">
+                  Nu exista date pentru filtrul selectat.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {topWorkers.map((worker, index) => (
+                    <div
+                      key={worker.worker_id}
+                      className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-4"
+                    >
+                      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">
+                            #{index + 1} {worker.worker_name}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Ore normale: {worker.normal_hours.toFixed(2)} h •
+                            Ore extra: {worker.extra_hours.toFixed(2)} h •
+                            Weekend: {worker.weekend_days}
+                          </p>
+                        </div>
+
+                        <div className="text-sm font-bold text-gray-900">
+                          {worker.total_cost.toFixed(2)} lei
                         </div>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "detaliu" && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Detaliu pe zile</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Vezi manopera zilnica, inclusiv ore extra si weekend.
+              </p>
+            </div>
+
+            {dailyDetailRows.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu exista inregistrari pentru filtrul selectat.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
+                      <th className="border-b px-4 py-3">Data</th>
+                      <th className="border-b px-4 py-3">Muncitor</th>
+                      <th className="border-b px-4 py-3">Cost/ora</th>
+                      <th className="border-b px-4 py-3">Ore normale</th>
+                      <th className="border-b px-4 py-3">Ore extra</th>
+                      <th className="border-b px-4 py-3">Weekend</th>
+                      <th className="border-b px-4 py-3">Cost zi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dailyDetailRows.map((row) => (
+                      <tr key={row.key} className="bg-white text-sm">
+                        <td className="border-b px-4 py-3">
+                          {new Date(row.work_date).toLocaleDateString("ro-RO")}
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {row.worker_name}
+                            </p>
+                            {row.missing_salary && (
+                              <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                                Salariu lipsa
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          {row.hourly_rate.toFixed(2)} lei
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p>{row.normal_hours.toFixed(2)} h</p>
+                            <p className="text-xs text-gray-500">
+                              {row.normal_cost.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p>{row.extra_hours.toFixed(2)} h</p>
+                            <p className="text-xs text-gray-500">
+                              {row.extra_cost.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p>{row.weekend_days}</p>
+                            <p className="text-xs text-gray-500">
+                              {row.weekend_cost.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3 font-semibold text-gray-900">
+                          {row.total_cost.toFixed(2)} lei
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                )}
+                  </tbody>
+                </table>
               </div>
+            )}
+          </section>
+        )}
+
+        {activeTab === "muncitori" && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Sumar pe muncitori</h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Costul este calculat din salariul lunar raportat la norma utilizata.
+              </p>
             </div>
-          )}
 
-          {activeTab === "detaliu" && (
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">Detaliu pe zile</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Vezi manopera zilnica, inclusiv ore extra si weekend.
-                </p>
-              </div>
-
-              {dailyDetailRows.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Nu exista inregistrari pentru filtrul selectat.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
-                    <thead>
-                      <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
-                        <th className="border-b px-4 py-3">Data</th>
-                        <th className="border-b px-4 py-3">Muncitor</th>
-                        <th className="border-b px-4 py-3">Cost/ora</th>
-                        <th className="border-b px-4 py-3">Ore normale</th>
-                        <th className="border-b px-4 py-3">Ore extra</th>
-                        <th className="border-b px-4 py-3">Weekend</th>
-                        <th className="border-b px-4 py-3">Cost zi</th>
+            {workerSummaryRows.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu exista date de manopera pentru filtrul selectat.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
+                  <thead>
+                    <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
+                      <th className="border-b px-4 py-3">Muncitor</th>
+                      <th className="border-b px-4 py-3">Salariu</th>
+                      <th className="border-b px-4 py-3">Zile lucr.</th>
+                      <th className="border-b px-4 py-3">Norma</th>
+                      <th className="border-b px-4 py-3">Cost/ora</th>
+                      <th className="border-b px-4 py-3">Ore normale</th>
+                      <th className="border-b px-4 py-3">Ore extra</th>
+                      <th className="border-b px-4 py-3">Weekend</th>
+                      <th className="border-b px-4 py-3">Cost total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workerSummaryRows.map((row) => (
+                      <tr key={row.worker_id} className="bg-white text-sm">
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {row.worker_name}
+                            </p>
+                            {row.missing_salary && (
+                              <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
+                                Salariu lipsa
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          {row.monthly_salary > 0
+                            ? `${row.monthly_salary.toFixed(2)} lei`
+                            : "-"}
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          {row.working_days_in_month}
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          {row.month_norm_hours} h
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          {row.hourly_rate.toFixed(2)} lei
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p>{row.normal_hours.toFixed(2)} h</p>
+                            <p className="text-xs text-gray-500">
+                              {row.normal_cost.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p>{row.extra_hours.toFixed(2)} h</p>
+                            <p className="text-xs text-gray-500">
+                              {row.extra_cost.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3">
+                          <div>
+                            <p>{row.weekend_days}</p>
+                            <p className="text-xs text-gray-500">
+                              {row.weekend_cost.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </td>
+                        <td className="border-b px-4 py-3 font-semibold text-gray-900">
+                          {row.total_cost.toFixed(2)} lei
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {dailyDetailRows.map((row) => (
-                        <tr key={row.key} className="bg-white text-sm">
-                          <td className="border-b px-4 py-3">
-                            {new Date(row.work_date).toLocaleDateString("ro-RO")}
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {row.worker_name}
-                              </p>
-                              {row.missing_salary && (
-                                <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                                  Salariu lipsa
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            {row.hourly_rate.toFixed(2)} lei
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p>{row.normal_hours.toFixed(2)} h</p>
-                              <p className="text-xs text-gray-500">
-                                {row.normal_cost.toFixed(2)} lei
-                              </p>
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p>{row.extra_hours.toFixed(2)} h</p>
-                              <p className="text-xs text-gray-500">
-                                {row.extra_cost.toFixed(2)} lei
-                              </p>
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p>{row.weekend_days}</p>
-                              <p className="text-xs text-gray-500">
-                                {row.weekend_cost.toFixed(2)} lei
-                              </p>
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3 font-semibold text-gray-900">
-                            {row.total_cost.toFixed(2)} lei
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === "muncitori" && (
-            <div className="rounded-2xl bg-white p-5 shadow">
-              <div className="mb-4">
-                <h2 className="text-lg font-semibold">Sumar pe muncitori</h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Costul este calculat din salariul lunar raportat la norma utilizata.
-                </p>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-
-              {workerSummaryRows.length === 0 ? (
-                <p className="text-sm text-gray-500">
-                  Nu exista date de manopera pentru filtrul selectat.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-0 overflow-hidden rounded-xl">
-                    <thead>
-                      <tr className="bg-gray-50 text-left text-sm font-semibold text-gray-700">
-                        <th className="border-b px-4 py-3">Muncitor</th>
-                        <th className="border-b px-4 py-3">Salariu</th>
-                        <th className="border-b px-4 py-3">Zile lucr.</th>
-                        <th className="border-b px-4 py-3">Norma</th>
-                        <th className="border-b px-4 py-3">Cost/ora</th>
-                        <th className="border-b px-4 py-3">Ore normale</th>
-                        <th className="border-b px-4 py-3">Ore extra</th>
-                        <th className="border-b px-4 py-3">Weekend</th>
-                        <th className="border-b px-4 py-3">Cost total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {workerSummaryRows.map((row) => (
-                        <tr key={row.worker_id} className="bg-white text-sm">
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {row.worker_name}
-                              </p>
-                              {row.missing_salary && (
-                                <span className="mt-1 inline-flex rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700">
-                                  Salariu lipsa
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            {row.monthly_salary > 0
-                              ? `${row.monthly_salary.toFixed(2)} lei`
-                              : "-"}
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            {row.working_days_in_month}
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            {row.month_norm_hours} h
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            {row.hourly_rate.toFixed(2)} lei
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p>{row.normal_hours.toFixed(2)} h</p>
-                              <p className="text-xs text-gray-500">
-                                {row.normal_cost.toFixed(2)} lei
-                              </p>
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p>{row.extra_hours.toFixed(2)} h</p>
-                              <p className="text-xs text-gray-500">
-                                {row.extra_cost.toFixed(2)} lei
-                              </p>
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3">
-                            <div>
-                              <p>{row.weekend_days}</p>
-                              <p className="text-xs text-gray-500">
-                                {row.weekend_cost.toFixed(2)} lei
-                              </p>
-                            </div>
-                          </td>
-                          <td className="border-b px-4 py-3 font-semibold text-gray-900">
-                            {row.total_cost.toFixed(2)} lei
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </section>
+        )}
+      </main>
     </div>
   );
 }
