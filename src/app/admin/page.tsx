@@ -48,7 +48,7 @@ export default function AdminPage() {
 
   const actions: AdminAction[] = [
     {
-      label: "Centre de\ncost",
+      label: "Centre de cost",
       sublabel: "Vezi toate proiectele și costurile aferente",
       route: "/admin/centre-de-cost",
     },
@@ -58,18 +58,18 @@ export default function AdminPage() {
       route: "/admin/muncitori",
     },
     {
-      label: "Parc\nAuto",
+      label: "Parc Auto",
       sublabel: "Vehicule, documente și leasing",
       route: "/admin/parc-auto",
     },
     {
-      label: "Ore Extra\n+ Weekend",
+      label: "Ore Extra + Weekend",
       sublabel: "Filtrează, achită și exportă rapoarte",
       route: "/admin/ore-extra",
       highlight: "blue",
     },
     {
-      label: "Alimentare\nCarduri / Conturi",
+      label: "Alimentare Carduri / Conturi",
       sublabel: "Alimentează proiectele și vezi istoricul",
       route: "/admin/alimentari",
       highlight: "green",
@@ -216,17 +216,6 @@ export default function AdminPage() {
                 Gestionare date, module administrative și funcții financiare.
               </p>
             </div>
-
-            {unpaidCount > 0 && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-red-500">
-                  Ore neplătite
-                </p>
-                <p className="mt-1 text-3xl font-extrabold tracking-tight text-red-600">
-                  {unpaidCount}
-                </p>
-              </div>
-            )}
           </div>
         </section>
 
@@ -262,30 +251,32 @@ export default function AdminPage() {
                     </span>
                   )}
 
-                  <div
-                    className={`mb-3 flex h-12 w-12 items-center justify-center rounded-3xl sm:mb-4 sm:h-14 sm:w-14 ${
-                      isBlue
-                        ? "bg-white/15"
-                        : isGreen
-                        ? "bg-white/15"
-                        : action.label.includes("Centre")
-                        ? "bg-blue-50"
-                        : action.label.includes("Muncitori")
-                        ? "bg-sky-50"
-                        : action.label.includes("Parc")
-                        ? "bg-amber-50"
-                        : "bg-blue-50"
-                    }`}
-                  >
-                    {renderAdminIcon(action.label, false, action.highlight)}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl sm:h-14 sm:w-14 ${
+                        isBlue
+                          ? "bg-white/15"
+                          : isGreen
+                          ? "bg-white/15"
+                          : action.label.includes("Centre")
+                          ? "bg-blue-50"
+                          : action.label.includes("Muncitori")
+                          ? "bg-sky-50"
+                          : action.label.includes("Parc")
+                          ? "bg-amber-50"
+                          : "bg-blue-50"
+                      }`}
+                    >
+                      {renderAdminIcon(action.label, false, action.highlight)}
+                    </div>
+
+                    <p className="text-[15px] font-bold leading-5 sm:text-lg sm:leading-6">
+                      {action.label}
+                    </p>
                   </div>
 
-                  <p className="whitespace-pre-line text-[15px] font-bold leading-5 sm:text-lg sm:leading-6">
-                    {action.label}
-                  </p>
-
                   <p
-                    className={`mt-2 text-[11px] leading-5 sm:text-sm ${
+                    className={`mt-4 pr-12 text-[11px] leading-5 sm:text-sm ${
                       isBlue || isGreen ? "text-white/80" : "text-gray-400"
                     }`}
                   >
