@@ -211,7 +211,9 @@ export default function DashboardPage() {
       : userActions;
 
   const activeProjects = useMemo(() => {
-    return projects.filter((project) => project.status !== "finalizat").slice(0, 6);
+    return projects
+      .filter((project) => project.status !== "finalizat")
+      .slice(0, 6);
   }, [projects]);
 
   const getProjectPercent = (project: ActiveProject) => {
@@ -443,123 +445,61 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
-        <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Bun venit,</p>
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                {profile?.full_name}
-              </h1>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.35fr_1fr]">
+          <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm sm:p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="text-sm text-gray-500">Bun venit,</p>
+                  <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    {profile?.full_name}
+                  </h1>
 
-              <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
-                <span className="h-2 w-2 rounded-full bg-blue-600" />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
-                  {getRoleLabel(profile?.role)}
-                </span>
+                  <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+                      {getRoleLabel(profile?.role)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-left text-xs uppercase tracking-[0.18em] text-gray-400 lg:text-right">
+                  {todayLabel}
+                </div>
               </div>
-            </div>
 
-            <div className="text-left text-xs uppercase tracking-[0.18em] text-gray-400 lg:text-right">
-              {todayLabel}
-            </div>
-          </div>
-
-          <div className="mt-5 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-blue-50 px-3 py-4 text-center">
-              <p className="text-3xl font-extrabold tracking-tight text-blue-600 sm:text-4xl">
-                {stats.total}
-              </p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-300">
-                Total
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-amber-50 px-3 py-4 text-center">
-              <p className="text-3xl font-extrabold tracking-tight text-amber-600 sm:text-4xl">
-                {stats.inCurs}
-              </p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
-                În curs
-              </p>
-            </div>
-
-            <div className="rounded-2xl bg-green-50 px-3 py-4 text-center">
-              <p className="text-3xl font-extrabold tracking-tight text-green-600 sm:text-4xl">
-                {stats.finalizate}
-              </p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
-                Finalizate
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <section>
-            <div className="mb-3 flex items-center gap-3 px-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-                Acțiuni rapide
-              </p>
-              <div className="h-px flex-1 bg-[#E8E5DE]" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-              {quickActions.map((action) => (
-                <button
-                  key={`${action.label}-${action.sublabel}`}
-                  type="button"
-                  onClick={() => action.route && router.push(action.route)}
-                  className={`relative min-h-[190px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
-                    action.dark
-                      ? "border-slate-800 bg-slate-800 text-white"
-                      : "border-[#E8E5DE] bg-white text-gray-900"
-                  }`}
-                >
-                  <div
-                    className={`mb-4 flex h-14 w-14 items-center justify-center rounded-3xl ${
-                      action.dark
-                        ? "bg-slate-700"
-                        : action.label.includes("Adaugă")
-                        ? "bg-blue-50"
-                        : action.label.includes("Vezi")
-                        ? "bg-teal-100"
-                        : action.label.includes("Comenzi")
-                        ? "bg-amber-50"
-                        : action.label.includes("Pontaje")
-                        ? "bg-emerald-50"
-                        : "bg-blue-50"
-                    }`}
-                  >
-                    {renderActionIcon(action.label, action.dark)}
-                  </div>
-
-                  <p className="whitespace-pre-line text-sm font-bold leading-5 sm:text-base">
-                    {action.label}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="rounded-2xl bg-blue-50 px-3 py-4 text-center">
+                  <p className="text-3xl font-extrabold tracking-tight text-blue-600 sm:text-4xl">
+                    {stats.total}
                   </p>
-
-                  <p
-                    className={`mt-1 text-xs sm:text-sm ${
-                      action.dark ? "text-slate-400" : "text-gray-400"
-                    }`}
-                  >
-                    {action.sublabel}
+                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-300">
+                    Total
                   </p>
+                </div>
 
-                  <div
-                    className={`absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-base ${
-                      action.dark
-                        ? "bg-slate-700 text-slate-300"
-                        : "bg-[#F0EEE9] text-gray-400"
-                    }`}
-                  >
-                    ›
-                  </div>
-                </button>
-              ))}
+                <div className="rounded-2xl bg-amber-50 px-3 py-4 text-center">
+                  <p className="text-3xl font-extrabold tracking-tight text-amber-600 sm:text-4xl">
+                    {stats.inCurs}
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+                    În curs
+                  </p>
+                </div>
+
+                <div className="rounded-2xl bg-green-50 px-3 py-4 text-center">
+                  <p className="text-3xl font-extrabold tracking-tight text-green-600 sm:text-4xl">
+                    {stats.finalizate}
+                  </p>
+                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
+                    Finalizate
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section>
+          <section className="min-w-0">
             <div className="mb-3 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
                 Proiecte active
@@ -575,7 +515,7 @@ export default function DashboardPage() {
                   </p>
                 </div>
               ) : (
-                activeProjects.map((project) => {
+                activeProjects.slice(0, 4).map((project) => {
                   const percent = getProjectPercent(project);
                   const theme = getProjectTheme(project.status);
 
@@ -623,6 +563,134 @@ export default function DashboardPage() {
             </div>
           </section>
         </div>
+
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Acțiuni rapide
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+            {quickActions.map((action) => (
+              <button
+                key={`${action.label}-${action.sublabel}`}
+                type="button"
+                onClick={() => action.route && router.push(action.route)}
+                className={`relative min-h-[190px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  action.dark
+                    ? "border-slate-800 bg-slate-800 text-white"
+                    : "border-[#E8E5DE] bg-white text-gray-900"
+                }`}
+              >
+                <div
+                  className={`mb-4 flex h-14 w-14 items-center justify-center rounded-3xl ${
+                    action.dark
+                      ? "bg-slate-700"
+                      : action.label.includes("Adaugă")
+                      ? "bg-blue-50"
+                      : action.label.includes("Vezi")
+                      ? "bg-teal-100"
+                      : action.label.includes("Comenzi")
+                      ? "bg-amber-50"
+                      : action.label.includes("Pontaje")
+                      ? "bg-emerald-50"
+                      : "bg-blue-50"
+                  }`}
+                >
+                  {renderActionIcon(action.label, action.dark)}
+                </div>
+
+                <p className="whitespace-pre-line text-sm font-bold leading-5 sm:text-base">
+                  {action.label}
+                </p>
+
+                <p
+                  className={`mt-1 text-xs sm:text-sm ${
+                    action.dark ? "text-slate-400" : "text-gray-400"
+                  }`}
+                >
+                  {action.sublabel}
+                </p>
+
+                <div
+                  className={`absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-base ${
+                    action.dark
+                      ? "bg-slate-700 text-slate-300"
+                      : "bg-[#F0EEE9] text-gray-400"
+                  }`}
+                >
+                  ›
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="mt-6 xl:hidden">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Proiecte active
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
+
+          <div className="space-y-3">
+            {activeProjects.length === 0 ? (
+              <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4 shadow-sm">
+                <p className="text-sm text-gray-500">
+                  Nu există proiecte active momentan.
+                </p>
+              </div>
+            ) : (
+              activeProjects.map((project) => {
+                const percent = getProjectPercent(project);
+                const theme = getProjectTheme(project.status);
+
+                return (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => router.push("/proiecte")}
+                    className="w-full rounded-2xl border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${theme.dot}`} />
+                        <p className="text-sm font-semibold text-gray-900">
+                          {project.name}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold ${theme.text}`}>
+                          {percent}%
+                        </span>
+                        <span
+                          className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${theme.badge}`}
+                        >
+                          {getProjectStatusLabel(project.status)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="mb-3 text-xs text-gray-500">
+                      {project.beneficiary || "-"}
+                    </p>
+
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[#F0EEE9]">
+                      <div
+                        className={`h-full rounded-full bg-gradient-to-r ${theme.bar}`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </section>
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur lg:hidden">
