@@ -264,7 +264,7 @@ export default function DashboardPage() {
   };
 
   const renderActionIcon = (label: string, dark?: boolean) => {
-    const iconClass = `h-7 w-7 ${dark ? "text-slate-300" : ""}`;
+    const iconClass = `h-6 w-6 sm:h-7 sm:w-7 ${dark ? "text-slate-300" : ""}`;
 
     if (label.includes("Adaugă")) {
       return (
@@ -637,16 +637,16 @@ export default function DashboardPage() {
         </div>
 
         <div className="xl:hidden">
-          <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm sm:p-6">
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex flex-col gap-3">
                 <div>
                   <p className="text-sm text-gray-500">Bun venit,</p>
-                  <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                  <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
                     {profile?.full_name}
                   </h1>
 
-                  <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
+                  <div className="mt-2 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1">
                     <span className="h-2 w-2 rounded-full bg-blue-600" />
                     <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
                       {getRoleLabel(profile?.role)}
@@ -654,35 +654,35 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="text-left text-xs uppercase tracking-[0.18em] text-gray-400 lg:text-right">
+                <div className="text-left text-[11px] uppercase tracking-[0.16em] text-gray-400">
                   {todayLabel}
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-blue-50 px-3 py-4 text-center">
-                  <p className="text-3xl font-extrabold tracking-tight text-blue-600 sm:text-4xl">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-2xl bg-blue-50 px-2 py-3 text-center">
+                  <p className="text-2xl font-extrabold tracking-tight text-blue-600 sm:text-4xl">
                     {stats.total}
                   </p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-blue-300">
+                  <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-blue-300">
                     Total
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-amber-50 px-3 py-4 text-center">
-                  <p className="text-3xl font-extrabold tracking-tight text-amber-600 sm:text-4xl">
+                <div className="rounded-2xl bg-amber-50 px-2 py-3 text-center">
+                  <p className="text-2xl font-extrabold tracking-tight text-amber-600 sm:text-4xl">
                     {stats.inCurs}
                   </p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+                  <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-300">
                     În curs
                   </p>
                 </div>
 
-                <div className="rounded-2xl bg-green-50 px-3 py-4 text-center">
-                  <p className="text-3xl font-extrabold tracking-tight text-green-600 sm:text-4xl">
+                <div className="rounded-2xl bg-green-50 px-2 py-3 text-center">
+                  <p className="text-2xl font-extrabold tracking-tight text-green-600 sm:text-4xl">
                     {stats.finalizate}
                   </p>
-                  <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-green-300">
+                  <p className="mt-1 text-[9px] font-semibold uppercase tracking-[0.12em] text-green-300">
                     Finalizate
                   </p>
                 </div>
@@ -704,14 +704,14 @@ export default function DashboardPage() {
                   key={`${action.label}-${action.sublabel}`}
                   type="button"
                   onClick={() => action.route && router.push(action.route)}
-                  className={`relative min-h-[190px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                  className={`relative min-h-[160px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[190px] ${
                     action.dark
                       ? "border-slate-800 bg-slate-800 text-white"
                       : "border-[#E8E5DE] bg-white text-gray-900"
                   }`}
                 >
                   <div
-                    className={`mb-4 flex h-14 w-14 items-center justify-center rounded-3xl ${
+                    className={`mb-3 flex h-12 w-12 items-center justify-center rounded-3xl sm:mb-4 sm:h-14 sm:w-14 ${
                       action.dark
                         ? "bg-slate-700"
                         : action.label.includes("Adaugă")
@@ -728,12 +728,12 @@ export default function DashboardPage() {
                     {renderActionIcon(action.label, action.dark)}
                   </div>
 
-                  <p className="whitespace-pre-line text-sm font-bold leading-5 sm:text-base">
+                  <p className="whitespace-pre-line text-[15px] font-bold leading-5 sm:text-base">
                     {action.label}
                   </p>
 
                   <p
-                    className={`mt-1 text-xs sm:text-sm ${
+                    className={`mt-1 text-[11px] sm:text-sm ${
                       action.dark ? "text-slate-400" : "text-gray-400"
                     }`}
                   >
@@ -741,7 +741,7 @@ export default function DashboardPage() {
                   </p>
 
                   <div
-                    className={`absolute bottom-3 right-3 flex h-8 w-8 items-center justify-center rounded-full text-base ${
+                    className={`absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm sm:h-8 sm:w-8 sm:text-base ${
                       action.dark
                         ? "bg-slate-700 text-slate-300"
                         : "bg-[#F0EEE9] text-gray-400"
