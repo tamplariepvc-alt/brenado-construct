@@ -14,22 +14,20 @@ type FundingDetails = {
   funding_date: string;
   notes: string | null;
   created_at: string;
-  projects?: {
-    id: string;
-    name: string;
-    beneficiary: string | null;
-    project_location: string | null;
-    status: string;
-    cost_center_code: string | null;
-  }[] | null;
-  team_lead?: {
-    id: string;
-    full_name: string;
-  } | null;
-  admin_profile?: {
-    id: string;
-    full_name: string;
-  } | null;
+};
+
+type ProjectDetails = {
+  id: string;
+  name: string;
+  beneficiary: string | null;
+  project_location: string | null;
+  status: string;
+  cost_center_code: string | null;
+};
+
+type ProfileMini = {
+  id: string;
+  full_name: string;
 };
 
 export default function DetaliuAlimentarePage() {
@@ -39,13 +37,17 @@ export default function DetaliuAlimentarePage() {
 
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+
   const [funding, setFunding] = useState<FundingDetails | null>(null);
+  const [project, setProject] = useState<ProjectDetails | null>(null);
+  const [teamLead, setTeamLead] = useState<ProfileMini | null>(null);
+  const [adminProfile, setAdminProfile] = useState<ProfileMini | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
 
-      const { data, error } = await supabase
+      const { data: fundingData, error: fundingError } = await supabase
         .from("project_fundings")
         .select(`
           id,
@@ -56,32 +58,42 @@ export default function DetaliuAlimentarePage() {
           funding_type,
           funding_date,
           notes,
-          created_at,
-          projects:project_id (
+          created_at
+        `)
+        .eq("id", fundingId)
+        .single();
+
+      if (fundingError || !fundingData) {
+        router.push("/admin/alimentari");
+        return;
+      }
+
+      const fundingRow = fundingData as FundingDetails;
+
+      const [
+        projectRes,
+        teamLeadRes,
+        adminRes,
+      ] = await Promise.all([
+        supabase
+          .from("projects")
+          .select(`
             id,
             name,
             beneficiary,
             project_location,
             status,
             cost_center_code
-          )
-        `)
-        .eq("id", fundingId)
-        .single();
+          `)
+          .eq("id", fundingRow.project_id)
+          .single(),
 
-      if (error || !data) {
-        router.push("/admin/alimentari");
-        return;
-      }
-
-      const fundingRow = data as unknown as FundingDetails;
-
-      const [{ data: leadData }, { data: adminData }] = await Promise.all([
         supabase
           .from("profiles")
           .select("id, full_name")
           .eq("id", fundingRow.team_lead_user_id)
           .single(),
+
         supabase
           .from("profiles")
           .select("id, full_name")
@@ -89,11 +101,10 @@ export default function DetaliuAlimentarePage() {
           .single(),
       ]);
 
-      setFunding({
-        ...fundingRow,
-        team_lead: leadData || null,
-        admin_profile: adminData || null,
-      });
+      setFunding(fundingRow);
+      setProject((projectRes.data as ProjectDetails) || null);
+      setTeamLead((teamLeadRes.data as ProfileMini) || null);
+      setAdminProfile((adminRes.data as ProfileMini) || null);
 
       setLoading(false);
     };
@@ -153,8 +164,6 @@ export default function DetaliuAlimentarePage() {
     return <div className="p-6">Alimentarea nu a fost găsită.</div>;
   }
 
-  const project = funding.projects?.[0] || null;
-
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">
       <div className="mx-auto max-w-5xl">
@@ -178,9 +187,7 @@ export default function DetaliuAlimentarePage() {
           <div className="rounded-2xl bg-white p-5 shadow">
             <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-lg font-semibold">
-                  {project?.name || "-"}
-                </h2>
+                <h2 className="text-lg font-semibold">{project?.name || "-"}</h2>
                 <p className="text-sm text-gray-500">
                   Cod centru de cost: {project?.cost_center_code || "-"}
                 </p>
@@ -213,14 +220,14 @@ export default function DetaliuAlimentarePage() {
               <div>
                 <p className="text-xs font-medium text-gray-500">Șef șantier</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {funding.team_lead?.full_name || "-"}
+                  {teamLead?.full_name || "-"}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs font-medium text-gray-500">Adăugat de</p>
+                <p className="text-xs font-medium text-gray-500">Alimentat de</p>
                 <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {funding.admin_profile?.full_name || "-"}
+                  {adminProfile?.full_name || "-"}
                 </p>
               </div>
             </div>
