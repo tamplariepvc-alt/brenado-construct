@@ -106,6 +106,7 @@ export default function ComandaDetaliuPage() {
 
       setProfile(profileData as Profile);
 
+      // ── 1. Fetch comanda cu join pe projects ──────────────────────────────────
       const { data: orderData, error: orderError } = await supabase
         .from("orders")
         .select(`
@@ -134,12 +135,7 @@ export default function ComandaDetaliuPage() {
 
       const typedOrderData = orderData as OrderDetailsFromDb;
 
-      const { data: creatorProfile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", typedOrderData.created_by)
-        .single();
-
+      // ── 2. Verificare acces sef_echipa ────────────────────────────────────────
       if (
         profileData.role === "sef_echipa" &&
         typedOrderData.created_by !== user.id
@@ -148,6 +144,32 @@ export default function ComandaDetaliuPage() {
         return;
       }
 
+      // ── 3. Normalizare join (array → object) ──────────────────────────────────
+      let projectName: string | null =
+        typedOrderData.projects?.[0]?.name || null;
+
+      // ── 4. Fallback: fetch separat daca join-ul a returnat null ───────────────
+      // Se intampla cand RLS blocheaza SELECT pe tabela projects pentru join-uri
+      if (!projectName && typedOrderData.project_id) {
+        const { data: projectData } = await supabase
+          .from("projects")
+          .select("name")
+          .eq("id", typedOrderData.project_id)
+          .single();
+
+        if (projectData?.name) {
+          projectName = projectData.name;
+        }
+      }
+
+      // ── 5. Fetch creator name ─────────────────────────────────────────────────
+      const { data: creatorProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", typedOrderData.created_by)
+        .single();
+
+      // ── 6. Fetch articole ─────────────────────────────────────────────────────
       const { data: itemsData, error: itemsError } = await supabase
         .from("order_items")
         .select(`
@@ -182,9 +204,7 @@ export default function ComandaDetaliuPage() {
         notes: typedOrderData.notes,
         created_at: typedOrderData.created_at,
         creator_name: creatorProfile?.full_name || "-",
-        projects: typedOrderData.projects?.[0]
-          ? { name: typedOrderData.projects[0].name }
-          : null,
+        projects: projectName ? { name: projectName } : null,
       });
 
       setLoading(false);
@@ -204,18 +224,10 @@ export default function ComandaDetaliuPage() {
 
   const statusClasses = useMemo(() => {
     if (!order) return "bg-gray-100 text-gray-700";
-    if (order.status === "asteapta_confirmare") {
-      return "bg-orange-100 text-orange-700";
-    }
-    if (order.status === "aprobata") {
-      return "bg-green-100 text-green-700";
-    }
-    if (order.status === "refuzata") {
-      return "bg-red-100 text-red-700";
-    }
-    if (order.status === "draft") {
-      return "bg-gray-100 text-gray-700";
-    }
+    if (order.status === "asteapta_confirmare") return "bg-orange-100 text-orange-700";
+    if (order.status === "aprobata") return "bg-green-100 text-green-700";
+    if (order.status === "refuzata") return "bg-red-100 text-red-700";
+    if (order.status === "draft") return "bg-gray-100 text-gray-700";
     return "bg-gray-100 text-gray-700";
   }, [order]);
 
@@ -312,6 +324,7 @@ export default function ComandaDetaliuPage() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        {/* Header comanda */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="min-w-0 flex-1">
@@ -392,6 +405,7 @@ export default function ComandaDetaliuPage() {
           )}
         </section>
 
+        {/* Actiuni */}
         <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row">
             <button
@@ -438,6 +452,7 @@ export default function ComandaDetaliuPage() {
           </div>
         </section>
 
+        {/* Articole */}
         <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
           <div className="mb-4">
             <h2 className="text-lg font-semibold">Articole comandă</h2>
@@ -452,6 +467,7 @@ export default function ComandaDetaliuPage() {
             </p>
           ) : (
             <>
+              {/* Desktop */}
               <div className="hidden overflow-hidden rounded-2xl border border-[#E8E5DE] lg:block">
                 <div className="grid grid-cols-12 border-b bg-[#F8F7F3] px-4 py-3 text-sm font-semibold text-gray-700">
                   <div className="col-span-1">Nr.</div>
@@ -471,27 +487,21 @@ export default function ComandaDetaliuPage() {
                     <div className="col-span-1 font-semibold text-gray-900">
                       {index + 1}
                     </div>
-
                     <div className="col-span-2 text-gray-600">
                       {item.article_code || "-"}
                     </div>
-
                     <div className="col-span-3 font-semibold text-[#0196ff]">
                       {item.article_name}
                     </div>
-
                     <div className="col-span-1 text-gray-600">
                       {item.unit || "-"}
                     </div>
-
                     <div className="col-span-1 text-gray-600">
                       {Number(item.quantity).toFixed(0)}
                     </div>
-
                     <div className="col-span-2 text-gray-700">
                       {Number(item.unit_price).toFixed(2)} lei
                     </div>
-
                     <div className="col-span-2 font-semibold text-gray-900">
                       {Number(item.line_total).toFixed(2)} lei
                     </div>
@@ -499,6 +509,7 @@ export default function ComandaDetaliuPage() {
                 ))}
               </div>
 
+              {/* Mobile */}
               <div className="space-y-3 lg:hidden">
                 {items.map((item, index) => (
                   <div
@@ -543,7 +554,6 @@ export default function ComandaDetaliuPage() {
                           {Number(item.quantity).toFixed(0)}
                         </p>
                       </div>
-
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
                           U.M.
@@ -552,7 +562,6 @@ export default function ComandaDetaliuPage() {
                           {item.unit || "-"}
                         </p>
                       </div>
-
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
                           P.U.
@@ -561,7 +570,6 @@ export default function ComandaDetaliuPage() {
                           {Number(item.unit_price).toFixed(2)} lei
                         </p>
                       </div>
-
                       <div>
                         <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
                           V. totală
@@ -578,6 +586,7 @@ export default function ComandaDetaliuPage() {
           )}
         </section>
 
+        {/* Totaluri */}
         <section className="mt-6">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
