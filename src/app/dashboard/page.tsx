@@ -443,9 +443,6 @@ export default function DashboardPage() {
     );
   };
 
-  if (loading) {
-    return <div className="p-8 text-lg font-medium">Se încarcă dashboard-ul...</div>;
-  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
