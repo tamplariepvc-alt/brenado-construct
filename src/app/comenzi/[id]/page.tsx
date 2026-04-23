@@ -29,7 +29,7 @@ type OrderDetails = {
   creator_name?: string;
   projects?: {
     name: string;
-  }[] | null;
+  } | null;
 };
 
 type OrderItem = {
@@ -192,7 +192,7 @@ export default function ComandaDetaliuPage() {
 
     await exportOrderPdf({
       orderNumber: order.order_number || "-",
-      projectName: order.projects?.[0]?.name || "-",
+      projectName: order.projects?.name || "-",
       orderDate: new Date(order.order_date).toLocaleDateString("ro-RO"),
       creatorName: order.creator_name || "-",
       status: order.status,
@@ -294,7 +294,7 @@ export default function ComandaDetaliuPage() {
                     {order.order_number || "Comandă fără număr"}
                   </h1>
                   <p className="mt-1 text-sm font-medium text-gray-400">
-                    {order.projects?.[0]?.name || "-"}
+                    {order.projects?.name || "-"}
                   </p>
                 </div>
               </div>
@@ -327,7 +327,7 @@ export default function ComandaDetaliuPage() {
                 Șantier
               </p>
               <p className="mt-1 text-sm font-semibold text-gray-900">
-                {order.projects?.[0]?.name || "-"}
+                {order.projects?.name || "-"}
               </p>
             </div>
 
@@ -420,7 +420,7 @@ export default function ComandaDetaliuPage() {
             </p>
           ) : (
             <>
-              <div className="hidden lg:block overflow-hidden rounded-2xl border border-[#E8E5DE]">
+              <div className="hidden overflow-hidden rounded-2xl border border-[#E8E5DE] lg:block">
                 <div className="grid grid-cols-12 border-b bg-[#F8F7F3] px-4 py-3 text-sm font-semibold text-gray-700">
                   <div className="col-span-1">Nr.</div>
                   <div className="col-span-2">Cod</div>
