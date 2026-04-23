@@ -128,7 +128,7 @@ if (loading) {
     <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
       <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
-          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
+          <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain sm:h-11" />
         </div>
       </header>
       <div className="flex flex-1 items-center justify-center px-4">
