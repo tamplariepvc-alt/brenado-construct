@@ -332,32 +332,30 @@ export default function ParcAutoPage() {
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-3 items-center gap-3">
-            <div className="flex justify-start">
-              <button
-                onClick={() => router.push("/admin")}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-              >
-                Înapoi
-              </button>
-            </div>
-
+          <div className="grid grid-cols-[1fr_1.25fr] items-center gap-4">
             <div className="flex justify-center">
               <Image
                 src="/logo.png"
                 alt="Logo"
-                width={140}
-                height={44}
-                className="h-10 w-auto object-contain sm:h-11"
+                width={210}
+                height={70}
+                className="h-16 w-auto object-contain sm:h-20"
               />
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={() => router.push("/admin")}
+                className="w-full rounded-[22px] border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:text-base"
+              >
+                Înapoi la dashboard
+              </button>
+
               <button
                 onClick={() => router.push("/admin/parc-auto/adauga")}
-                className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                className="w-full rounded-[22px] bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 sm:text-base"
               >
-                + Adaugă auto
+                + Adaugă
               </button>
             </div>
           </div>
@@ -378,110 +376,110 @@ export default function ParcAutoPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4 xl:grid-cols-7">
+          <div className="mt-5 grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={() => setFilter("toate")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "toate"
                   ? "ring-2 ring-black bg-[#F8F7F3]"
                   : "bg-[#F8F7F3]"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-gray-400">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
                 Total
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{stats.total}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("active")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "active"
-                  ? "ring-2 ring-green-500 bg-green-50"
+                  ? "ring-2 ring-green-600 bg-green-50"
                   : "bg-green-50"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-green-600">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-green-600">
                 Active
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-green-700">{stats.active}</p>
+              <p className="mt-2 text-2xl font-bold text-green-700">{stats.active}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("inactive")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "inactive"
                   ? "ring-2 ring-gray-500 bg-gray-100"
                   : "bg-gray-100"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">
                 Inactive
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-gray-700">{stats.inactive}</p>
+              <p className="mt-2 text-2xl font-bold text-gray-700">{stats.inactive}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("in_reparatie")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "in_reparatie"
-                  ? "ring-2 ring-orange-500 bg-orange-50"
+                  ? "ring-2 ring-orange-600 bg-orange-50"
                   : "bg-orange-50"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-orange-600">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-orange-600">
                 Reparație
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
+              <p className="mt-2 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("doc_expirate")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "doc_expirate"
-                  ? "ring-2 ring-red-500 bg-red-50"
+                  ? "ring-2 ring-red-600 bg-red-50"
                   : "bg-red-50"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-red-600">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-red-600">
                 Expirate
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-red-700">{stats.expired}</p>
+              <p className="mt-2 text-2xl font-bold text-red-700">{stats.expired}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("urmeaza_sa_expire")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "urmeaza_sa_expire"
-                  ? "ring-2 ring-yellow-500 bg-yellow-50"
+                  ? "ring-2 ring-yellow-600 bg-yellow-50"
                   : "bg-yellow-50"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-yellow-700">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-yellow-700">
                 Urmează
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
+              <p className="mt-2 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("leasing")}
-              className={`rounded-2xl px-3 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-3 text-left transition ${
                 filter === "leasing"
-                  ? "ring-2 ring-purple-500 bg-purple-50"
+                  ? "ring-2 ring-purple-600 bg-purple-50"
                   : "bg-purple-50"
               }`}
             >
-              <p className="text-[10px] uppercase tracking-[0.12em] text-purple-600">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-purple-600">
                 Leasing
               </p>
-              <p className="mt-1.5 text-2xl font-bold text-purple-700">{stats.leasing}</p>
+              <p className="mt-2 text-2xl font-bold text-purple-700">{stats.leasing}</p>
             </button>
           </div>
 
