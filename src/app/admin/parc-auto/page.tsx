@@ -324,9 +324,6 @@ export default function ParcAutoPage() {
     );
   };
 
-  if (loading) {
-    return <div className="p-6">Se încarcă parcul auto...</div>;
-  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
