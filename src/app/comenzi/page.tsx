@@ -24,7 +24,7 @@ type OrderRow = {
   created_at: string;
   projects?: {
     name: string;
-  }[] | null;
+  } | null;
 };
 
 type ProfileNameMap = Record<string, string>;
@@ -139,7 +139,7 @@ export default function ComenziPage() {
       const matchesStatus =
         statusFilter === "toate" || order.status === statusFilter;
 
-      const projectName = order.projects?.[0]?.name || "";
+      const projectName = order.projects?.name || "";
       const matchesSantier = projectName
         .toLowerCase()
         .includes(searchSantier.toLowerCase());
@@ -385,7 +385,7 @@ export default function ComenziPage() {
             </div>
           ) : (
             <>
-              <div className="hidden lg:block overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+              <div className="hidden overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm lg:block">
                 <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
                   <div className="col-span-2">Nr.</div>
                   <div className="col-span-3">Șantier</div>
@@ -408,7 +408,7 @@ export default function ComenziPage() {
                     </div>
 
                     <div className="col-span-3 text-sm text-gray-600">
-                      {order.projects?.[0]?.name || "-"}
+                      {order.projects?.name || "-"}
                     </div>
 
                     <div className="col-span-2 text-sm text-gray-500">
@@ -457,7 +457,7 @@ export default function ComenziPage() {
                                 : String(index + 1).padStart(4, "0")}
                             </p>
                             <p className="mt-1 text-sm text-gray-500">
-                              {order.projects?.[0]?.name || "-"}
+                              {order.projects?.name || "-"}
                             </p>
                           </div>
                         </div>
