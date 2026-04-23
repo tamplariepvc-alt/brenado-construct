@@ -142,11 +142,6 @@ export default function DashboardPage() {
       route: "/comenzi",
     },
     {
-      label: "Pontaje\nEchipe",
-      sublabel: "Ore lucrate",
-      route: "/pontaje",
-    },
-    {
       label: "Organizare\nEchipe",
       sublabel: "Planificare",
       route: "/organizarea-echipelor",
@@ -171,9 +166,14 @@ export default function DashboardPage() {
       route: "/comenzi",
     },
     {
-      label: "Pontaje\nEchipe",
-      sublabel: "Ore lucrate",
+      label: "Pontare",
+      sublabel: "Echipă azi",
       route: "/pontaje",
+    },
+    {
+      label: "Ore Extra /\nWeekend",
+      sublabel: "Pontaje speciale",
+      route: "/ore-extra-weekend",
     },
     {
       label: "Organizare\nEchipe",
@@ -181,7 +181,7 @@ export default function DashboardPage() {
       route: "/organizarea-echipelor",
     },
     {
-      label: "Cerere\nTransfer",
+      label: "Solicită\nBani",
       sublabel: "Financiar",
     },
   ];
@@ -323,7 +323,7 @@ export default function DashboardPage() {
       );
     }
 
-    if (label.includes("Pontaje")) {
+    if (label.includes("Pontare")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
           <circle
@@ -339,6 +339,26 @@ export default function DashboardPage() {
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
+          />
+        </svg>
+      );
+    }
+
+    if (label.includes("Ore Extra")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path
+            d="M12 4v16M4 12h16"
+            stroke={dark ? "currentColor" : "#7C3AED"}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          />
+          <circle
+            cx="12"
+            cy="12"
+            r="8"
+            stroke={dark ? "currentColor" : "#7C3AED"}
+            strokeWidth="2"
           />
         </svg>
       );
@@ -397,7 +417,7 @@ export default function DashboardPage() {
       );
     }
 
-    if (label.includes("Cerere")) {
+    if (label.includes("Solicită")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
           <path
@@ -536,8 +556,10 @@ export default function DashboardPage() {
                           ? "bg-teal-100"
                           : action.label.includes("Comenzi")
                           ? "bg-amber-50"
-                          : action.label.includes("Pontaje")
+                          : action.label.includes("Pontare")
                           ? "bg-emerald-50"
+                          : action.label.includes("Ore Extra")
+                          ? "bg-purple-50"
                           : "bg-blue-50"
                       }`}
                     >
@@ -720,8 +742,10 @@ export default function DashboardPage() {
                         ? "bg-teal-100"
                         : action.label.includes("Comenzi")
                         ? "bg-amber-50"
-                        : action.label.includes("Pontaje")
+                        : action.label.includes("Pontare")
                         ? "bg-emerald-50"
+                        : action.label.includes("Ore Extra")
+                        ? "bg-purple-50"
                         : "bg-blue-50"
                     }`}
                   >
