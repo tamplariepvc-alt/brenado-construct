@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -48,7 +49,14 @@ const categoryLabels: Record<SectionKey, string> = {
   camion: "Camioane",
   autoutilitara: "Autoutilitare",
   microbuz: "Microbuze",
-  masina_administrativa: "Masini Administrative",
+  masina_administrativa: "Mașini administrative",
+};
+
+const categoryIcons: Record<SectionKey, string> = {
+  camion: "🚛",
+  autoutilitara: "🚐",
+  microbuz: "🚌",
+  masina_administrativa: "🚗",
 };
 
 export default function ParcAutoPage() {
@@ -60,8 +68,8 @@ export default function ParcAutoPage() {
   const [filter, setFilter] = useState<FilterType>("toate");
 
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    camion: false,
-    autoutilitara: false,
+    camion: true,
+    autoutilitara: true,
     microbuz: false,
     masina_administrativa: false,
   });
@@ -142,19 +150,19 @@ export default function ParcAutoPage() {
         : null;
 
     if (rca !== null && rca >= 0 && rca <= 30) {
-      list.push(`Expira RCA in ${rca} zile`);
+      list.push(`Expiră RCA în ${rca} zile`);
     }
 
     if (itp !== null && itp >= 0 && itp <= 30) {
-      list.push(`Expira ITP in ${itp} zile`);
+      list.push(`Expiră ITP în ${itp} zile`);
     }
 
     if (rovinieta !== null && rovinieta >= 0 && rovinieta <= 30) {
-      list.push(`Expira Rovinieta in ${rovinieta} zile`);
+      list.push(`Expiră rovinieta în ${rovinieta} zile`);
     }
 
     if (casco !== null && casco >= 0 && casco <= 30) {
-      list.push(`Expira Casco in ${casco} zile`);
+      list.push(`Expiră CASCO în ${casco} zile`);
     }
 
     return list;
@@ -165,9 +173,9 @@ export default function ParcAutoPage() {
     getWarnings(vehicle).length > 0;
 
   const getStatusLabel = (status: string) => {
-    if (status === "activa") return "Activa";
-    if (status === "inactiva") return "Inactiva";
-    if (status === "in_reparatie") return "In reparatie";
+    if (status === "activa") return "Activă";
+    if (status === "inactiva") return "Inactivă";
+    if (status === "in_reparatie") return "În reparație";
     if (status === "doc_expirate") return "Doc. expirate";
     return status;
   };
@@ -307,19 +315,29 @@ export default function ParcAutoPage() {
       <button
         key={v.id}
         onClick={() => router.push(`/admin/parc-auto/${v.id}`)}
-        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-left shadow-sm transition hover:bg-gray-100"
+        className="w-full rounded-[22px] border border-[#E8E5DE] bg-[#FCFBF8] p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="text-base font-semibold text-gray-900 break-words">
-              {v.brand} {v.model}
-            </p>
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-white text-2xl shadow-sm">
+                {v.category === "camion" && "🚛"}
+                {v.category === "autoutilitara" && "🚐"}
+                {v.category === "microbuz" && "🚌"}
+                {v.category === "masina_administrativa" && "🚗"}
+              </div>
 
-            <p className="mt-0.5 text-lg text-gray-500 break-words">
-              {v.registration_number}
-            </p>
+              <div className="min-w-0">
+                <p className="break-words text-[15px] font-bold leading-5 text-gray-900 sm:text-lg">
+                  {v.brand} {v.model}
+                </p>
+                <p className="mt-1 break-words text-sm text-gray-500">
+                  {v.registration_number}
+                </p>
+              </div>
+            </div>
 
-            <div className="mt-2 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <span
                 className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
                   status
@@ -343,234 +361,347 @@ export default function ParcAutoPage() {
                 </span>
               ))}
             </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                  RCA
+                </p>
+                <p className="mt-1 text-sm text-gray-700">
+                  {v.rca_valid_until
+                    ? new Date(v.rca_valid_until).toLocaleDateString("ro-RO")
+                    : "-"}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                  ITP
+                </p>
+                <p className="mt-1 text-sm text-gray-700">
+                  {v.itp_valid_until
+                    ? new Date(v.itp_valid_until).toLocaleDateString("ro-RO")
+                    : "-"}
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="shrink-0 text-3xl text-gray-400">›</div>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-lg text-gray-400 shadow-sm">
+            ›
+          </div>
         </div>
       </button>
     );
   };
 
   if (loading) {
-    return <div className="p-6">Se incarca parcul auto...</div>;
+    return <div className="p-6">Se încarcă parcul auto...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-5xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Parc Auto</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Gestioneaza vehiculele firmei, documentele si leasingul.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             onClick={() => router.push("/admin")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            Inapoi la panou admin
+            Înapoi la panou admin
           </button>
         </div>
+      </header>
 
-        <button
-          onClick={() => router.push("/admin/parc-auto/adauga")}
-          className="mb-6 w-full rounded-2xl bg-[#0196ff] px-4 py-4 text-lg font-semibold text-white shadow"
-        >
-          + Adauga auto
-        </button>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Administrare flotă</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Parc Auto
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+                Gestionează vehiculele firmei, documentele și leasingul.
+              </p>
+            </div>
+          </div>
 
-        <div className="mb-6 flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={() => setFilter("toate")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "toate"
-            )}`}
-          >
-            <span>Toate</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+            <div className="rounded-2xl bg-[#F8F7F3] px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                Total
+              </p>
+              <p className="mt-2 text-2xl font-bold text-gray-900">{stats.total}</p>
+            </div>
+
+            <div className="rounded-2xl bg-green-50 px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-green-600">
+                Active
+              </p>
+              <p className="mt-2 text-2xl font-bold text-green-700">{stats.active}</p>
+            </div>
+
+            <div className="rounded-2xl bg-gray-100 px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">
+                Inactive
+              </p>
+              <p className="mt-2 text-2xl font-bold text-gray-700">{stats.inactive}</p>
+            </div>
+
+            <div className="rounded-2xl bg-orange-50 px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-orange-600">
+                Reparație
+              </p>
+              <p className="mt-2 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
+            </div>
+
+            <div className="rounded-2xl bg-red-50 px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-red-600">
+                Expirate
+              </p>
+              <p className="mt-2 text-2xl font-bold text-red-700">{stats.expired}</p>
+            </div>
+
+            <div className="rounded-2xl bg-yellow-50 px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-yellow-700">
+                Urmează
+              </p>
+              <p className="mt-2 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
+            </div>
+
+            <div className="rounded-2xl bg-purple-50 px-4 py-4">
+              <p className="text-[11px] uppercase tracking-[0.12em] text-purple-600">
+                Leasing
+              </p>
+              <p className="mt-2 text-2xl font-bold text-purple-700">{stats.leasing}</p>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <button
+              onClick={() => router.push("/admin/parc-auto/adauga")}
+              className="w-full rounded-2xl bg-[#0196ff] px-4 py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 sm:text-base"
+            >
+              + Adaugă auto
+            </button>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setFilter("toate")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "toate"
               )}`}
             >
-              {filterCounts.toate}
-            </span>
-          </button>
+              <span>Toate</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "toate"
+                )}`}
+              >
+                {filterCounts.toate}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilter("active")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "active"
-            )}`}
-          >
-            <span>Active</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+            <button
+              type="button"
+              onClick={() => setFilter("active")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "active"
               )}`}
             >
-              {filterCounts.active}
-            </span>
-          </button>
+              <span>Active</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "active"
+                )}`}
+              >
+                {filterCounts.active}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilter("inactive")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "inactive"
-            )}`}
-          >
-            <span>Inactive</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+            <button
+              type="button"
+              onClick={() => setFilter("inactive")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "inactive"
               )}`}
             >
-              {filterCounts.inactive}
-            </span>
-          </button>
+              <span>Inactive</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "inactive"
+                )}`}
+              >
+                {filterCounts.inactive}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilter("in_reparatie")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "in_reparatie"
-            )}`}
-          >
-            <span>In reparatie</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+            <button
+              type="button"
+              onClick={() => setFilter("in_reparatie")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "in_reparatie"
               )}`}
             >
-              {filterCounts.in_reparatie}
-            </span>
-          </button>
+              <span>În reparație</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "in_reparatie"
+                )}`}
+              >
+                {filterCounts.in_reparatie}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilter("doc_expirate")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "doc_expirate"
-            )}`}
-          >
-            <span>Doc expirate</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+            <button
+              type="button"
+              onClick={() => setFilter("doc_expirate")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "doc_expirate"
               )}`}
             >
-              {filterCounts.doc_expirate}
-            </span>
-          </button>
+              <span>Doc expirate</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "doc_expirate"
+                )}`}
+              >
+                {filterCounts.doc_expirate}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilter("urmeaza_sa_expire")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "urmeaza_sa_expire"
-            )}`}
-          >
-            <span>Urmeaza sa expire</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+            <button
+              type="button"
+              onClick={() => setFilter("urmeaza_sa_expire")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "urmeaza_sa_expire"
               )}`}
             >
-              {filterCounts.urmeaza_sa_expire}
-            </span>
-          </button>
+              <span>Urmează să expire</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "urmeaza_sa_expire"
+                )}`}
+              >
+                {filterCounts.urmeaza_sa_expire}
+              </span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setFilter("leasing")}
-            className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-              "leasing"
-            )}`}
-          >
-            <span>Leasing</span>
-            <span
-              className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+            <button
+              type="button"
+              onClick={() => setFilter("leasing")}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
                 "leasing"
               )}`}
             >
-              {filterCounts.leasing}
-            </span>
-          </button>
-        </div>
+              <span>Leasing</span>
+              <span
+                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
+                  "leasing"
+                )}`}
+              >
+                {filterCounts.leasing}
+              </span>
+            </button>
+          </div>
 
-        <div className="mb-6">
-          <input
-            type="text"
-            className="w-full rounded-2xl border-2 border-gray-900 bg-white px-6 py-5 text-lg outline-none"
-            placeholder="Cauta model sau nr..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
+          <div className="mt-5">
+            <input
+              type="text"
+              className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black sm:px-5 sm:py-4 sm:text-base"
+              placeholder="Caută după brand, model sau număr..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </section>
 
-        {showSections ? (
-          <div className="space-y-4">
-            {(Object.keys(grouped) as SectionKey[]).map((sectionKey) => {
-              const list = grouped[sectionKey];
-              const isOpen = openSections[sectionKey];
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Vehicule
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
 
-              return (
-                <div
-                  key={sectionKey}
-                  className="overflow-hidden rounded-3xl bg-white shadow"
-                >
-                  <button
-                    type="button"
-                    onClick={() => toggleSection(sectionKey)}
-                    className="flex w-full items-center justify-between px-5 py-4 text-left"
+          {showSections ? (
+            <div className="space-y-4">
+              {(Object.keys(grouped) as SectionKey[]).map((sectionKey) => {
+                const list = grouped[sectionKey];
+                const isOpen = openSections[sectionKey];
+
+                return (
+                  <div
+                    key={sectionKey}
+                    className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm"
                   >
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <h2 className="text-xl font-bold text-gray-900">
-                        {categoryLabels[sectionKey]}
-                      </h2>
-                      <p className="mt-1 text-base text-gray-500">
-                        {list.length} vehicule
-                      </p>
-                    </div>
-
-                    <span className="ml-4 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100 text-2xl font-medium text-gray-700">
-                      {isOpen ? "−" : "+"}
-                    </span>
-                  </button>
-
-                  {isOpen && (
-                    <div className="border-t border-gray-200 px-3 py-3">
-                      {list.length === 0 ? (
-                        <div className="px-2 py-4 text-base text-gray-500">
-                          Nu exista vehicule in aceasta categorie pentru filtrul curent.
+                    <button
+                      type="button"
+                      onClick={() => toggleSection(sectionKey)}
+                      className="flex w-full items-center justify-between px-5 py-4 text-left"
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl bg-[#F8F7F3] text-xl">
+                          {categoryIcons[sectionKey]}
                         </div>
-                      ) : (
-                        <div className="space-y-3">
-                          {list.map((v) => renderVehicleCard(v))}
+
+                        <div className="min-w-0">
+                          <h2 className="text-lg font-bold text-gray-900 sm:text-xl">
+                            {categoryLabels[sectionKey]}
+                          </h2>
+                          <p className="mt-0.5 text-sm text-gray-500">
+                            {list.length} vehicule
+                          </p>
                         </div>
-                      )}
-                    </div>
-                  )}
+                      </div>
+
+                      <span className="ml-4 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F8F7F3] text-xl font-medium text-gray-700">
+                        {isOpen ? "−" : "+"}
+                      </span>
+                    </button>
+
+                    {isOpen && (
+                      <div className="border-t border-[#E8E5DE] px-4 py-4">
+                        {list.length === 0 ? (
+                          <div className="rounded-2xl bg-[#FCFBF8] px-4 py-4 text-sm text-gray-500">
+                            Nu există vehicule în această categorie pentru filtrul curent.
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {list.map((v) => renderVehicleCard(v))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredVehicles.length === 0 ? (
+                <div className="rounded-[22px] border border-[#E8E5DE] bg-white px-4 py-5 text-sm text-gray-500 shadow-sm">
+                  Nu există vehicule pentru filtrul selectat.
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredVehicles.length === 0 ? (
-              <div className="rounded-2xl bg-white px-4 py-5 text-sm text-gray-500 shadow">
-                Nu exista vehicule pentru filtrul selectat.
-              </div>
-            ) : (
-              filteredVehicles.map((v) => renderVehicleCard(v))
-            )}
-          </div>
-        )}
-      </div>
+              ) : (
+                filteredVehicles.map((v) => renderVehicleCard(v))
+              )}
+            </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
