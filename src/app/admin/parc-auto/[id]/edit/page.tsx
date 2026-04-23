@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -24,6 +25,13 @@ type Vehicle = {
   monthly_rate: number | null;
   last_rate_date: string | null;
   status: VehicleStatus;
+};
+
+const categoryLabels: Record<VehicleCategory, string> = {
+  camion: "Camion",
+  autoutilitara: "Autoutilitară",
+  microbuz: "Microbuz",
+  masina_administrativa: "Mașină administrativă",
 };
 
 export default function EditAutoPage() {
@@ -105,6 +113,11 @@ export default function EditAutoPage() {
     return new Date(year, month - 1, day);
   };
 
+  const formatDate = (value: string | null) => {
+    if (!value) return "-";
+    return new Date(`${value}T00:00:00`).toLocaleDateString("ro-RO");
+  };
+
   const computedStatus = useMemo(() => {
     const rcaDate = parseDate(rcaValidUntil || null);
     const itpDate = parseDate(itpValidUntil || null);
@@ -120,9 +133,9 @@ export default function EditAutoPage() {
   }, [rcaValidUntil, itpValidUntil, status, today]);
 
   const computedStatusLabel = useMemo(() => {
-    if (computedStatus === "activa") return "Activa";
-    if (computedStatus === "inactiva") return "Inactiva";
-    if (computedStatus === "in_reparatie") return "In reparatie";
+    if (computedStatus === "activa") return "Activă";
+    if (computedStatus === "inactiva") return "Inactivă";
+    if (computedStatus === "in_reparatie") return "În reparație";
     if (computedStatus === "doc_expirate") return "Doc. expirate";
     return computedStatus;
   }, [computedStatus]);
@@ -172,38 +185,38 @@ export default function EditAutoPage() {
 
   const handleSubmit = async () => {
     if (!brand.trim()) {
-      alert("Completeaza marca.");
+      alert("Completează marca.");
       return;
     }
 
     if (!model.trim()) {
-      alert("Completeaza modelul.");
+      alert("Completează modelul.");
       return;
     }
 
     if (!registrationNumber.trim()) {
-      alert("Completeaza numarul de inmatriculare.");
+      alert("Completează numărul de înmatriculare.");
       return;
     }
 
     if (!rcaValidUntil) {
-      alert("Completeaza data RCA.");
+      alert("Completează data RCA.");
       return;
     }
 
     if (!itpValidUntil) {
-      alert("Completeaza data ITP.");
+      alert("Completează data ITP.");
       return;
     }
 
     if (isLeasing) {
       if (!monthlyRate || Number(monthlyRate) <= 0) {
-        alert("Completeaza rata lunara pentru leasing.");
+        alert("Completează rata lunară pentru leasing.");
         return;
       }
 
       if (!lastRateDate) {
-        alert("Selecteaza data ultimei rate.");
+        alert("Selectează data ultimei rate.");
         return;
       }
     }
@@ -229,7 +242,7 @@ export default function EditAutoPage() {
       .eq("id", vehicleId);
 
     if (error) {
-      alert(`A aparut o eroare la salvare: ${error.message}`);
+      alert(`A apărut o eroare la salvare: ${error.message}`);
       setSubmitting(false);
       return;
     }
@@ -240,7 +253,7 @@ export default function EditAutoPage() {
 
   const handleDelete = async () => {
     const confirmed = window.confirm(
-      "Sigur vrei sa stergi acest vehicul?"
+      "Sigur vrei să ștergi acest vehicul?"
     );
 
     if (!confirmed) return;
@@ -253,7 +266,7 @@ export default function EditAutoPage() {
       .eq("id", vehicleId);
 
     if (error) {
-      alert(`A aparut o eroare la stergere: ${error.message}`);
+      alert(`A apărut o eroare la ștergere: ${error.message}`);
       setDeleting(false);
       return;
     }
@@ -263,52 +276,149 @@ export default function EditAutoPage() {
   };
 
   if (loading) {
-    return <div className="p-6">Se incarca datele vehiculului...</div>;
+    return <div className="p-6">Se încarcă datele vehiculului...</div>;
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Editeaza auto</h1>
-            <p className="text-sm text-gray-600">
-              Modifica datele vehiculului din parc auto.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             onClick={() => router.push("/admin/parc-auto")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            Inapoi la parc auto
+            Înapoi la parc auto
           </button>
         </div>
+      </header>
 
-        <div className="rounded-2xl bg-white p-5 shadow md:p-6">
-          <div className="mb-5 flex flex-col gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-500">Status afisat</p>
+              <p className="text-sm text-gray-500">Administrare vehicul</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Editează auto
+              </h1>
+              <p className="mt-3 text-sm text-gray-500 sm:text-base">
+                Modifică datele vehiculului din parc auto.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
               <span
-                className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${computedStatusClasses}`}
+                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${computedStatusClasses}`}
               >
                 {computedStatusLabel}
               </span>
+
+              {isLeasing && (
+                <span className="inline-flex rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                  Leasing
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400">
+                Categorie
+              </p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">
+                {categoryLabels[category]}
+              </p>
             </div>
 
-            {isLeasing && (
-              <div className="text-left sm:text-right">
-                <p className="text-sm font-medium text-gray-500">
-                  Leasing ramas
+            <div className="rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400">
+                Nr. auto
+              </p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">
+                {registrationNumber || "-"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400">
+                RCA
+              </p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">
+                {formatDate(rcaValidUntil || null)}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-4">
+              <p className="text-[11px] uppercase tracking-[0.14em] text-gray-400">
+                ITP
+              </p>
+              <p className="mt-2 text-sm font-semibold text-gray-900">
+                {formatDate(itpValidUntil || null)}
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {isLeasing && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-gray-900">
+                Detalii leasing
+              </h2>
+              <p className="mt-1 text-sm text-gray-500">
+                Valori calculate automat după rata lunară și data ultimei rate.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-[#E8E5DE] bg-purple-50 p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-purple-500">
+                  Rată lunară
                 </p>
-                <p className="mt-1 text-sm font-semibold text-gray-900">
-                  {monthsRemaining} luni
+                <p className="mt-2 text-lg font-bold text-purple-700">
+                  {Number(monthlyRate || 0).toFixed(2)} lei
                 </p>
-                <p className="mt-1 text-sm font-bold text-gray-900">
+              </div>
+
+              <div className="rounded-2xl border border-[#E8E5DE] bg-purple-50 p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-purple-500">
+                  Luni rămase
+                </p>
+                <p className="mt-2 text-lg font-bold text-purple-700">
+                  {monthsRemaining}
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-[#E8E5DE] bg-purple-50 p-4">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-purple-500">
+                  Rămas de plată
+                </p>
+                <p className="mt-2 text-lg font-bold text-purple-700">
                   {remainingLeasingValue.toFixed(2)} lei
                 </p>
               </div>
-            )}
+            </div>
+          </section>
+        )}
+
+        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="mb-5">
+            <h2 className="text-lg font-bold text-gray-900">
+              Informații vehicul
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              Actualizează câmpurile de mai jos și salvează modificările.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -319,12 +429,12 @@ export default function EditAutoPage() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value as VehicleCategory)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
               >
                 <option value="camion">Camion</option>
-                <option value="autoutilitara">Autoutilitara</option>
+                <option value="autoutilitara">Autoutilitară</option>
                 <option value="microbuz">Microbuz</option>
-                <option value="masina_administrativa">Masina administrativa</option>
+                <option value="masina_administrativa">Mașină administrativă</option>
               </select>
             </div>
 
@@ -335,24 +445,24 @@ export default function EditAutoPage() {
               <select
                 value={status}
                 onChange={(e) => setStatus(e.target.value as VehicleStatus)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
               >
-                <option value="activa">Activa</option>
-                <option value="inactiva">Inactiva</option>
-                <option value="in_reparatie">In reparatie</option>
+                <option value="activa">Activă</option>
+                <option value="inactiva">Inactivă</option>
+                <option value="in_reparatie">În reparație</option>
               </select>
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                Marca
+                Marcă
               </label>
               <input
                 type="text"
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
                 placeholder="Ex: Ford"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
               />
             </div>
 
@@ -365,13 +475,13 @@ export default function EditAutoPage() {
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="Ex: Transit"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                Nr. inmatriculare
+                Nr. înmatriculare
               </label>
               <input
                 type="text"
@@ -380,36 +490,36 @@ export default function EditAutoPage() {
                   setRegistrationNumber(e.target.value.toUpperCase())
                 }
                 placeholder="Ex: B123ABC"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 uppercase outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 uppercase outline-none transition focus:border-black"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                RCA valabil pana la
+                RCA valabil până la
               </label>
               <input
                 type="date"
                 value={rcaValidUntil}
                 onChange={(e) => setRcaValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
               />
             </div>
 
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">
-                ITP valabil pana la
+                ITP valabil până la
               </label>
               <input
                 type="date"
                 value={itpValidUntil}
                 onChange={(e) => setItpValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
               />
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <div className="mt-5 rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-4">
             <label className="flex cursor-pointer items-center gap-3">
               <input
                 type="checkbox"
@@ -418,7 +528,7 @@ export default function EditAutoPage() {
                 className="h-5 w-5"
               />
               <span className="text-sm font-medium text-gray-800">
-                Leasing
+                Vehicul în leasing
               </span>
             </label>
           </div>
@@ -427,7 +537,7 @@ export default function EditAutoPage() {
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Rata lunara
+                  Rată lunară
                 </label>
                 <input
                   type="number"
@@ -436,7 +546,7 @@ export default function EditAutoPage() {
                   value={monthlyRate}
                   onChange={(e) => setMonthlyRate(e.target.value)}
                   placeholder="Ex: 1500"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
@@ -448,7 +558,7 @@ export default function EditAutoPage() {
                   type="date"
                   value={lastRateDate}
                   onChange={(e) => setLastRateDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
             </div>
@@ -459,30 +569,30 @@ export default function EditAutoPage() {
               type="button"
               onClick={handleSubmit}
               disabled={submitting}
-              className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="w-full rounded-2xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {submitting ? "Se salveaza..." : "Salveaza modificarile"}
+              {submitting ? "Se salvează..." : "Salvează modificările"}
             </button>
 
             <button
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="w-full rounded-lg bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              className="w-full rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {deleting ? "Se sterge..." : "Sterge auto"}
+              {deleting ? "Se șterge..." : "Șterge auto"}
             </button>
 
             <button
               type="button"
               onClick={() => router.push("/admin/parc-auto")}
-              className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
+              className="w-full rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              Renunta
+              Renunță
             </button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   );
 }

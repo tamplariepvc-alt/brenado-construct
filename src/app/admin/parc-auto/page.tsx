@@ -49,7 +49,7 @@ const categoryLabels: Record<SectionKey, string> = {
   camion: "Camioane",
   autoutilitara: "Autoutilitare",
   microbuz: "Microbuze",
-  masina_administrativa: "Masini Administrative",
+  masina_administrativa: "Masini administrative",
 };
 
 export default function ParcAutoPage() {
@@ -61,7 +61,7 @@ export default function ParcAutoPage() {
   const [filter, setFilter] = useState<FilterType>("toate");
 
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    camion: true,
+    camion: false,
     autoutilitara: false,
     microbuz: false,
     masina_administrativa: false,
@@ -229,15 +229,90 @@ export default function ParcAutoPage() {
 
   const showSections = filter === "toate";
 
-  const handleTopFilterClick = (type: FilterType) => {
-    setFilter((prev) => (prev === type ? "toate" : type));
+  const renderVehicleIcon = (category: VehicleCategory) => {
+    if (category === "camion") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600">
+          <path
+            d="M3 7h11v7H3V7Zm11 2h3l2 2v3h-5V9Zm-8 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3Zm11 0a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3Z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    }
+
+    if (category === "microbuz") {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600">
+          <path
+            d="M4 8.5c0-1.1.9-2 2-2h9.5c.6 0 1.1.2 1.5.6l2.4 2.4c.4.4.6.9.6 1.5V14H4V8.5Zm2 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3Zm11 0a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3Z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      );
+    }
+
+    return (
+      <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600">
+        <path
+          d="M5 11l1.2-3.1c.3-.8 1.1-1.4 2-1.4h7.6c.9 0 1.7.6 2 1.4L19 11v4H5v-4Zm2 6a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3Zm10 0a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
   };
 
-  const getTopCardClasses = (type: FilterType, baseClasses: string) => {
-    const isActive = filter === type;
-    return `${baseClasses} ${
-      isActive ? "ring-2 ring-black shadow-md scale-[1.01]" : "shadow-sm"
-    }`;
+  const renderFilterCard = (
+    type: FilterType,
+    label: string,
+    value: number,
+    tone: string
+  ) => {
+    const active = filter === type;
+
+    const toneClasses: Record<string, string> = {
+      total: "bg-[#F4F2ED] text-gray-900",
+      active: "bg-green-50 text-green-700",
+      inactive: "bg-gray-100 text-gray-700",
+      repair: "bg-orange-50 text-orange-700",
+      expired: "bg-red-50 text-red-700",
+      warning: "bg-yellow-50 text-yellow-700",
+      leasing: "bg-purple-50 text-purple-700",
+    };
+
+    const activeRing: Record<string, string> = {
+      total: "ring-2 ring-black",
+      active: "ring-2 ring-green-600",
+      inactive: "ring-2 ring-gray-500",
+      repair: "ring-2 ring-orange-600",
+      expired: "ring-2 ring-red-600",
+      warning: "ring-2 ring-yellow-600",
+      leasing: "ring-2 ring-purple-600",
+    };
+
+    return (
+      <button
+        type="button"
+        onClick={() => setFilter(type)}
+        className={`rounded-[24px] p-4 text-left shadow-sm transition hover:-translate-y-0.5 ${
+          toneClasses[tone]
+        } ${active ? activeRing[tone] : "border border-[#E8E5DE]"}`}
+      >
+        <p className="text-[10px] uppercase tracking-[0.18em] opacity-80 sm:text-[11px]">
+          {label}
+        </p>
+        <p className="mt-3 text-3xl font-extrabold sm:text-4xl">{value}</p>
+      </button>
+    );
   };
 
   const renderVehicleCard = (v: Vehicle) => {
@@ -248,45 +323,50 @@ export default function ParcAutoPage() {
       <button
         key={v.id}
         onClick={() => router.push(`/admin/parc-auto/${v.id}`)}
-        className="w-full rounded-[20px] border border-[#E8E5DE] bg-white px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        className="w-full rounded-[22px] border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="break-words text-base font-bold text-gray-900">
-              {v.brand} {v.model}
-            </p>
+            <div className="flex items-start gap-3">
+              <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                {renderVehicleIcon(v.category)}
+              </div>
 
-            <p className="mt-1 text-lg text-gray-500 break-words">
-              {v.registration_number}
-            </p>
+              <div className="min-w-0">
+                <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-lg">
+                  {v.brand} {v.model}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">{v.registration_number}</p>
 
-            <div className="mt-3 flex flex-wrap gap-2">
-              <span
-                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                  status
-                )}`}
-              >
-                {getStatusLabel(status)}
-              </span>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <span
+                    className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
+                      status
+                    )}`}
+                  >
+                    {getStatusLabel(status)}
+                  </span>
 
-              {v.is_leasing && (
-                <span className="inline-flex rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
-                  Leasing
-                </span>
-              )}
+                  {v.is_leasing && (
+                    <span className="inline-flex rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                      Leasing
+                    </span>
+                  )}
 
-              {warnings.map((warning) => (
-                <span
-                  key={warning}
-                  className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
-                >
-                  {warning}
-                </span>
-              ))}
+                  {warnings.slice(0, 2).map((warning) => (
+                    <span
+                      key={warning}
+                      className="inline-flex rounded-full bg-yellow-100 px-3 py-1 text-xs font-semibold text-yellow-800"
+                    >
+                      {warning}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="shrink-0 text-3xl text-gray-400">›</div>
+          <div className="mt-2 text-2xl text-gray-400">›</div>
         </div>
       </button>
     );
@@ -299,28 +379,26 @@ export default function ParcAutoPage() {
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-start justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
-          </div>
+        <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={150}
+            height={48}
+            className="h-11 w-auto object-contain"
+          />
 
-          <div className="flex w-full max-w-[220px] flex-col gap-3">
+          <div className="flex w-full max-w-xl flex-col gap-3 sm:flex-row">
             <button
               onClick={() => router.push("/admin")}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               Înapoi la panou admin
             </button>
 
             <button
               onClick={() => router.push("/admin/parc-auto/adauga")}
-              className="rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
+              className="w-full rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
             >
               + Adaugă auto
             </button>
@@ -340,137 +418,31 @@ export default function ParcAutoPage() {
             </p>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("toate")}
-              className={getTopCardClasses(
-                "toate",
-                "rounded-[22px] bg-[#F8F7F3] p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400 sm:text-xs">
-                Total
-              </p>
-              <p className="mt-3 text-3xl font-bold text-gray-900 sm:text-4xl">
-                {stats.total}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("active")}
-              className={getTopCardClasses(
-                "active",
-                "rounded-[22px] bg-green-50 p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-green-700 sm:text-xs">
-                Active
-              </p>
-              <p className="mt-3 text-3xl font-bold text-green-700 sm:text-4xl">
-                {stats.active}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("inactive")}
-              className={getTopCardClasses(
-                "inactive",
-                "rounded-[22px] bg-gray-50 p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-gray-500 sm:text-xs">
-                Inactive
-              </p>
-              <p className="mt-3 text-3xl font-bold text-gray-700 sm:text-4xl">
-                {stats.inactive}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("in_reparatie")}
-              className={getTopCardClasses(
-                "in_reparatie",
-                "rounded-[22px] bg-orange-50 p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-orange-700 sm:text-xs">
-                Reparație
-              </p>
-              <p className="mt-3 text-3xl font-bold text-orange-700 sm:text-4xl">
-                {stats.inRepair}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("doc_expirate")}
-              className={getTopCardClasses(
-                "doc_expirate",
-                "rounded-[22px] bg-red-50 p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-red-700 sm:text-xs">
-                Expirate
-              </p>
-              <p className="mt-3 text-3xl font-bold text-red-700 sm:text-4xl">
-                {stats.expired}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("urmeaza_sa_expire")}
-              className={getTopCardClasses(
-                "urmeaza_sa_expire",
-                "rounded-[22px] bg-yellow-50 p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-yellow-700 sm:text-xs">
-                Urmează
-              </p>
-              <p className="mt-3 text-3xl font-bold text-yellow-700 sm:text-4xl">
-                {stats.expiring}
-              </p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleTopFilterClick("leasing")}
-              className={getTopCardClasses(
-                "leasing",
-                "rounded-[22px] bg-purple-50 p-4 text-left transition"
-              )}
-            >
-              <p className="text-[11px] uppercase tracking-[0.18em] text-purple-700 sm:text-xs">
-                Leasing
-              </p>
-              <p className="mt-3 text-3xl font-bold text-purple-700 sm:text-4xl">
-                {stats.leasing}
-              </p>
-            </button>
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {renderFilterCard("toate", "Total", stats.total, "total")}
+            {renderFilterCard("active", "Active", stats.active, "active")}
+            {renderFilterCard("inactive", "Inactive", stats.inactive, "inactive")}
+            {renderFilterCard("in_reparatie", "Reparație", stats.inRepair, "repair")}
+            {renderFilterCard("doc_expirate", "Expirate", stats.expired, "expired")}
+            {renderFilterCard(
+              "urmeaza_sa_expire",
+              "Urmează",
+              stats.expiring,
+              "warning"
+            )}
+            {renderFilterCard("leasing", "Leasing", stats.leasing, "leasing")}
           </div>
         </section>
 
-        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
-          <input
-            type="text"
-            className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-base outline-none transition focus:border-black sm:px-5 sm:py-4"
-            placeholder="Caută model sau nr..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </section>
-
         <section className="mt-6">
-          <div className="mb-3 flex items-center gap-3 px-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Lista vehicule
-            </p>
-            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          <div className="mb-4">
+            <input
+              type="text"
+              className="w-full rounded-[22px] border border-gray-300 bg-white px-5 py-4 text-base outline-none transition focus:border-black"
+              placeholder="Caută marcă, model sau nr. auto"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
 
           {showSections ? (
@@ -489,8 +461,8 @@ export default function ParcAutoPage() {
                       onClick={() => toggleSection(sectionKey)}
                       className="flex w-full items-center justify-between px-5 py-4 text-left"
                     >
-                      <div className="min-w-0 flex-1">
-                        <h2 className="text-lg font-bold text-gray-900 sm:text-xl">
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900">
                           {categoryLabels[sectionKey]}
                         </h2>
                         <p className="mt-1 text-sm text-gray-500">
@@ -498,21 +470,19 @@ export default function ParcAutoPage() {
                         </p>
                       </div>
 
-                      <span className="ml-4 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F0EEE9] text-2xl font-medium text-gray-700">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#F4F2ED] text-xl font-semibold text-gray-700">
                         {isOpen ? "−" : "+"}
                       </span>
                     </button>
 
                     {isOpen && (
-                      <div className="border-t border-[#E8E5DE] px-3 py-3">
+                      <div className="border-t border-[#E8E5DE] px-4 py-4">
                         {list.length === 0 ? (
-                          <div className="px-2 py-4 text-sm text-gray-500">
-                            Nu există vehicule în această categorie pentru filtrul curent.
+                          <div className="rounded-2xl bg-[#F8F7F3] px-4 py-4 text-sm text-gray-500">
+                            Nu există vehicule în această categorie.
                           </div>
                         ) : (
-                          <div className="space-y-3">
-                            {list.map((v) => renderVehicleCard(v))}
-                          </div>
+                          <div className="space-y-3">{list.map((v) => renderVehicleCard(v))}</div>
                         )}
                       </div>
                     )}
