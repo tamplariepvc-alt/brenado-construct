@@ -93,6 +93,7 @@ export default function ComenziPage() {
 
       setProfile(profileData as Profile);
 
+      // ── 1. Fetch comenzi ──────────────────────────────────────────────────────
       let query = supabase
         .from("orders")
         .select(`
@@ -116,44 +117,82 @@ export default function ComenziPage() {
 
       const { data: ordersData, error: ordersError } = await query;
 
-      if (!ordersError && ordersData) {
-        const typedOrdersFromDb = ordersData as OrderRowFromDb[];
+      if (ordersError || !ordersData) {
+        setLoading(false);
+        return;
+      }
 
-        const normalizedOrders: OrderRow[] = typedOrdersFromDb.map((order) => ({
-          id: order.id,
-          order_number: order.order_number,
-          project_id: order.project_id,
-          order_date: order.order_date,
-          status: order.status,
-          total_with_vat: order.total_with_vat,
-          created_by: order.created_by,
-          created_at: order.created_at,
-          projects: order.projects?.[0]
-            ? { name: order.projects[0].name }
-            : null,
-        }));
+      const typedOrdersFromDb = ordersData as OrderRowFromDb[];
 
-        setOrders(normalizedOrders);
+      // ── 2. Normalizare join Supabase (array → object) ─────────────────────────
+      let normalizedOrders: OrderRow[] = typedOrdersFromDb.map((order) => ({
+        id: order.id,
+        order_number: order.order_number,
+        project_id: order.project_id,
+        order_date: order.order_date,
+        status: order.status,
+        total_with_vat: order.total_with_vat,
+        created_by: order.created_by,
+        created_at: order.created_at,
+        projects: order.projects?.[0]
+          ? { name: order.projects[0].name }
+          : null,
+      }));
 
-        const userIds = Array.from(
-          new Set(normalizedOrders.map((order) => order.created_by))
-        );
+      // ── 3. Fallback: fetch separat proiecte pentru comenzile fara nume ────────
+      // Supabase poate returna null pe join daca RLS blocheaza tabela projects
+      // sau daca project_id nu are corespondent. Facem un fetch separat ca siguranta.
+      const missingProjectIds = Array.from(
+        new Set(
+          normalizedOrders
+            .filter((o) => !o.projects?.name && o.project_id)
+            .map((o) => o.project_id)
+        )
+      );
 
-        if (userIds.length > 0) {
-          const { data: profilesData, error: profilesError } = await supabase
-            .from("profiles")
-            .select("id, full_name")
-            .in("id", userIds);
+      if (missingProjectIds.length > 0) {
+        const { data: projectsData } = await supabase
+          .from("projects")
+          .select("id, name")
+          .in("id", missingProjectIds);
 
-          if (!profilesError && profilesData) {
-            const namesMap: ProfileNameMap = {};
+        if (projectsData && projectsData.length > 0) {
+          const projectMap: Record<string, string> = {};
+          projectsData.forEach((p: { id: string; name: string }) => {
+            projectMap[p.id] = p.name;
+          });
 
-            profilesData.forEach((profile) => {
-              namesMap[profile.id] = profile.full_name;
-            });
+          normalizedOrders = normalizedOrders.map((order) => {
+            if (!order.projects?.name && projectMap[order.project_id]) {
+              return {
+                ...order,
+                projects: { name: projectMap[order.project_id] },
+              };
+            }
+            return order;
+          });
+        }
+      }
 
-            setProfileNames(namesMap);
-          }
+      setOrders(normalizedOrders);
+
+      // ── 4. Fetch nume utilizatori (creat de) ──────────────────────────────────
+      const userIds = Array.from(
+        new Set(normalizedOrders.map((order) => order.created_by))
+      );
+
+      if (userIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", userIds);
+
+        if (!profilesError && profilesData) {
+          const namesMap: ProfileNameMap = {};
+          profilesData.forEach((profile) => {
+            namesMap[profile.id] = profile.full_name;
+          });
+          setProfileNames(namesMap);
         }
       }
 
@@ -199,18 +238,10 @@ export default function ComenziPage() {
   };
 
   const getStatusColor = (status: string) => {
-    if (status === "asteapta_confirmare") {
-      return "bg-yellow-100 text-yellow-700";
-    }
-    if (status === "aprobata") {
-      return "bg-green-100 text-green-700";
-    }
-    if (status === "refuzata") {
-      return "bg-red-100 text-red-700";
-    }
-    if (status === "draft") {
-      return "bg-gray-100 text-gray-700";
-    }
+    if (status === "asteapta_confirmare") return "bg-yellow-100 text-yellow-700";
+    if (status === "aprobata") return "bg-green-100 text-green-700";
+    if (status === "refuzata") return "bg-red-100 text-red-700";
+    if (status === "draft") return "bg-gray-100 text-gray-700";
     return "bg-gray-100 text-gray-700";
   };
 
@@ -222,19 +253,16 @@ export default function ComenziPage() {
         ? "border-blue-500 ring-2 ring-blue-200 bg-blue-50"
         : "border-transparent bg-blue-50";
     }
-
     if (filter === "asteapta_confirmare") {
       return active
         ? "border-amber-400 ring-2 ring-amber-200 bg-amber-50"
         : "border-transparent bg-amber-50";
     }
-
     if (filter === "aprobata") {
       return active
         ? "border-green-400 ring-2 ring-green-200 bg-green-50"
         : "border-transparent bg-green-50";
     }
-
     return active
       ? "border-red-400 ring-2 ring-red-200 bg-red-50"
       : "border-transparent bg-red-50";
@@ -322,9 +350,7 @@ export default function ComenziPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("toate")}
-              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
-                "toate"
-              )}`}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses("toate")}`}
             >
               <p className="text-2xl font-extrabold tracking-tight text-blue-600 sm:text-3xl">
                 {stats.total}
@@ -337,9 +363,7 @@ export default function ComenziPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("asteapta_confirmare")}
-              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
-                "asteapta_confirmare"
-              )}`}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses("asteapta_confirmare")}`}
             >
               <p className="text-2xl font-extrabold tracking-tight text-amber-600 sm:text-3xl">
                 {stats.inAsteptare}
@@ -352,9 +376,7 @@ export default function ComenziPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("aprobata")}
-              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
-                "aprobata"
-              )}`}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses("aprobata")}`}
             >
               <p className="text-2xl font-extrabold tracking-tight text-green-600 sm:text-3xl">
                 {stats.aprobate}
@@ -367,9 +389,7 @@ export default function ComenziPage() {
             <button
               type="button"
               onClick={() => setStatusFilter("refuzata")}
-              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses(
-                "refuzata"
-              )}`}
+              className={`rounded-2xl border px-3 py-3 text-center transition ${getFilterCardClasses("refuzata")}`}
             >
               <p className="text-2xl font-extrabold tracking-tight text-red-600 sm:text-3xl">
                 {stats.refuzate}
@@ -414,6 +434,7 @@ export default function ComenziPage() {
             </div>
           ) : (
             <>
+              {/* Desktop table */}
               <div className="hidden overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm lg:block">
                 <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
                   <div className="col-span-2">Nr.</div>
@@ -437,7 +458,9 @@ export default function ComenziPage() {
                     </div>
 
                     <div className="col-span-3 text-sm text-gray-600">
-                      {order.projects?.name || "-"}
+                      {order.projects?.name || (
+                        <span className="italic text-gray-400">Fără șantier</span>
+                      )}
                     </div>
 
                     <div className="col-span-2 text-sm text-gray-500">
@@ -450,9 +473,7 @@ export default function ComenziPage() {
 
                     <div className="col-span-2">
                       <span
-                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(
-                          order.status
-                        )}`}
+                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}
                       >
                         {getStatusLabel(order.status)}
                       </span>
@@ -465,6 +486,7 @@ export default function ComenziPage() {
                 ))}
               </div>
 
+              {/* Mobile cards */}
               <div className="space-y-3 lg:hidden">
                 {filteredOrders.map((order, index) => (
                   <button
@@ -486,16 +508,16 @@ export default function ComenziPage() {
                                 : String(index + 1).padStart(4, "0")}
                             </p>
                             <p className="mt-1 text-sm text-gray-500">
-                              {order.projects?.name || "-"}
+                              {order.projects?.name || (
+                                <span className="italic text-gray-400">Fără șantier</span>
+                              )}
                             </p>
                           </div>
                         </div>
                       </div>
 
                       <span
-                        className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(
-                          order.status
-                        )}`}
+                        className={`inline-block shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusColor(order.status)}`}
                       >
                         {getStatusLabel(order.status)}
                       </span>
