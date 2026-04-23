@@ -110,8 +110,11 @@ export default function DetaliuBonCentruCostPage() {
     return items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
   }, [items]);
 
+  if (loading) return null;
 
-
+  if (!project || !receipt) {
+    return <div className="p-6">Bonul nu a fost găsit.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">

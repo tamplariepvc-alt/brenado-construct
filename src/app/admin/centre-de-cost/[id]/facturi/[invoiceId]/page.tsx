@@ -110,6 +110,7 @@ export default function DetaliuFacturaCentruCostPage() {
     return items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
   }, [items]);
 
+if (loading) return null;
 
   if (!project || !invoice) {
     return <div className="p-6">Factura nu a fost găsită.</div>;

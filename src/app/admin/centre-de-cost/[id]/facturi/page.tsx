@@ -111,7 +111,11 @@ export default function FacturiCentruCostPage() {
     </svg>
   );
 
+if (loading) return null;
 
+  if (!project) {
+    return <div className="p-6">Proiectul nu a fost găsit.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">

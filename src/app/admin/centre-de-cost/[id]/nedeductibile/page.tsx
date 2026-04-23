@@ -97,7 +97,7 @@ export default function NedeductibileCentruCostPage() {
     </svg>
   );
 
-
+if (loading) return null;
 
   if (!project) {
     return <div className="p-6">Proiectul nu a fost găsit.</div>;

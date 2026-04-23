@@ -73,6 +73,8 @@ export default function DetaliuNedeductibilPage() {
 
     loadData();
   }, [projectId, expenseId, router]);
+  
+  if (loading) return null;
 
 
   if (!project || !expense) {

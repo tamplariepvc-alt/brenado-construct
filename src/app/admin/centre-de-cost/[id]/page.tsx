@@ -719,6 +719,11 @@ export default function CentruDeCostDetaliuPage() {
     },
   ];
 
+if (loading) return null;
+
+  if (!project) {
+    return <div className="p-6">Centrul de cost nu a fost găsit.</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">

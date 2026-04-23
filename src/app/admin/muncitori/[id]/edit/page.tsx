@@ -100,6 +100,7 @@ export default function EditMuncitorPage() {
     router.push("/admin/muncitori");
   };
 
+if (loading) return null;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">

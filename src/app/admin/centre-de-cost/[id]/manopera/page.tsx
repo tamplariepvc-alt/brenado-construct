@@ -840,6 +840,7 @@ export default function CentruDeCostManoperaPage() {
     </svg>
   );
 
+if (loading) return null;
 
   if (!project) {
     return <div className="p-6">Proiectul nu a fost gasit.</div>;
