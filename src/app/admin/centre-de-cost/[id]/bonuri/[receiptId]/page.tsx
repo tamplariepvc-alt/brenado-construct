@@ -40,7 +40,7 @@ export default function DetaliuBonCentruCostPage() {
   const projectId = params.id as string;
   const receiptId = params.receiptId as string;
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [receipt, setReceipt] = useState<FiscalReceipt | null>(null);
   const [items, setItems] = useState<FiscalReceiptItem[]>([]);
@@ -110,11 +110,8 @@ export default function DetaliuBonCentruCostPage() {
     return items.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
   }, [items]);
 
-  if (loading) return null;
 
-  if (!project || !receipt) {
-    return <div className="p-6">Bonul nu a fost găsit.</div>;
-  }
+if (!project) return null;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">

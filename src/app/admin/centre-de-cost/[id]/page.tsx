@@ -720,9 +720,7 @@ export default function CentruDeCostDetaliuPage() {
   ];
 
 
-  if (!project) {
-    return <div className="p-6">Centrul de cost nu a fost găsit.</div>;
-  }
+if (!project) return null;
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
