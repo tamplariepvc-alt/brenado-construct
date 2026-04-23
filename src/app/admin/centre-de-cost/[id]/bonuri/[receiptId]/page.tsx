@@ -112,9 +112,6 @@ export default function DetaliuBonCentruCostPage() {
 
 
 
-  if (!project || !receipt) {
-    return <div className="p-6">Bonul nu a fost găsit.</div>;
-  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">

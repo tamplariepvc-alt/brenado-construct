@@ -574,10 +574,6 @@ export default function DetaliuAutoPage() {
   };
 
 
-  if (!vehicle) {
-    return <div className="p-6">Vehiculul nu a fost găsit.</div>;
-  }
-
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
