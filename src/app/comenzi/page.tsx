@@ -27,6 +27,20 @@ type OrderRow = {
   } | null;
 };
 
+type OrderRowFromDb = {
+  id: string;
+  order_number: string | null;
+  project_id: string;
+  order_date: string;
+  status: string;
+  total_with_vat: number;
+  created_by: string;
+  created_at: string;
+  projects?: {
+    name: string;
+  }[] | null;
+};
+
 type ProfileNameMap = Record<string, string>;
 
 type StatusFilterKey =
@@ -103,11 +117,26 @@ export default function ComenziPage() {
       const { data: ordersData, error: ordersError } = await query;
 
       if (!ordersError && ordersData) {
-        const typedOrders = ordersData as OrderRow[];
-        setOrders(typedOrders);
+        const typedOrdersFromDb = ordersData as OrderRowFromDb[];
+
+        const normalizedOrders: OrderRow[] = typedOrdersFromDb.map((order) => ({
+          id: order.id,
+          order_number: order.order_number,
+          project_id: order.project_id,
+          order_date: order.order_date,
+          status: order.status,
+          total_with_vat: order.total_with_vat,
+          created_by: order.created_by,
+          created_at: order.created_at,
+          projects: order.projects?.[0]
+            ? { name: order.projects[0].name }
+            : null,
+        }));
+
+        setOrders(normalizedOrders);
 
         const userIds = Array.from(
-          new Set(typedOrders.map((order) => order.created_by))
+          new Set(normalizedOrders.map((order) => order.created_by))
         );
 
         if (userIds.length > 0) {

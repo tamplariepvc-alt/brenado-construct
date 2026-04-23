@@ -32,6 +32,23 @@ type OrderDetails = {
   } | null;
 };
 
+type OrderDetailsFromDb = {
+  id: string;
+  order_number: string | null;
+  project_id: string;
+  created_by: string;
+  order_date: string;
+  status: string;
+  subtotal: number;
+  vat_total: number;
+  total_with_vat: number;
+  notes: string | null;
+  created_at: string;
+  projects?: {
+    name: string;
+  }[] | null;
+};
+
 type OrderItem = {
   id: string;
   article_number: string | null;
@@ -115,15 +132,17 @@ export default function ComandaDetaliuPage() {
         return;
       }
 
+      const typedOrderData = orderData as OrderDetailsFromDb;
+
       const { data: creatorProfile } = await supabase
         .from("profiles")
         .select("full_name")
-        .eq("id", orderData.created_by)
+        .eq("id", typedOrderData.created_by)
         .single();
 
       if (
         profileData.role === "sef_echipa" &&
-        orderData.created_by !== user.id
+        typedOrderData.created_by !== user.id
       ) {
         router.push("/comenzi");
         return;
@@ -151,8 +170,21 @@ export default function ComandaDetaliuPage() {
       }
 
       setOrder({
-        ...(orderData as OrderDetails),
+        id: typedOrderData.id,
+        order_number: typedOrderData.order_number,
+        project_id: typedOrderData.project_id,
+        created_by: typedOrderData.created_by,
+        order_date: typedOrderData.order_date,
+        status: typedOrderData.status,
+        subtotal: typedOrderData.subtotal,
+        vat_total: typedOrderData.vat_total,
+        total_with_vat: typedOrderData.total_with_vat,
+        notes: typedOrderData.notes,
+        created_at: typedOrderData.created_at,
         creator_name: creatorProfile?.full_name || "-",
+        projects: typedOrderData.projects?.[0]
+          ? { name: typedOrderData.projects[0].name }
+          : null,
       });
 
       setLoading(false);
