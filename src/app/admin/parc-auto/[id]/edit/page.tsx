@@ -282,20 +282,18 @@ export default function EditAutoPage() {
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
-          </div>
+        <div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <Image
+            src="/logo.png"
+            alt="Logo"
+            width={150}
+            height={48}
+            className="h-11 w-auto object-contain"
+          />
 
           <button
             onClick={() => router.push("/admin/parc-auto")}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            className="w-full max-w-xl rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
             Înapoi la parc auto
           </button>
