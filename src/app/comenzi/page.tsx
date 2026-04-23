@@ -286,9 +286,9 @@ export default function ComenziPage() {
     </svg>
   );
 
-import PageLoader from "@/components/PageLoader";
-
-if (loading) return <PageLoader />;
+  if (loading) {
+    return <div className="p-6">Se încarcă comenzile...</div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">

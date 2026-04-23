@@ -26,34 +26,24 @@ type Worker = {
   weekend_day_rate: number | null;
 };
 
-type DailyTeam = {
+type TimeEntryWorkerJoin = {
+  worker_id: string;
+  workers?: {
+    id: string;
+    full_name: string;
+    extra_hour_rate?: number | null;
+    weekend_day_rate?: number | null;
+  }[] | null;
+};
+
+type ActiveEntry = {
   id: string;
-  project_id: string;
-  work_date: string;
-};
-
-type DailyTeamWorker = {
-  daily_team_id: string;
   worker_id: string;
+  status: string;
+  end_time: string | null;
 };
 
-type ExtraWorkRow = {
-  id?: string;
-  project_id: string;
-  worker_id: string;
-  work_date: string;
-  extra_hours: number | null;
-  is_saturday: boolean | null;
-  is_sunday: boolean | null;
-  extra_hours_paid?: boolean | null;
-  weekend_paid?: boolean | null;
-  extra_hours_value?: number | null;
-  weekend_days_count?: number | null;
-  weekend_value?: number | null;
-  total_value?: number | null;
-};
-
-type HistoryRow = {
+type ExtraWorkHistoryRow = {
   id: string;
   project_id: string;
   worker_id: string;
@@ -61,22 +51,53 @@ type HistoryRow = {
   extra_hours: number | null;
   is_saturday: boolean | null;
   is_sunday: boolean | null;
+  extra_hours_paid: boolean | null;
+  weekend_paid: boolean | null;
   extra_hours_value: number | null;
+  weekend_days_count: number | null;
   weekend_value: number | null;
   total_value: number | null;
 };
 
-type WorkerFormRow = {
+type WorkerExtraRow = {
   worker_id: string;
   full_name: string;
   extra_hour_rate: number;
   weekend_day_rate: number;
   extra_hours: string;
+};
+
+type WorkerWeekendRow = {
+  worker_id: string;
+  full_name: string;
+  weekend_day_rate: number;
   saturday: boolean;
   sunday: boolean;
 };
 
+type HistoryWorkerRow = ExtraWorkHistoryRow & {
+  full_name: string;
+};
+
+type PageMode = "extra" | "weekend" | "istoric";
+
 const getToday = () => new Date().toISOString().split("T")[0];
+
+const formatDateRO = (value: string) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString("ro-RO");
+
+const getLast7DaysDateStrings = () => {
+  const dates: string[] = [];
+  const now = new Date();
+
+  for (let i = 0; i < 7; i += 1) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    dates.push(d.toISOString().split("T")[0]);
+  }
+
+  return dates;
+};
 
 export default function OreExtraWeekendPage() {
   const router = useRouter();
@@ -88,13 +109,19 @@ export default function OreExtraWeekendPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedDate, setSelectedDate] = useState(getToday());
+  const [mode, setMode] = useState<PageMode>("extra");
 
-  const [teamWorkers, setTeamWorkers] = useState<WorkerFormRow[]>([]);
-  const [historyRows, setHistoryRows] = useState<HistoryRow[]>([]);
+  const [activeEntriesCount, setActiveEntriesCount] = useState(0);
+
+  const [extraWorkers, setExtraWorkers] = useState<WorkerExtraRow[]>([]);
+  const [weekendWorkers, setWeekendWorkers] = useState<WorkerWeekendRow[]>([]);
+  const [historyRows, setHistoryRows] = useState<HistoryWorkerRow[]>([]);
 
   const selectedProject = useMemo(() => {
-    return projects.find((p) => p.id === selectedProjectId) || null;
+    return projects.find((project) => project.id === selectedProjectId) || null;
   }, [projects, selectedProjectId]);
+
+  const hasActiveEntries = activeEntriesCount > 0;
 
   useEffect(() => {
     const loadBaseData = async () => {
@@ -130,19 +157,18 @@ export default function OreExtraWeekendPage() {
 
       setProfile(profileData as Profile);
 
+      let visibleProjects: Project[] = [];
+
       if (profileData.role === "administrator") {
         const { data: projectsData } = await supabase
           .from("projects")
           .select("id, name, beneficiary")
           .order("created_at", { ascending: false });
 
-        const parsedProjects = (projectsData as Project[]) || [];
-        setProjects(parsedProjects);
+        visibleProjects = (projectsData as Project[]) || [];
+      }
 
-        if (parsedProjects.length > 0) {
-          setSelectedProjectId(parsedProjects[0].id);
-        }
-      } else {
+      if (profileData.role === "sef_echipa") {
         const { data: linkedProjects } = await supabase
           .from("project_team_leads")
           .select("project_id")
@@ -150,24 +176,21 @@ export default function OreExtraWeekendPage() {
 
         const projectIds = (linkedProjects || []).map((item) => item.project_id);
 
-        if (projectIds.length === 0) {
-          setProjects([]);
-          setLoading(false);
-          return;
+        if (projectIds.length > 0) {
+          const { data: projectsData } = await supabase
+            .from("projects")
+            .select("id, name, beneficiary")
+            .in("id", projectIds)
+            .order("created_at", { ascending: false });
+
+          visibleProjects = (projectsData as Project[]) || [];
         }
+      }
 
-        const { data: projectsData } = await supabase
-          .from("projects")
-          .select("id, name, beneficiary")
-          .in("id", projectIds)
-          .order("created_at", { ascending: false });
+      setProjects(visibleProjects);
 
-        const parsedProjects = (projectsData as Project[]) || [];
-        setProjects(parsedProjects);
-
-        if (parsedProjects.length > 0) {
-          setSelectedProjectId(parsedProjects[0].id);
-        }
+      if (visibleProjects.length > 0) {
+        setSelectedProjectId(visibleProjects[0].id);
       }
 
       setLoading(false);
@@ -177,57 +200,63 @@ export default function OreExtraWeekendPage() {
   }, [router]);
 
   useEffect(() => {
-    const loadProjectDateData = async () => {
-      if (!selectedProjectId || !selectedDate) {
-        setTeamWorkers([]);
+    const loadProjectData = async () => {
+      if (!selectedProjectId) {
+        setExtraWorkers([]);
+        setWeekendWorkers([]);
         setHistoryRows([]);
+        setActiveEntriesCount(0);
         return;
       }
 
       setLoading(true);
 
-      const { data: dailyTeamData } = await supabase
-        .from("daily_teams")
-        .select("id, project_id, work_date")
+      const last7Days = getLast7DaysDateStrings();
+
+      const { data: activeEntriesData } = await supabase
+        .from("time_entries")
+        .select("id, worker_id, status, end_time")
         .eq("project_id", selectedProjectId)
         .eq("work_date", selectedDate)
-        .maybeSingle();
+        .eq("status", "activ")
+        .is("end_time", null);
 
-      let workerIds: string[] = [];
+      const parsedActiveEntries = (activeEntriesData as ActiveEntry[]) || [];
+      setActiveEntriesCount(parsedActiveEntries.length);
 
-      if (dailyTeamData) {
-        const { data: dailyTeamWorkersData } = await supabase
-          .from("daily_team_workers")
-          .select("daily_team_id, worker_id")
-          .eq("daily_team_id", (dailyTeamData as DailyTeam).id);
+      const { data: dayParticipantsData } = await supabase
+        .from("time_entries")
+        .select(`
+          worker_id,
+          workers:worker_id (
+            id,
+            full_name,
+            extra_hour_rate,
+            weekend_day_rate
+          )
+        `)
+        .eq("project_id", selectedProjectId)
+        .eq("work_date", selectedDate);
 
-        workerIds = ((dailyTeamWorkersData || []) as DailyTeamWorker[]).map(
-          (item) => item.worker_id
-        );
-      }
+      const participantMap = new Map<string, Worker>();
 
-      if (workerIds.length === 0) {
-        const { data: timeEntriesData } = await supabase
-          .from("time_entries")
-          .select("worker_id")
-          .eq("project_id", selectedProjectId)
-          .eq("work_date", selectedDate);
+      ((dayParticipantsData || []) as TimeEntryWorkerJoin[]).forEach((item) => {
+        const worker = item.workers?.[0];
+        if (!worker?.id) return;
 
-        workerIds = Array.from(
-          new Set((timeEntriesData || []).map((item: any) => item.worker_id))
-        );
-      }
+        participantMap.set(worker.id, {
+          id: worker.id,
+          full_name: worker.full_name,
+          extra_hour_rate: Number(worker.extra_hour_rate || 0),
+          weekend_day_rate: Number(worker.weekend_day_rate || 0),
+        });
+      });
 
-      if (workerIds.length === 0) {
-        setTeamWorkers([]);
-      } else {
-        const { data: workersData } = await supabase
-          .from("workers")
-          .select("id, full_name, extra_hour_rate, weekend_day_rate")
-          .in("id", workerIds)
-          .eq("is_active", true)
-          .order("full_name", { ascending: true });
+      const participantIds = Array.from(participantMap.keys());
 
+      let existingExtraMap = new Map<string, ExtraWorkHistoryRow>();
+
+      if (participantIds.length > 0) {
         const { data: existingExtraData } = await supabase
           .from("extra_work")
           .select(`
@@ -238,39 +267,117 @@ export default function OreExtraWeekendPage() {
             extra_hours,
             is_saturday,
             is_sunday,
+            extra_hours_paid,
+            weekend_paid,
             extra_hours_value,
+            weekend_days_count,
             weekend_value,
             total_value
           `)
           .eq("project_id", selectedProjectId)
           .eq("work_date", selectedDate)
-          .in("worker_id", workerIds);
+          .in("worker_id", participantIds);
 
-        const existingMap = new Map<string, ExtraWorkRow>();
-        ((existingExtraData || []) as ExtraWorkRow[]).forEach((row) => {
-          existingMap.set(row.worker_id, row);
+        ((existingExtraData || []) as ExtraWorkHistoryRow[]).forEach((row) => {
+          existingExtraMap.set(row.worker_id, row);
+        });
+      }
+
+      const parsedExtraWorkers: WorkerExtraRow[] = Array.from(
+        participantMap.values()
+      )
+        .sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"))
+        .map((worker) => {
+          const existing = existingExtraMap.get(worker.id);
+
+          return {
+            worker_id: worker.id,
+            full_name: worker.full_name,
+            extra_hour_rate: Number(worker.extra_hour_rate || 0),
+            weekend_day_rate: Number(worker.weekend_day_rate || 0),
+            extra_hours:
+              existing?.extra_hours !== null && existing?.extra_hours !== undefined
+                ? String(existing.extra_hours)
+                : "",
+          };
         });
 
-        const parsedWorkers: WorkerFormRow[] = ((workersData || []) as Worker[]).map(
-          (worker) => {
-            const existing = existingMap.get(worker.id);
+      setExtraWorkers(parsedExtraWorkers);
+
+      const { data: last7ParticipantsData } = await supabase
+        .from("time_entries")
+        .select(`
+          worker_id,
+          workers:worker_id (
+            id,
+            full_name,
+            weekend_day_rate
+          )
+        `)
+        .eq("project_id", selectedProjectId)
+        .in("work_date", last7Days);
+
+      const weekendMap = new Map<string, WorkerWeekendRow>();
+
+      ((last7ParticipantsData || []) as TimeEntryWorkerJoin[]).forEach((item) => {
+        const worker = item.workers?.[0];
+        if (!worker?.id) return;
+
+        if (!weekendMap.has(worker.id)) {
+          weekendMap.set(worker.id, {
+            worker_id: worker.id,
+            full_name: worker.full_name,
+            weekend_day_rate: Number(worker.weekend_day_rate || 0),
+            saturday: false,
+            sunday: false,
+          });
+        }
+      });
+
+      const weekendIds = Array.from(weekendMap.keys());
+
+      if (weekendIds.length > 0) {
+        const { data: existingWeekendData } = await supabase
+          .from("extra_work")
+          .select(`
+            id,
+            project_id,
+            worker_id,
+            work_date,
+            extra_hours,
+            is_saturday,
+            is_sunday,
+            extra_hours_paid,
+            weekend_paid,
+            extra_hours_value,
+            weekend_days_count,
+            weekend_value,
+            total_value
+          `)
+          .eq("project_id", selectedProjectId)
+          .eq("work_date", selectedDate)
+          .in("worker_id", weekendIds);
+
+        const weekendExistingMap = new Map<string, ExtraWorkHistoryRow>();
+        ((existingWeekendData || []) as ExtraWorkHistoryRow[]).forEach((row) => {
+          weekendExistingMap.set(row.worker_id, row);
+        });
+
+        const parsedWeekendWorkers = Array.from(weekendMap.values())
+          .sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"))
+          .map((worker) => {
+            const existing = weekendExistingMap.get(worker.worker_id);
 
             return {
-              worker_id: worker.id,
-              full_name: worker.full_name,
-              extra_hour_rate: Number(worker.extra_hour_rate || 0),
-              weekend_day_rate: Number(worker.weekend_day_rate || 0),
-              extra_hours:
-                existing?.extra_hours !== null && existing?.extra_hours !== undefined
-                  ? String(existing.extra_hours)
-                  : "",
+              ...worker,
               saturday: Boolean(existing?.is_saturday || false),
               sunday: Boolean(existing?.is_sunday || false),
             };
-          }
-        );
+          });
 
-        setTeamWorkers(parsedWorkers);
+        setWeekendWorkers(parsedWeekendWorkers);
+      } else {
+        setWeekendWorkers([]);
       }
 
       const { data: historyData } = await supabase
@@ -283,70 +390,102 @@ export default function OreExtraWeekendPage() {
           extra_hours,
           is_saturday,
           is_sunday,
+          extra_hours_paid,
+          weekend_paid,
           extra_hours_value,
+          weekend_days_count,
           weekend_value,
           total_value
         `)
         .eq("project_id", selectedProjectId)
+        .in("work_date", last7Days)
         .order("work_date", { ascending: false });
 
       const historyWorkerIds = Array.from(
-        new Set(((historyData || []) as HistoryRow[]).map((row) => row.worker_id))
+        new Set(((historyData || []) as ExtraWorkHistoryRow[]).map((row) => row.worker_id))
       );
 
       let historyWorkerMap = new Map<string, string>();
 
       if (historyWorkerIds.length > 0) {
-        const { data: historyWorkersData } = await supabase
+        const { data: workersData } = await supabase
           .from("workers")
           .select("id, full_name")
           .in("id", historyWorkerIds);
 
-        historyWorkerMap = new Map(
-          (historyWorkersData || []).map((worker: any) => [worker.id, worker.full_name])
-        );
+        (workersData || []).forEach((worker: any) => {
+          historyWorkerMap.set(worker.id, worker.full_name);
+        });
       }
 
-      const parsedHistory = ((historyData || []) as HistoryRow[]).map((row) => ({
+      const parsedHistory: HistoryWorkerRow[] = (
+        (historyData || []) as ExtraWorkHistoryRow[]
+      ).map((row) => ({
         ...row,
         full_name: historyWorkerMap.get(row.worker_id) || "-",
-      })) as Array<HistoryRow & { full_name: string }>;
+      }));
 
       setHistoryRows(parsedHistory);
       setLoading(false);
     };
 
-    loadProjectDateData();
+    loadProjectData();
   }, [selectedProjectId, selectedDate]);
 
-  const updateWorkerRow = (
+  const updateExtraWorker = (workerId: string, value: string) => {
+    setExtraWorkers((prev) =>
+      prev.map((worker) =>
+        worker.worker_id === workerId
+          ? { ...worker, extra_hours: value }
+          : worker
+      )
+    );
+  };
+
+  const updateWeekendWorker = (
     workerId: string,
-    field: "extra_hours" | "saturday" | "sunday",
-    value: string | boolean
+    field: "saturday" | "sunday",
+    value: boolean
   ) => {
-    setTeamWorkers((prev) =>
+    setWeekendWorkers((prev) =>
       prev.map((worker) =>
         worker.worker_id === workerId ? { ...worker, [field]: value } : worker
       )
     );
   };
 
-  const totalPreview = useMemo(() => {
-    return teamWorkers.reduce(
-      (sum, worker) => {
-        const extraHours = Number(worker.extra_hours || 0);
-        const extraValue = extraHours * worker.extra_hour_rate;
-        const weekendDays =
-          (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
-        const weekendValue = weekendDays * worker.weekend_day_rate;
+  const extraTotalPreview = useMemo(() => {
+    return extraWorkers.reduce((sum, worker) => {
+      const hours = Number(worker.extra_hours || 0);
+      return sum + hours * Number(worker.extra_hour_rate || 0);
+    }, 0);
+  }, [extraWorkers]);
 
-        return sum + extraValue + weekendValue;
-      },
-      0
-    );
-  }, [teamWorkers]);
+  const weekendTotalPreview = useMemo(() => {
+    return weekendWorkers.reduce((sum, worker) => {
+      const weekendDays = (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
+      return sum + weekendDays * Number(worker.weekend_day_rate || 0);
+    }, 0);
+  }, [weekendWorkers]);
 
-  const handleSave = async () => {
+  const groupedHistory = useMemo(() => {
+    const map = new Map<string, HistoryWorkerRow[]>();
+
+    historyRows.forEach((row) => {
+      if (!map.has(row.worker_id)) {
+        map.set(row.worker_id, []);
+      }
+      map.get(row.worker_id)!.push(row);
+    });
+
+    return Array.from(map.entries()).map(([workerId, rows]) => ({
+      worker_id: workerId,
+      worker_name: rows[0]?.full_name || "-",
+      rows,
+    }));
+  }, [historyRows]);
+
+  const handleSaveExtra = async () => {
     if (!selectedProjectId) {
       alert("Selectează șantierul.");
       return;
@@ -357,18 +496,17 @@ export default function OreExtraWeekendPage() {
       return;
     }
 
-    if (teamWorkers.length === 0) {
-      alert("Nu există muncitori pentru data selectată.");
+    if (hasActiveEntries) {
+      alert("Nu poți adăuga ore cât timp echipa este pontată.");
       return;
     }
 
-    const validRows = teamWorkers.filter((worker) => {
-      const extraHours = Number(worker.extra_hours || 0);
-      return extraHours > 0 || worker.saturday || worker.sunday;
-    });
+    const validRows = extraWorkers.filter(
+      (worker) => Number(worker.extra_hours || 0) > 0
+    );
 
     if (validRows.length === 0) {
-      alert("Completează cel puțin o valoare de ore extra sau weekend.");
+      alert("Completează cel puțin o valoare de ore extra.");
       return;
     }
 
@@ -376,25 +514,21 @@ export default function OreExtraWeekendPage() {
 
     const rows = validRows.map((worker) => {
       const extraHours = Number(worker.extra_hours || 0);
-      const weekendDays =
-        (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
-
       const extraValue = extraHours * Number(worker.extra_hour_rate || 0);
-      const weekendValue = weekendDays * Number(worker.weekend_day_rate || 0);
 
       return {
         project_id: selectedProjectId,
         worker_id: worker.worker_id,
         work_date: selectedDate,
         extra_hours: extraHours,
-        is_saturday: worker.saturday,
-        is_sunday: worker.sunday,
+        is_saturday: false,
+        is_sunday: false,
         extra_hours_paid: false,
         weekend_paid: false,
         extra_hours_value: extraValue,
-        weekend_days_count: weekendDays,
-        weekend_value: weekendValue,
-        total_value: extraValue + weekendValue,
+        weekend_days_count: 0,
+        weekend_value: 0,
+        total_value: extraValue,
       };
     });
 
@@ -410,26 +544,65 @@ export default function OreExtraWeekendPage() {
     }
 
     setSaving(false);
-    alert("Orele extra și weekendul au fost salvate.");
+    alert("Orele extra au fost salvate.");
   };
 
-  const groupedHistory = useMemo(() => {
-    const map = new Map<string, Array<HistoryRow & { full_name?: string }>>();
+  const handleSaveWeekend = async () => {
+    if (!selectedProjectId) {
+      alert("Selectează șantierul.");
+      return;
+    }
 
-    (historyRows as Array<HistoryRow & { full_name?: string }>).forEach((row) => {
-      const key = row.worker_id;
-      if (!map.has(key)) {
-        map.set(key, []);
-      }
-      map.get(key)!.push(row);
+    if (!selectedDate) {
+      alert("Selectează data.");
+      return;
+    }
+
+    const validRows = weekendWorkers.filter(
+      (worker) => worker.saturday || worker.sunday
+    );
+
+    if (validRows.length === 0) {
+      alert("Bifează cel puțin o zi de weekend.");
+      return;
+    }
+
+    setSaving(true);
+
+    const rows = validRows.map((worker) => {
+      const weekendDays = (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
+      const weekendValue = weekendDays * Number(worker.weekend_day_rate || 0);
+
+      return {
+        project_id: selectedProjectId,
+        worker_id: worker.worker_id,
+        work_date: selectedDate,
+        extra_hours: 0,
+        is_saturday: worker.saturday,
+        is_sunday: worker.sunday,
+        extra_hours_paid: false,
+        weekend_paid: false,
+        extra_hours_value: 0,
+        weekend_days_count: weekendDays,
+        weekend_value: weekendValue,
+        total_value: weekendValue,
+      };
     });
 
-    return Array.from(map.entries()).map(([workerId, rows]) => ({
-      worker_id: workerId,
-      worker_name: rows[0]?.full_name || "-",
-      rows,
-    }));
-  }, [historyRows]);
+    const { error } = await supabase.from("extra_work").upsert(rows, {
+      onConflict: "project_id,worker_id,work_date",
+      ignoreDuplicates: false,
+    });
+
+    if (error) {
+      alert(`A apărut o eroare la salvare: ${error.message}`);
+      setSaving(false);
+      return;
+    }
+
+    setSaving(false);
+    alert("Zilele de weekend au fost salvate.");
+  };
 
   const renderMoneyIcon = () => (
     <svg
@@ -500,7 +673,7 @@ export default function OreExtraWeekendPage() {
                 Ore Extra / Weekend
               </h1>
               <p className="mt-3 text-sm text-gray-500 sm:text-base">
-                Completezi pe dată orele extra și zilele de weekend pentru muncitorii din echipa ta.
+                Completezi ore extra, weekend și vezi istoricul echipei pe șantier.
               </p>
             </div>
           </div>
@@ -547,257 +720,366 @@ export default function OreExtraWeekendPage() {
               </p>
             </div>
           )}
+
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => setMode("extra")}
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                mode === "extra"
+                  ? "bg-[#0196ff] text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              Ore Extra
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode("weekend")}
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                mode === "weekend"
+                  ? "bg-orange-600 text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              Zi de weekend
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode("istoric")}
+              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+                mode === "istoric"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              Istoric ore / weekend
+            </button>
+          </div>
         </section>
 
-        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                Muncitori pe data selectată
-              </h2>
-              <p className="text-sm text-gray-500">
-                Ore extra și weekend se salvează individual pe fiecare muncitor.
-              </p>
-            </div>
-
-            <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-              {teamWorkers.length} muncitori
-            </div>
-          </div>
-
-          {teamWorkers.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              Nu există muncitori în echipă pentru data selectată.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {teamWorkers.map((worker) => {
-                const extraHours = Number(worker.extra_hours || 0);
-                const weekendDays =
-                  (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
-                const extraValue = extraHours * worker.extra_hour_rate;
-                const weekendValue = weekendDays * worker.weekend_day_rate;
-                const totalValue = extraValue + weekendValue;
-
-                return (
-                  <div
-                    key={worker.worker_id}
-                    className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
-                  >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="text-base font-semibold text-gray-900">
-                          {worker.full_name}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                          <span className="rounded-full bg-purple-50 px-3 py-1 font-semibold text-purple-700">
-                            Tarif extra: {worker.extra_hour_rate.toFixed(2)} lei/oră
-                          </span>
-                          <span className="rounded-full bg-orange-50 px-3 py-1 font-semibold text-orange-700">
-                            Tarif weekend: {worker.weekend_day_rate.toFixed(2)} lei/zi
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700">
-                            Ore extra
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.5"
-                            value={worker.extra_hours}
-                            onChange={(e) =>
-                              updateWorkerRow(
-                                worker.worker_id,
-                                "extra_hours",
-                                e.target.value
-                              )
-                            }
-                            className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-                          />
-                        </div>
-
-                        <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={worker.saturday}
-                            onChange={(e) =>
-                              updateWorkerRow(
-                                worker.worker_id,
-                                "saturday",
-                                e.target.checked
-                              )
-                            }
-                            className="h-5 w-5"
-                          />
-                          <span className="text-sm font-medium text-gray-800">
-                            Sâmbătă
-                          </span>
-                        </label>
-
-                        <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={worker.sunday}
-                            onChange={(e) =>
-                              updateWorkerRow(
-                                worker.worker_id,
-                                "sunday",
-                                e.target.checked
-                              )
-                            }
-                            className="h-5 w-5"
-                          />
-                          <span className="text-sm font-medium text-gray-800">
-                            Duminică
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div className="rounded-xl bg-purple-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-purple-400">
-                          Valoare extra
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-purple-700">
-                          {extraValue.toFixed(2)} lei
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-orange-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-orange-400">
-                          Valoare weekend
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-orange-700">
-                          {weekendValue.toFixed(2)} lei
-                        </p>
-                      </div>
-
-                      <div className="rounded-xl bg-blue-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.12em] text-blue-400">
-                          Total
-                        </p>
-                        <p className="mt-1 text-sm font-bold text-blue-700">
-                          {totalValue.toFixed(2)} lei
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-                <p className="text-sm font-medium text-green-800">
-                  Total general pentru data selectată
-                </p>
-                <p className="mt-1 text-2xl font-extrabold tracking-tight text-green-900">
-                  {totalPreview.toFixed(2)} lei
+        {mode === "extra" && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Ore extra pe data selectată
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Orele extra pot fi adăugate doar după oprirea pontajelor.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full rounded-2xl bg-[#0196ff] px-5 py-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-              >
-                {saving ? "Se salvează..." : "Salvează ore extra / weekend"}
-              </button>
+              <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                {extraWorkers.length} muncitori
+              </div>
             </div>
-          )}
-        </section>
 
-        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              Istoric pe muncitori
-            </h2>
-            <p className="text-sm text-gray-500">
-              Istoricul este afișat pentru șantierul selectat.
-            </p>
-          </div>
+            {hasActiveEntries ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4">
+                <p className="text-sm font-semibold text-red-800">
+                  Nu poți adăuga ore, echipa este pontată în acest moment!
+                </p>
+              </div>
+            ) : extraWorkers.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu există muncitori participanți pe șantier în data selectată.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {extraWorkers.map((worker) => {
+                  const extraValue =
+                    Number(worker.extra_hours || 0) *
+                    Number(worker.extra_hour_rate || 0);
 
-          {groupedHistory.length === 0 ? (
-            <p className="text-sm text-gray-500">
-              Nu există istoric pentru acest șantier.
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {groupedHistory.map((workerGroup) => (
-                <div
-                  key={workerGroup.worker_id}
-                  className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
-                >
-                  <p className="text-base font-semibold text-gray-900">
-                    {workerGroup.worker_name}
-                  </p>
+                  return (
+                    <div
+                      key={worker.worker_id}
+                      className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">
+                            {worker.full_name}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Tarif ore extra: {worker.extra_hour_rate.toFixed(2)} lei/oră
+                          </p>
+                        </div>
 
-                  <div className="mt-4 space-y-3">
-                    {workerGroup.rows.map((row) => (
-                      <div
-                        key={row.id}
-                        className="rounded-xl border border-gray-200 bg-white px-4 py-3"
-                      >
-                        <div className="grid grid-cols-1 gap-2 md:grid-cols-5">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div>
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                              Data
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-gray-900">
-                              {new Date(row.work_date).toLocaleDateString("ro-RO")}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
                               Ore extra
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-gray-900">
-                              {Number(row.extra_hours || 0).toFixed(2)}
-                            </p>
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={worker.extra_hours}
+                              onChange={(e) =>
+                                updateExtraWorker(worker.worker_id, e.target.value)
+                              }
+                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                            />
                           </div>
 
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                              Weekend
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-gray-900">
-                              {[row.is_saturday ? "Sâmbătă" : null, row.is_sunday ? "Duminică" : null]
-                                .filter(Boolean)
-                                .join(", ") || "-"}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                          <div className="rounded-xl bg-purple-50 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-purple-400">
                               Valoare
                             </p>
-                            <p className="mt-1 text-sm font-medium text-gray-900">
-                              {Number(row.total_value || 0).toFixed(2)} lei
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                              Detaliu
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-gray-900">
-                              Extra {Number(row.extra_hours_value || 0).toFixed(2)} / Weekend {Number(row.weekend_value || 0).toFixed(2)}
+                            <p className="mt-1 text-sm font-bold text-purple-700">
+                              {extraValue.toFixed(2)} lei
                             </p>
                           </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  );
+                })}
+
+                <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
+                  <p className="text-sm font-medium text-green-800">
+                    Total ore extra
+                  </p>
+                  <p className="mt-1 text-2xl font-extrabold tracking-tight text-green-900">
+                    {extraTotalPreview.toFixed(2)} lei
+                  </p>
                 </div>
-              ))}
+
+                <button
+                  type="button"
+                  onClick={handleSaveExtra}
+                  disabled={saving}
+                  className="w-full rounded-2xl bg-[#0196ff] px-5 py-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {saving ? "Se salvează..." : "Salvează ore extra"}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {mode === "weekend" && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">
+                  Zi de weekend
+                </h2>
+                <p className="text-sm text-gray-500">
+                  Apar muncitorii care au participat pe șantier în ultimele 7 zile.
+                </p>
+              </div>
+
+              <div className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                {weekendWorkers.length} muncitori
+              </div>
             </div>
-          )}
-        </section>
+
+            {weekendWorkers.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu există muncitori participanți pe acest șantier în ultimele 7 zile.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {weekendWorkers.map((worker) => {
+                  const weekendDays =
+                    (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
+                  const weekendValue =
+                    weekendDays * Number(worker.weekend_day_rate || 0);
+
+                  return (
+                    <div
+                      key={worker.worker_id}
+                      className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
+                    >
+                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="text-base font-semibold text-gray-900">
+                            {worker.full_name}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            Tarif weekend: {worker.weekend_day_rate.toFixed(2)} lei/zi
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={worker.saturday}
+                              onChange={(e) =>
+                                updateWeekendWorker(
+                                  worker.worker_id,
+                                  "saturday",
+                                  e.target.checked
+                                )
+                              }
+                              className="h-5 w-5"
+                            />
+                            <span className="text-sm font-medium text-gray-800">
+                              Sâmbătă
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={worker.sunday}
+                              onChange={(e) =>
+                                updateWeekendWorker(
+                                  worker.worker_id,
+                                  "sunday",
+                                  e.target.checked
+                                )
+                              }
+                              className="h-5 w-5"
+                            />
+                            <span className="text-sm font-medium text-gray-800">
+                              Duminică
+                            </span>
+                          </label>
+
+                          <div className="rounded-xl bg-orange-50 px-4 py-3">
+                            <p className="text-[11px] uppercase tracking-[0.12em] text-orange-400">
+                              Valoare
+                            </p>
+                            <p className="mt-1 text-sm font-bold text-orange-700">
+                              {weekendValue.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
+                  <p className="text-sm font-medium text-green-800">
+                    Total weekend
+                  </p>
+                  <p className="mt-1 text-2xl font-extrabold tracking-tight text-green-900">
+                    {weekendTotalPreview.toFixed(2)} lei
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSaveWeekend}
+                  disabled={saving}
+                  className="w-full rounded-2xl bg-orange-600 px-5 py-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {saving ? "Se salvează..." : "Salvează zi de weekend"}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
+
+        {mode === "istoric" && (
+          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Istoric ore și weekend echipă
+              </h2>
+              <p className="text-sm text-gray-500">
+                Se afișează istoricul muncitorilor care au participat pe șantier în ultimele 7 zile.
+              </p>
+            </div>
+
+            {groupedHistory.length === 0 ? (
+              <p className="text-sm text-gray-500">
+                Nu există istoric pentru șantierul selectat.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {groupedHistory.map((group) => (
+                  <div
+                    key={group.worker_id}
+                    className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
+                  >
+                    <p className="text-base font-semibold text-gray-900">
+                      {group.worker_name}
+                    </p>
+
+                    <div className="mt-4 space-y-3">
+                      {group.rows.map((row) => (
+                        <div
+                          key={row.id}
+                          className="rounded-xl border border-gray-200 bg-white px-4 py-3"
+                        >
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                                Data
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {formatDateRO(row.work_date)}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                                Ore extra
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {Number(row.extra_hours || 0).toFixed(2)}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                                Weekend
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {[
+                                  row.is_saturday ? "Sâmbătă" : null,
+                                  row.is_sunday ? "Duminică" : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(", ") || "-"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                                Total
+                              </p>
+                              <p className="mt-1 text-sm font-semibold text-gray-900">
+                                {Number(row.total_value || 0).toFixed(2)} lei
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                                Extra
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {row.extra_hours_paid ? "Achitat" : "Neachitat"}
+                              </p>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
+                                Weekend
+                              </p>
+                              <p className="mt-1 text-sm font-medium text-gray-900">
+                                {row.weekend_paid ? "Achitat" : "Neachitat"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
