@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import PageLoader from "@/components/PageLoader"; // ← adaugi aici
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -286,9 +287,7 @@ export default function ComenziPage() {
     </svg>
   );
 
-  if (loading) {
-    return <div className="p-6">Se încarcă comenzile...</div>;
-  }
+if (loading) return <PageLoader />;
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
