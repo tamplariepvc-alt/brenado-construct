@@ -21,23 +21,14 @@ export default function AdminPage() {
     const loadUnpaidCount = async () => {
       const { data, error } = await supabase
         .from("extra_work")
-        .select(
-          "id, extra_hours, weekend_days_count, extra_hours_paid, weekend_paid"
-        );
+        .select("id, extra_hours, weekend_days_count, extra_hours_paid, weekend_paid");
 
-      if (error || !data) {
-        setUnpaidCount(0);
-        return;
-      }
+      if (error || !data) { setUnpaidCount(0); return; }
 
       const count = data.filter((row) => {
         const hasExtra = Number(row.extra_hours || 0) > 0;
         const hasWeekend = Number(row.weekend_days_count || 0) > 0;
-
-        const extraUnpaid = hasExtra && !row.extra_hours_paid;
-        const weekendUnpaid = hasWeekend && !row.weekend_paid;
-
-        return extraUnpaid || weekendUnpaid;
+        return (hasExtra && !row.extra_hours_paid) || (hasWeekend && !row.weekend_paid);
       }).length;
 
       setUnpaidCount(count);
@@ -76,24 +67,13 @@ export default function AdminPage() {
     },
   ];
 
-  const renderAdminIcon = (
-    label: string,
-    dark?: boolean,
-    highlight?: "blue" | "green"
-  ) => {
-    const base =
-      dark || highlight === "blue" || highlight === "green"
-        ? "currentColor"
-        : "#2563EB";
-
+  const renderAdminIcon = (label: string, dark?: boolean, highlight?: "blue" | "green") => {
+    const base = dark || highlight === "blue" || highlight === "green" ? "currentColor" : "#2563EB";
     const iconClass = `h-6 w-6 sm:h-7 sm:w-7 ${
-      dark
-        ? "text-slate-300"
-        : highlight === "blue"
-        ? "text-white"
-        : highlight === "green"
-        ? "text-white"
-        : ""
+      dark ? "text-slate-300"
+      : highlight === "blue" ? "text-white"
+      : highlight === "green" ? "text-white"
+      : ""
     }`;
 
     if (label.includes("Centre")) {
@@ -106,74 +86,42 @@ export default function AdminPage() {
         </svg>
       );
     }
-
     if (label.includes("Muncitori")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
           <circle cx="9" cy="8" r="3" stroke={base} strokeWidth="2" />
           <circle cx="17" cy="10" r="2.5" stroke={base} strokeWidth="2" />
-          <path
-            d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"
-            stroke={base}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-          <path
-            d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9"
-            stroke={base}
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
+          <path d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" stroke={base} strokeWidth="2" strokeLinecap="round" />
+          <path d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9" stroke={base} strokeWidth="2" strokeLinecap="round" />
         </svg>
       );
     }
-
     if (label.includes("Parc")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
-          <path
-            d="M6 16h12l-1-5a2 2 0 0 0-2-1.6H9A2 2 0 0 0 7 11l-1 5Z"
-            stroke={base}
-            strokeWidth="2"
-            strokeLinejoin="round"
-          />
+          <path d="M6 16h12l-1-5a2 2 0 0 0-2-1.6H9A2 2 0 0 0 7 11l-1 5Z" stroke={base} strokeWidth="2" strokeLinejoin="round" />
           <path d="M5 16v2M19 16v2" stroke={base} strokeWidth="2" strokeLinecap="round" />
           <circle cx="8" cy="17" r="1.5" fill={base} />
           <circle cx="16" cy="17" r="1.5" fill={base} />
         </svg>
       );
     }
-
     if (label.includes("Ore")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
           <circle cx="12" cy="12" r="7.5" stroke={base} strokeWidth="2" />
-          <path
-            d="M12 8v4l3 2"
-            stroke={base}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M12 8v4l3 2" stroke={base} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     }
-
     if (label.includes("Alimentare")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
           <rect x="4" y="6" width="16" height="12" rx="3" stroke={base} strokeWidth="2" />
-          <path
-            d="M8 12h8M14 9l3 3-3 3"
-            stroke={base}
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <path d="M8 12h8M14 9l3 3-3 3" stroke={base} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     }
-
     return (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
         <circle cx="12" cy="12" r="4" fill={base} />
@@ -194,7 +142,6 @@ export default function AdminPage() {
               className="h-10 w-auto object-contain sm:h-11"
             />
           </div>
-
           <button
             onClick={() => router.push("/dashboard")}
             className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -237,7 +184,7 @@ export default function AdminPage() {
                   key={`${action.label}-${action.route}`}
                   type="button"
                   onClick={() => router.push(action.route)}
-                  className={`relative min-h-[150px] overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[170px] sm:p-5 ${
+                  className={`relative min-h-[160px] overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[180px] sm:p-6 ${
                     isBlue
                       ? "border-[#0196ff] bg-[#0196ff] text-white"
                       : isGreen
@@ -254,29 +201,25 @@ export default function AdminPage() {
                   <div className="flex items-center gap-3">
                     <div
                       className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl sm:h-14 sm:w-14 ${
-                        isBlue
-                          ? "bg-white/15"
-                          : isGreen
-                          ? "bg-white/15"
-                          : action.label.includes("Centre")
-                          ? "bg-blue-50"
-                          : action.label.includes("Muncitori")
-                          ? "bg-sky-50"
-                          : action.label.includes("Parc")
-                          ? "bg-amber-50"
-                          : "bg-blue-50"
+                        isBlue ? "bg-white/15"
+                        : isGreen ? "bg-white/15"
+                        : action.label.includes("Centre") ? "bg-blue-50"
+                        : action.label.includes("Muncitori") ? "bg-sky-50"
+                        : action.label.includes("Parc") ? "bg-amber-50"
+                        : "bg-blue-50"
                       }`}
                     >
                       {renderAdminIcon(action.label, false, action.highlight)}
                     </div>
 
-                    <p className="text-[15px] font-bold leading-5 sm:text-lg sm:leading-6">
+                    {/* ← TEXT MARIT AICI */}
+                    <p className="text-xl font-extrabold leading-6 tracking-tight sm:text-2xl sm:leading-7">
                       {action.label}
                     </p>
                   </div>
 
                   <p
-                    className={`mt-4 pr-12 text-[11px] leading-5 sm:text-sm ${
+                    className={`mt-4 pr-12 text-sm leading-5 sm:text-[15px] sm:leading-6 ${
                       isBlue || isGreen ? "text-white/80" : "text-gray-400"
                     }`}
                   >
@@ -285,9 +228,7 @@ export default function AdminPage() {
 
                   <div
                     className={`absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm sm:h-8 sm:w-8 sm:text-base ${
-                      isBlue || isGreen
-                        ? "bg-white/15 text-white"
-                        : "bg-[#F0EEE9] text-gray-400"
+                      isBlue || isGreen ? "bg-white/15 text-white" : "bg-[#F0EEE9] text-gray-400"
                     }`}
                   >
                     ›
