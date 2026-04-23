@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
@@ -49,7 +50,7 @@ export default function AlimentariPage() {
 
   const getFundingTypeClasses = (type: string) => {
     if (type === "card") return "bg-green-100 text-green-700";
-    if (type === "cont") return "bg-blue-100 text-blue-700";
+    if (type === "cont") return "bg-[#0196ff]/10 text-[#0196ff]";
     return "bg-gray-100 text-gray-700";
   };
 
@@ -84,25 +85,20 @@ export default function AlimentariPage() {
       const projectIds = Array.from(
         new Set(baseRows.map((row) => row.project_id).filter(Boolean))
       );
-
       const profileIds = Array.from(
         new Set(
-          baseRows.flatMap((row) => [row.team_lead_user_id, row.added_by]).filter(Boolean)
+          baseRows
+            .flatMap((row) => [row.team_lead_user_id, row.added_by])
+            .filter(Boolean)
         )
       );
 
       const [projectsRes, profilesRes] = await Promise.all([
         projectIds.length > 0
-          ? supabase
-              .from("projects")
-              .select("id, name, beneficiary")
-              .in("id", projectIds)
+          ? supabase.from("projects").select("id, name, beneficiary").in("id", projectIds)
           : Promise.resolve({ data: [], error: null }),
         profileIds.length > 0
-          ? supabase
-              .from("profiles")
-              .select("id, full_name")
-              .in("id", profileIds)
+          ? supabase.from("profiles").select("id, full_name").in("id", profileIds)
           : Promise.resolve({ data: [], error: null }),
       ]);
 
@@ -110,20 +106,15 @@ export default function AlimentariPage() {
       const profiles = (profilesRes.data || []) as ProfileMapRow[];
 
       const projectMap = new Map<string, ProjectMapRow>();
-      projects.forEach((project) => {
-        projectMap.set(project.id, project);
-      });
+      projects.forEach((p) => projectMap.set(p.id, p));
 
       const profileMap = new Map<string, ProfileMapRow>();
-      profiles.forEach((profile) => {
-        profileMap.set(profile.id, profile);
-      });
+      profiles.forEach((p) => profileMap.set(p.id, p));
 
       const formattedRows: FundingRow[] = baseRows.map((row) => {
         const project = projectMap.get(row.project_id);
         const teamLead = profileMap.get(row.team_lead_user_id);
         const addedBy = profileMap.get(row.added_by);
-
         return {
           ...row,
           project_name: project?.name || "-",
@@ -142,22 +133,17 @@ export default function AlimentariPage() {
 
   const filteredFundings = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
-
     if (!q) return fundings;
-
     return fundings.filter((funding) => {
       const amount = Number(funding.amount_ron || 0);
-      const amountFixed = amount.toFixed(2).toLowerCase();
-      const amountSimple = String(amount).toLowerCase();
-
       return (
         funding.project_name.toLowerCase().includes(q) ||
         (funding.project_beneficiary || "").toLowerCase().includes(q) ||
         funding.team_lead_name.toLowerCase().includes(q) ||
         funding.added_by_name.toLowerCase().includes(q) ||
         getFundingTypeLabel(funding.funding_type).toLowerCase().includes(q) ||
-        amountFixed.includes(q) ||
-        amountSimple.includes(q)
+        amount.toFixed(2).includes(q) ||
+        String(amount).includes(q)
       );
     });
   }, [fundings, searchTerm]);
@@ -173,13 +159,24 @@ export default function AlimentariPage() {
     );
   }, [filteredFundings]);
 
+  const cardTotal = useMemo(
+    () => filteredFundings.filter((f) => f.funding_type === "card")
+        .reduce((s, f) => s + Number(f.amount_ron || 0), 0),
+    [filteredFundings]
+  );
+
+  const contTotal = useMemo(
+    () => filteredFundings.filter((f) => f.funding_type === "cont")
+        .reduce((s, f) => s + Number(f.amount_ron || 0), 0),
+    [filteredFundings]
+  );
+
   const handleExportPdf = () => {
     const rowsHtml = filteredFundings
       .map((funding, index) => {
         const dateText = funding.funding_date
           ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
           : "-";
-
         return `
           <tr>
             <td>${index + 1}</td>
@@ -200,62 +197,28 @@ export default function AlimentariPage() {
         <head>
           <title>Raport alimentări</title>
           <style>
-            body {
-              font-family: Arial, sans-serif;
-              padding: 24px;
-              color: #111827;
-            }
-            h1 {
-              font-size: 24px;
-              margin-bottom: 6px;
-            }
-            p {
-              margin-top: 0;
-              margin-bottom: 16px;
-              color: #4b5563;
-            }
-            .summary {
-              margin-bottom: 20px;
-              padding: 12px;
-              border: 1px solid #d1d5db;
-              border-radius: 10px;
-            }
-            table {
-              width: 100%;
-              border-collapse: collapse;
-            }
-            th, td {
-              border: 1px solid #d1d5db;
-              padding: 10px;
-              text-align: left;
-              font-size: 12px;
-              vertical-align: top;
-            }
-            th {
-              background: #f3f4f6;
-            }
+            body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+            h1 { font-size: 24px; margin-bottom: 6px; }
+            p { margin-top: 0; margin-bottom: 16px; color: #4b5563; }
+            .summary { margin-bottom: 20px; padding: 12px; border: 1px solid #d1d5db; border-radius: 10px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; font-size: 12px; vertical-align: top; }
+            th { background: #f3f4f6; }
           </style>
         </head>
         <body>
           <h1>Raport alimentări carduri / conturi</h1>
           <p>Generat la ${new Date().toLocaleString("ro-RO")}</p>
-
           <div class="summary">
             <strong>Total alimentări:</strong> ${totals.count}<br />
             <strong>Valoare totală alimentată:</strong> ${totals.total.toFixed(2)} lei
           </div>
-
           <table>
             <thead>
               <tr>
-                <th>Nr.</th>
-                <th>Proiect</th>
-                <th>Beneficiar</th>
-                <th>Șef șantier</th>
-                <th>Alimentat de</th>
-                <th>Tip</th>
-                <th>Sumă</th>
-                <th>Data</th>
+                <th>Nr.</th><th>Proiect</th><th>Beneficiar</th>
+                <th>Șef șantier</th><th>Alimentat de</th>
+                <th>Tip</th><th>Sumă</th><th>Data</th>
               </tr>
             </thead>
             <tbody>
@@ -267,186 +230,273 @@ export default function AlimentariPage() {
     `;
 
     const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Nu s-a putut deschide fereastra pentru export PDF.");
-      return;
-    }
-
+    if (!printWindow) { alert("Nu s-a putut deschide fereastra pentru export PDF."); return; }
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
-
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-    };
+    printWindow.onload = () => { printWindow.focus(); printWindow.print(); };
   };
 
-if (loading) {
-  return (
-    <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
-      <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
-          <img src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-        </div>
-      </header>
-      <div className="flex flex-1 items-center justify-center px-4">
-        <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-          <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-            <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-blue-600">
-              <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-              <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+  const renderFundingIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
+      <rect x="2" y="6" width="20" height="13" rx="2" stroke="currentColor" strokeWidth="2" />
+      <path d="M2 10h20" stroke="currentColor" strokeWidth="2" />
+      <path d="M6 15h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
+        <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
-          <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
-          <div className="text-center">
-            <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
-            <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
+        </header>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
+              {renderFundingIcon()}
+            </div>
+            <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
+            <div className="text-center">
+              <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
+              <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Alimentare Carduri / Conturi</h1>
-            <p className="text-sm text-gray-600">
-              Gestionează alimentările proiectelor și istoricul lor.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      {/* Header */}
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
+          <div className="flex gap-3">
             <button
               onClick={() => router.push("/admin")}
-              className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              Înapoi la panou admin
+              Înapoi la admin
             </button>
-
             <button
               onClick={() => router.push("/admin/alimentari/adauga")}
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
             >
-              Alimentare Card / Cont
+              + Alimentare
             </button>
           </div>
         </div>
+      </header>
 
-        <div className="mb-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="rounded-2xl bg-white p-4 shadow">
-            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-              Total alimentări
-            </p>
-            <p className="mt-2 text-2xl font-bold text-gray-900">
-              {totals.count}
-            </p>
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+
+        {/* Page header */}
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
+              {renderFundingIcon()}
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Administrare</p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                Alimentări carduri & conturi
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+                Gestionează alimentările proiectelor și istoricul lor.
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-2xl bg-[#0196ff] p-4 text-white shadow">
-            <p className="text-xs font-medium uppercase tracking-wide text-white/80">
-              Valoare totală alimentată
-            </p>
-            <p className="mt-2 text-2xl font-bold">
-              {totals.total.toFixed(2)} lei
-            </p>
-          </div>
-        </div>
-
-        <div className="mb-6 rounded-2xl bg-white p-4 shadow">
-          <div className="flex flex-col gap-3 md:flex-row">
+          {/* Search + Export */}
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <input
               type="text"
-              placeholder="Caută după șantier, șef de echipă, alimentat de, tip sau valoare"
+              placeholder="Caută după șantier, șef de echipă, alimentat de, tip sau valoare..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
             />
-
             <button
               type="button"
               onClick={handleExportPdf}
-              className="rounded-lg bg-red-600 px-4 py-3 text-sm font-semibold text-white whitespace-nowrap"
+              className="shrink-0 rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90"
             >
               Export PDF
             </button>
           </div>
-        </div>
+        </section>
 
-        {filteredFundings.length === 0 ? (
-          <div className="rounded-2xl bg-white px-5 py-6 shadow">
-            <p className="text-sm text-gray-500">
-              Nu există alimentări pentru criteriul introdus.
+        {/* Sumar */}
+        <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-[20px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Total alimentări
+            </p>
+            <p className="mt-1 text-2xl font-extrabold text-gray-900">{totals.count}</p>
+          </div>
+
+          <div className="rounded-[20px] bg-[#0196ff] p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">
+              Valoare totală
+            </p>
+            <p className="mt-1 text-2xl font-extrabold text-white">
+              {totals.total.toFixed(2)} lei
             </p>
           </div>
-        ) : (
-          <div className="space-y-4">
-            {filteredFundings.map((funding) => (
-              <div
-                key={funding.id}
-                className="rounded-2xl bg-white p-4 shadow"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-lg font-semibold text-gray-900">
-                      {funding.project_name}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {funding.project_beneficiary || "-"}
-                    </p>
-                  </div>
 
-                  <div className="shrink-0 text-right">
-                    <p className="text-xl font-bold text-gray-900">
-                      {Number(funding.amount_ron || 0).toFixed(2)} lei
-                    </p>
-                    <span
-                      className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getFundingTypeClasses(
-                        funding.funding_type
-                      )}`}
-                    >
-                      {getFundingTypeLabel(funding.funding_type)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-4 space-y-2 text-sm text-gray-700">
-                  <p>
-                    <span className="font-medium text-gray-500">Șef șantier:</span>{" "}
-                    {funding.team_lead_name}
-                  </p>
-
-                  <p>
-                    <span className="font-medium text-gray-500">Alimentat de:</span>{" "}
-                    {funding.added_by_name}
-                  </p>
-
-                  <p>
-                    <span className="font-medium text-gray-500">Data:</span>{" "}
-                    {funding.funding_date
-                      ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
-                      : "-"}
-                  </p>
-                </div>
-
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/admin/alimentari/${funding.id}`)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                  >
-                    Vezi detalii
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-[20px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Total card
+            </p>
+            <p className="mt-1 text-2xl font-extrabold text-green-700">
+              {cardTotal.toFixed(2)} lei
+            </p>
           </div>
-        )}
-      </div>
+
+          <div className="rounded-[20px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+              Total cont
+            </p>
+            <p className="mt-1 text-2xl font-extrabold text-[#0196ff]">
+              {contTotal.toFixed(2)} lei
+            </p>
+          </div>
+        </section>
+
+        {/* Lista */}
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              Lista alimentări — {filteredFundings.length} înregistrări
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
+
+          {filteredFundings.length === 0 ? (
+            <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
+              <p className="text-sm text-gray-500">
+                Nu există alimentări pentru criteriul introdus.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm lg:block">
+                <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
+                  <div className="col-span-3">Șantier</div>
+                  <div className="col-span-2">Șef șantier</div>
+                  <div className="col-span-2">Alimentat de</div>
+                  <div className="col-span-1">Tip</div>
+                  <div className="col-span-2">Sumă</div>
+                  <div className="col-span-1">Data</div>
+                  <div className="col-span-1"></div>
+                </div>
+
+                {filteredFundings.map((funding) => (
+                  <button
+                    key={funding.id}
+                    onClick={() => router.push(`/admin/alimentari/${funding.id}`)}
+                    className="grid w-full grid-cols-12 items-center border-b border-[#E8E5DE] px-5 py-4 text-left transition hover:bg-[#FCFBF8] last:border-b-0"
+                  >
+                    <div className="col-span-3">
+                      <p className="text-sm font-semibold text-gray-900">{funding.project_name}</p>
+                      <p className="text-xs text-gray-400">{funding.project_beneficiary || "-"}</p>
+                    </div>
+                    <div className="col-span-2 text-sm text-gray-600">{funding.team_lead_name}</div>
+                    <div className="col-span-2 text-sm text-gray-600">{funding.added_by_name}</div>
+                    <div className="col-span-1">
+                      <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${getFundingTypeClasses(funding.funding_type)}`}>
+                        {getFundingTypeLabel(funding.funding_type)}
+                      </span>
+                    </div>
+                    <div className="col-span-2 text-sm font-bold text-gray-900">
+                      {Number(funding.amount_ron || 0).toFixed(2)} lei
+                    </div>
+                    <div className="col-span-1 text-sm text-gray-500">
+                      {funding.funding_date
+                        ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
+                        : "-"}
+                    </div>
+                    <div className="col-span-1 text-right text-2xl font-light text-gray-400">›</div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Mobile cards */}
+              <div className="space-y-3 lg:hidden">
+                {filteredFundings.map((funding) => (
+                  <button
+                    key={funding.id}
+                    onClick={() => router.push(`/admin/alimentari/${funding.id}`)}
+                    className="relative w-full overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                            {renderFundingIcon()}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[15px] font-bold leading-5 text-gray-900">
+                              {funding.project_name}
+                            </p>
+                            <p className="mt-0.5 text-sm text-gray-500">
+                              {funding.project_beneficiary || "-"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        <p className="text-base font-bold text-gray-900">
+                          {Number(funding.amount_ron || 0).toFixed(2)} lei
+                        </p>
+                        <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${getFundingTypeClasses(funding.funding_type)}`}>
+                          {getFundingTypeLabel(funding.funding_type)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 gap-3 pr-8">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Șef șantier</p>
+                        <p className="mt-1 text-sm text-gray-700">{funding.team_lead_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Alimentat de</p>
+                        <p className="mt-1 text-sm text-gray-700">{funding.added_by_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Data</p>
+                        <p className="mt-1 text-sm text-gray-700">
+                          {funding.funding_date
+                            ? new Date(funding.funding_date).toLocaleDateString("ro-RO")
+                            : "-"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EEE9] text-base text-gray-400">
+                      ›
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </section>
+      </main>
     </div>
   );
 }
