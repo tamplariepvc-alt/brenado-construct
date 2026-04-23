@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 
 type VehicleCategory =
@@ -11,6 +12,13 @@ type VehicleCategory =
   | "masina_administrativa";
 
 type VehicleStatus = "activa" | "inactiva" | "in_reparatie";
+
+const categoryIconMap: Record<VehicleCategory, string> = {
+  camion: "🚛",
+  autoutilitara: "🚐",
+  microbuz: "🚌",
+  masina_administrativa: "🚗",
+};
 
 export default function AdaugaAutoPage() {
   const router = useRouter();
@@ -38,48 +46,48 @@ export default function AdaugaAutoPage() {
 
   const handleSubmit = async () => {
     if (!brand.trim()) {
-      alert("Completeaza marca.");
+      alert("Completează marca.");
       return;
     }
 
     if (!model.trim()) {
-      alert("Completeaza modelul.");
+      alert("Completează modelul.");
       return;
     }
 
     if (!registrationNumber.trim()) {
-      alert("Completeaza numarul de inmatriculare.");
+      alert("Completează numărul de înmatriculare.");
       return;
     }
 
     if (!rcaValidUntil) {
-      alert("Completeaza data RCA.");
+      alert("Completează data RCA.");
       return;
     }
 
     if (!itpValidUntil) {
-      alert("Completeaza data ITP.");
+      alert("Completează data ITP.");
       return;
     }
 
     if (hasRovinieta && !rovinietaValidUntil) {
-      alert("Completeaza data rovinietei.");
+      alert("Completează data rovinietei.");
       return;
     }
 
     if (hasCasco && !cascoValidUntil) {
-      alert("Completeaza data Casco.");
+      alert("Completează data CASCO.");
       return;
     }
 
     if (isLeasing) {
       if (!monthlyRate || Number(monthlyRate) <= 0) {
-        alert("Completeaza rata lunara pentru leasing.");
+        alert("Completează rata lunară pentru leasing.");
         return;
       }
 
       if (!lastRateDate) {
-        alert("Selecteaza data ultimei rate.");
+        alert("Selectează data ultimei rate.");
         return;
       }
     }
@@ -110,7 +118,7 @@ export default function AdaugaAutoPage() {
     const { error } = await supabase.from("vehicles").insert(payload);
 
     if (error) {
-      alert(`A aparut o eroare la salvare: ${error.message}`);
+      alert(`A apărut o eroare la salvare: ${error.message}`);
       setSubmitting(false);
       return;
     }
@@ -120,244 +128,295 @@ export default function AdaugaAutoPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Adauga auto</h1>
-            <p className="text-sm text-gray-600">
-              Completeaza datele vehiculului nou din parc auto.
-            </p>
+    <div className="min-h-screen bg-[#F0EEE9]">
+      <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
 
           <button
             onClick={() => router.push("/admin/parc-auto")}
-            className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700"
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            Inapoi la parc auto
+            Înapoi la parc auto
           </button>
         </div>
+      </header>
 
-        <div className="rounded-2xl bg-white p-5 shadow md:p-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Categorie auto
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as VehicleCategory)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-              >
-                <option value="camion">Camion</option>
-                <option value="autoutilitara">Autoutilitara</option>
-                <option value="microbuz">Microbuz</option>
-                <option value="masina_administrativa">Masina administrativa</option>
-              </select>
-            </div>
+      <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-gray-500">Parc auto</p>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as VehicleStatus)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-              >
-                <option value="activa">Activa</option>
-                <option value="inactiva">Inactiva</option>
-                <option value="in_reparatie">In reparatie</option>
-              </select>
-            </div>
+              <div className="mt-3 flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-3xl bg-[#F8F7F3] text-3xl shadow-sm">
+                  {categoryIconMap[category]}
+                </div>
 
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Marca
-              </label>
-              <input
-                type="text"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Ex: Ford"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Model
-              </label>
-              <input
-                type="text"
-                value={model}
-                onChange={(e) => setModel(e.target.value)}
-                placeholder="Ex: Transit"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Nr. inmatriculare
-              </label>
-              <input
-                type="text"
-                value={registrationNumber}
-                onChange={(e) =>
-                  setRegistrationNumber(e.target.value.toUpperCase())
-                }
-                placeholder="Ex: B123ABC"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 uppercase outline-none focus:border-black"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                RCA valabil pana la
-              </label>
-              <input
-                type="date"
-                value={rcaValidUntil}
-                onChange={(e) => setRcaValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                ITP valabil pana la
-              </label>
-              <input
-                type="date"
-                value={itpValidUntil}
-                onChange={(e) => setItpValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
+                <div className="min-w-0">
+                  <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+                    Adaugă auto
+                  </h1>
+                  <p className="mt-2 max-w-2xl text-sm text-gray-500 sm:text-base">
+                    Completează datele vehiculului nou și salvează-l direct în
+                    parc auto.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={hasRovinieta}
-                onChange={(e) => setHasRovinieta(e.target.checked)}
-                className="h-5 w-5"
-              />
-              <span className="text-sm font-medium text-gray-800">
-                Rovinieta
-              </span>
-            </label>
-          </div>
+        <div className="mt-6 space-y-6">
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+            <h2 className="text-lg font-bold text-gray-900 sm:text-xl">
+              Informații generale
+            </h2>
 
-          {hasRovinieta && (
-            <div className="mt-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Rovinieta valabil pana la
-              </label>
-              <input
-                type="date"
-                value={rovinietaValidUntil}
-                onChange={(e) => setRovinietaValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
-          )}
-
-          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={hasCasco}
-                onChange={(e) => setHasCasco(e.target.checked)}
-                className="h-5 w-5"
-              />
-              <span className="text-sm font-medium text-gray-800">
-                Casco
-              </span>
-            </label>
-          </div>
-
-          {hasCasco && (
-            <div className="mt-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Casco valabil pana la
-              </label>
-              <input
-                type="date"
-                value={cascoValidUntil}
-                onChange={(e) => setCascoValidUntil(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
-              />
-            </div>
-          )}
-
-          <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4">
-            <label className="flex cursor-pointer items-center gap-3">
-              <input
-                type="checkbox"
-                checked={isLeasing}
-                onChange={(e) => setIsLeasing(e.target.checked)}
-                className="h-5 w-5"
-              />
-              <span className="text-sm font-medium text-gray-800">
-                Leasing
-              </span>
-            </label>
-          </div>
-
-          {isLeasing && (
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Rata lunara
+                  Categorie auto
+                </label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as VehicleCategory)}
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                >
+                  <option value="camion">Camion</option>
+                  <option value="autoutilitara">Autoutilitară</option>
+                  <option value="microbuz">Microbuz</option>
+                  <option value="masina_administrativa">Mașină administrativă</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as VehicleStatus)}
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                >
+                  <option value="activa">Activă</option>
+                  <option value="inactiva">Inactivă</option>
+                  <option value="in_reparatie">În reparație</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Marcă
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={monthlyRate}
-                  onChange={(e) => setMonthlyRate(e.target.value)}
-                  placeholder="Ex: 1500"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  type="text"
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="Ex: Ford"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Data ultimei rate
+                  Model
                 </label>
                 <input
-                  type="date"
-                  value={lastRateDate}
-                  onChange={(e) => setLastRateDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
+                  type="text"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder="Ex: Transit"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Nr. înmatriculare
+                </label>
+                <input
+                  type="text"
+                  value={registrationNumber}
+                  onChange={(e) =>
+                    setRegistrationNumber(e.target.value.toUpperCase())
+                  }
+                  placeholder="Ex: B123ABC"
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 uppercase outline-none transition focus:border-black"
                 />
               </div>
             </div>
-          )}
+          </section>
 
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="w-full rounded-lg bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {submitting ? "Se salveaza..." : "Salveaza auto"}
-            </button>
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+            <h2 className="text-lg font-bold text-gray-900 sm:text-xl">
+              Documente și valabilitate
+            </h2>
 
-            <button
-              type="button"
-              onClick={() => router.push("/admin/parc-auto")}
-              className="w-full rounded-lg border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700"
-            >
-              Renunta
-            </button>
-          </div>
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  RCA valabil până la
+                </label>
+                <input
+                  type="date"
+                  value={rcaValidUntil}
+                  onChange={(e) => setRcaValidUntil(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  ITP valabil până la
+                </label>
+                <input
+                  type="date"
+                  value={itpValidUntil}
+                  onChange={(e) => setItpValidUntil(e.target.value)}
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                />
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[22px] border border-[#E8E5DE] bg-[#FCFBF8] p-4">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={hasRovinieta}
+                  onChange={(e) => setHasRovinieta(e.target.checked)}
+                  className="h-5 w-5"
+                />
+                <span className="text-sm font-medium text-gray-800">
+                  Are rovignetă
+                </span>
+              </label>
+
+              {hasRovinieta && (
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Rovignetă valabilă până la
+                  </label>
+                  <input
+                    type="date"
+                    value={rovinietaValidUntil}
+                    onChange={(e) => setRovinietaValidUntil(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 rounded-[22px] border border-[#E8E5DE] bg-[#FCFBF8] p-4">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={hasCasco}
+                  onChange={(e) => setHasCasco(e.target.checked)}
+                  className="h-5 w-5"
+                />
+                <span className="text-sm font-medium text-gray-800">
+                  Are CASCO
+                </span>
+              </label>
+
+              {hasCasco && (
+                <div className="mt-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    CASCO valabil până la
+                  </label>
+                  <input
+                    type="date"
+                    value={cascoValidUntil}
+                    onChange={(e) => setCascoValidUntil(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                  />
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+            <h2 className="text-lg font-bold text-gray-900 sm:text-xl">
+              Leasing
+            </h2>
+
+            <div className="mt-5 rounded-[22px] border border-[#E8E5DE] bg-[#FCFBF8] p-4">
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={isLeasing}
+                  onChange={(e) => setIsLeasing(e.target.checked)}
+                  className="h-5 w-5"
+                />
+                <span className="text-sm font-medium text-gray-800">
+                  Vehicul în leasing
+                </span>
+              </label>
+
+              {isLeasing && (
+                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Rată lunară
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={monthlyRate}
+                      onChange={(e) => setMonthlyRate(e.target.value)}
+                      placeholder="Ex: 1500"
+                      className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Data ultimei rate
+                    </label>
+                    <input
+                      type="date"
+                      value={lastRateDate}
+                      onChange={(e) => setLastRateDate(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="w-full rounded-2xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {submitting ? "Se salvează..." : "Salvează auto"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/admin/parc-auto")}
+                className="w-full rounded-2xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Renunță
+              </button>
+            </div>
+          </section>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
