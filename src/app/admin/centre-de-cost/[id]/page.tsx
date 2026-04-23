@@ -180,7 +180,7 @@ export default function CentruDeCostDetaliuPage() {
   const params = useParams();
   const projectId = params.id as string;
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [orders, setOrders] = useState<ApprovedOrder[]>([]);
   const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
@@ -719,7 +719,6 @@ export default function CentruDeCostDetaliuPage() {
     },
   ];
 
-if (loading) return null;
 
   if (!project) {
     return <div className="p-6">Centrul de cost nu a fost găsit.</div>;

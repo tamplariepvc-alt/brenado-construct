@@ -146,7 +146,7 @@ const getWorkingDaysAndHolidaysInRangeRomania = (
 export default function CentreDeCostPage() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [centres, setCentres] = useState<CostCenter[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterKey>("toate");

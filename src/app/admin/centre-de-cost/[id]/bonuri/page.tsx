@@ -30,7 +30,7 @@ export default function BonuriCentruCostPage() {
   const params = useParams();
   const projectId = params.id as string;
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [project, setProject] = useState<ProjectDetails | null>(null);
   const [receipts, setReceipts] = useState<FiscalReceipt[]>([]);
 
@@ -108,7 +108,6 @@ export default function BonuriCentruCostPage() {
     </svg>
   );
 
-if (loading) return null;
 
   if (!project) {
     return <div className="p-6">Proiectul nu a fost găsit.</div>;
