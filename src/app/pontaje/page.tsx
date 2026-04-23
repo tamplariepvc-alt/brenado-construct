@@ -53,7 +53,6 @@ type ProjectCardData = {
   loading: boolean;
   submitting: boolean;
   stoppingId: string | null;
-  expanded: boolean;
   sameTeamAsYesterday: boolean;
   yesterdayWorkerIds: string[];
   plannedTeamExists: boolean;
@@ -72,7 +71,6 @@ const createInitialCardData = (): ProjectCardData => ({
   loading: false,
   submitting: false,
   stoppingId: null,
-  expanded: false,
   sameTeamAsYesterday: false,
   yesterdayWorkerIds: [],
   plannedTeamExists: false,
@@ -85,9 +83,7 @@ export default function PontajePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectCards, setProjectCards] = useState<Record<string, ProjectCardData>>(
-    {}
-  );
+  const [projectCards, setProjectCards] = useState<Record<string, ProjectCardData>>({});
   const [now, setNow] = useState(Date.now());
 
   const todayDate = useMemo(() => getTodayDate(), []);
@@ -96,21 +92,16 @@ export default function PontajePage() {
     const timer = setInterval(() => {
       setNow(Date.now());
     }, 1000);
-
     return () => clearInterval(timer);
   }, []);
 
   const getPauseWindowForDate = (dateLike: string | Date) => {
-    const d =
-      typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
-
+    const d = typeof dateLike === "string" ? new Date(dateLike) : new Date(dateLike);
     const year = d.getFullYear();
     const month = d.getMonth();
     const day = d.getDate();
-
     const pauseStart = new Date(year, month, day, 12, 0, 0, 0).getTime();
     const pauseEnd = new Date(year, month, day, 13, 0, 0, 0).getTime();
-
     return { pauseStart, pauseEnd };
   };
 
@@ -125,10 +116,7 @@ export default function PontajePage() {
     return Math.max(0, end - start);
   };
 
-  const getWorkedMsWithoutPause = (
-    startTime: string,
-    endTime?: string | null
-  ) => {
+  const getWorkedMsWithoutPause = (startTime: string, endTime?: string | null) => {
     const startMs = new Date(startTime).getTime();
     const endMs = endTime ? new Date(endTime).getTime() : now;
 
@@ -143,19 +131,13 @@ export default function PontajePage() {
       startDate.getFullYear(),
       startDate.getMonth(),
       startDate.getDate(),
-      0,
-      0,
-      0,
-      0
+      0, 0, 0, 0
     );
     const last = new Date(
       endDate.getFullYear(),
       endDate.getMonth(),
       endDate.getDate(),
-      0,
-      0,
-      0,
-      0
+      0, 0, 0, 0
     );
 
     while (cursor.getTime() <= last.getTime()) {
@@ -172,11 +154,7 @@ export default function PontajePage() {
     const hours = Math.floor(totalSeconds / 3600);
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     const seconds = totalSeconds % 60;
-
-    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(
-      2,
-      "0"
-    )}:${String(seconds).padStart(2, "0")}`;
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   };
 
   const formatDuration = (startTime: string) => {
@@ -187,7 +165,6 @@ export default function PontajePage() {
   const isNowInPauseForEntry = (startTime: string) => {
     const startMs = new Date(startTime).getTime();
     if (now < startMs) return false;
-
     const { pauseStart, pauseEnd } = getPauseWindowForDate(new Date(now));
     return now >= pauseStart && now < pauseEnd && startMs < pauseEnd;
   };
@@ -208,9 +185,7 @@ export default function PontajePage() {
   ) => {
     setCardData(projectId, (prev) => ({ ...prev, loading: true }));
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     let role = currentUserRole || null;
 
@@ -220,7 +195,6 @@ export default function PontajePage() {
         .select("role")
         .eq("id", user.id)
         .single();
-
       role = profileData?.role || null;
     }
 
@@ -271,9 +245,7 @@ export default function PontajePage() {
         .select("daily_team_id, worker_id")
         .eq("daily_team_id", (dailyTeamData as DailyTeam).id);
 
-      plannedWorkerIdsLocal = (dailyTeamWorkersData || []).map(
-        (item) => item.worker_id
-      );
+      plannedWorkerIdsLocal = (dailyTeamWorkersData || []).map((item) => item.worker_id);
 
       if (plannedWorkerIdsLocal.length > 0) {
         const { data: workersData } = await supabase
@@ -301,15 +273,12 @@ export default function PontajePage() {
             ...entry,
             worker_name:
               entry.workers?.[0]?.full_name ||
-              workerPool.find((worker) => worker.id === entry.worker_id)
-                ?.full_name ||
+              workerPool.find((worker) => worker.id === entry.worker_id)?.full_name ||
               "-",
           }))
         : [];
 
-    const activeWorkerIdsLocal = enrichedActiveEntries.map(
-      (entry) => entry.worker_id
-    );
+    const activeWorkerIdsLocal = enrichedActiveEntries.map((entry) => entry.worker_id);
 
     const autoSelectedWorkers = workerPool
       .filter((worker) => !activeWorkerIdsLocal.includes(worker.id))
@@ -324,7 +293,7 @@ export default function PontajePage() {
       workers: workerPool,
       activeEntries: enrichedActiveEntries,
       selectedWorkers:
-        prev.selectedWorkers.length > 0 && prev.expanded
+        prev.selectedWorkers.length > 0
           ? prev.selectedWorkers
           : autoSelectedWorkers,
       loading: false,
@@ -338,9 +307,7 @@ export default function PontajePage() {
     const loadData = async () => {
       setLoading(true);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
         router.push("/login");
@@ -417,7 +384,6 @@ export default function PontajePage() {
         }
 
         const linkedProjectIds = linkedProjects.map((item) => item.project_id);
-
         const visibleProjectIds = teamProjectIds.filter((projectId) =>
           linkedProjectIds.includes(projectId)
         );
@@ -468,10 +434,7 @@ export default function PontajePage() {
     }));
   };
 
-  const handleToggleSameTeamAsYesterday = (
-    projectId: string,
-    checked: boolean
-  ) => {
+  const handleToggleSameTeamAsYesterday = (projectId: string, checked: boolean) => {
     setCardData(projectId, (prev) => {
       const activeWorkerIds = prev.activeEntries.map((entry) => entry.worker_id);
       const availableWorkers = prev.workers.filter(
@@ -479,10 +442,9 @@ export default function PontajePage() {
       );
 
       if (checked) {
-        const availableYesterdayWorkers = prev.yesterdayWorkerIds.filter(
-          (workerId) => availableWorkers.some((worker) => worker.id === workerId)
+        const availableYesterdayWorkers = prev.yesterdayWorkerIds.filter((workerId) =>
+          availableWorkers.some((worker) => worker.id === workerId)
         );
-
         return {
           ...prev,
           sameTeamAsYesterday: true,
@@ -502,26 +464,11 @@ export default function PontajePage() {
     });
   };
 
-  const handleExpandCard = async (projectId: string) => {
-    const card = projectCards[projectId] || createInitialCardData();
-
-    setCardData(projectId, (prev) => ({
-      ...prev,
-      expanded: !prev.expanded,
-    }));
-
-    if (!card.expanded) {
-      await loadProjectCardData(projectId, profile?.role || null);
-    }
-  };
-
   const handleStartTimeEntries = async (projectId: string) => {
     const card = projectCards[projectId];
     if (!card) return;
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
       router.push("/login");
@@ -557,7 +504,6 @@ export default function PontajePage() {
       submitting: false,
       selectedWorkers: [],
       sameTeamAsYesterday: false,
-      expanded: true,
     }));
 
     await loadProjectCardData(projectId, profile?.role || null);
@@ -591,7 +537,6 @@ export default function PontajePage() {
     const confirmStop = window.confirm(
       "Sigur vrei să oprești pontajul pentru toți muncitorii activi?"
     );
-
     if (!confirmStop) return;
 
     setCardData(projectId, (prev) => ({ ...prev, submitting: true }));
@@ -631,20 +576,8 @@ export default function PontajePage() {
   };
 
   const renderPontajIcon = () => (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
-    >
-      <rect
-        x="5"
-        y="4"
-        width="14"
-        height="16"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
+      <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
       <path
         d="M9 2v4M15 2v4M8 10h8M8 14h5"
         stroke="currentColor"
@@ -671,7 +604,6 @@ export default function PontajePage() {
               className="h-10 w-auto object-contain sm:h-11"
             />
           </div>
-
           <button
             onClick={() => router.push("/dashboard")}
             className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -682,12 +614,12 @@ export default function PontajePage() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
               {renderPontajIcon()}
             </div>
-
             <div>
               <p className="text-sm text-gray-500">Pontaje zilnice</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
@@ -704,6 +636,7 @@ export default function PontajePage() {
           </div>
         </section>
 
+        {/* Projects */}
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
@@ -722,14 +655,12 @@ export default function PontajePage() {
             <div className="space-y-4">
               {projects.map((project) => {
                 const card = projectCards[project.id] || createInitialCardData();
-                const activeWorkerIds = card.activeEntries.map(
-                  (entry) => entry.worker_id
-                );
+                const activeWorkerIds = card.activeEntries.map((e) => e.worker_id);
                 const availableWorkers = card.workers.filter(
-                  (worker) => !activeWorkerIds.includes(worker.id)
+                  (w) => !activeWorkerIds.includes(w.id)
                 );
-                const selectedWorkersList = availableWorkers.filter((worker) =>
-                  card.selectedWorkers.includes(worker.id)
+                const selectedWorkersList = availableWorkers.filter((w) =>
+                  card.selectedWorkers.includes(w.id)
                 );
                 const hasActive = card.activeEntries.length > 0;
 
@@ -738,47 +669,199 @@ export default function PontajePage() {
                     key={project.id}
                     className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm"
                   >
-                    {/* Card header */}
+                    {/* Header */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start gap-3">
-                          <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
-                            {renderPontajIcon()}
-                          </div>
-
-                          <div className="min-w-0">
-                            <h2 className="text-lg font-semibold text-gray-900">
-                              {project.name}
-                            </h2>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {project.beneficiary || "-"}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {project.project_location || "-"}
-                            </p>
-                          </div>
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                          {renderPontajIcon()}
+                        </div>
+                        <div className="min-w-0">
+                          <h2 className="text-lg font-semibold text-gray-900">
+                            {project.name}
+                          </h2>
+                          <p className="mt-1 text-sm text-gray-500">
+                            {project.beneficiary || "-"}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">
+                            {project.project_location || "-"}
+                          </p>
                         </div>
                       </div>
-
                       <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                          project.status
-                        )}`}
+                        className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}
                       >
                         {getStatusLabel(project.status)}
                       </span>
                     </div>
 
-                    {/* Action buttons */}
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => handleExpandCard(project.id)}
-                        className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                      >
-                        {card.expanded ? "Ascunde pontarea" : "Deschide pontarea"}
-                      </button>
+                    <div className="mt-5 space-y-4">
+                      {/* ── STARE: fără pontaje active → selector muncitori ── */}
+                      {!hasActive && (
+                        <>
+                          {card.loading ? (
+                            <p className="text-sm text-gray-500">Se încarcă echipa...</p>
+                          ) : (
+                            <>
+                              {!card.plannedTeamExists && (
+                                <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
+                                  <p className="text-sm font-medium text-yellow-800">
+                                    Nu există echipă organizată pentru azi pe acest șantier.
+                                  </p>
+                                  <p className="mt-1 text-xs text-yellow-700">
+                                    Administratorul poate ponta manual, dacă este necesar.
+                                  </p>
+                                </div>
+                              )}
 
+                              {card.plannedTeamExists && (
+                                <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                                  <p className="text-sm font-medium text-green-800">
+                                    Echipa organizată pentru azi a fost încărcată automat.
+                                  </p>
+                                  <p className="mt-1 text-xs text-green-700">
+                                    Dacă lipsește cineva, îl poți debifa înainte de pontare.
+                                  </p>
+                                </div>
+                              )}
+
+                              {!card.plannedTeamExists && (
+                                <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
+                                  <label className="flex cursor-pointer items-center gap-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={card.sameTeamAsYesterday}
+                                      onChange={(e) =>
+                                        handleToggleSameTeamAsYesterday(
+                                          project.id,
+                                          e.target.checked
+                                        )
+                                      }
+                                      className="h-5 w-5"
+                                    />
+                                    <span className="text-sm font-medium text-gray-800">
+                                      Aceeași echipă ca ieri
+                                    </span>
+                                  </label>
+                                </div>
+                              )}
+
+                              {availableWorkers.length === 0 ? (
+                                <p className="text-sm text-gray-500">
+                                  Nu există muncitori disponibili pentru pontare.
+                                </p>
+                              ) : (
+                                <>
+                                  <div>
+                                    <p className="mb-3 text-sm font-semibold text-gray-900">
+                                      Echipa pentru pontare
+                                    </p>
+                                    <div className="space-y-2">
+                                      {availableWorkers.map((worker) => (
+                                        <label
+                                          key={worker.id}
+                                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={card.selectedWorkers.includes(worker.id)}
+                                            onChange={() =>
+                                              toggleWorker(project.id, worker.id)
+                                            }
+                                            className="h-5 w-5"
+                                          />
+                                          <span className="text-sm font-medium text-gray-800">
+                                            {worker.full_name}
+                                          </span>
+                                        </label>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {selectedWorkersList.length > 0 && (
+                                    <div className="flex flex-wrap gap-2">
+                                      {selectedWorkersList.map((worker) => (
+                                        <span
+                                          key={worker.id}
+                                          className="rounded-full bg-[#66CC99]/15 px-3 py-2 text-sm font-medium text-[#2f855a]"
+                                        >
+                                          {worker.full_name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </>
+                          )}
+                        </>
+                      )}
+
+                      {/* ── STARE: pontaje active → listă muncitori ── */}
+                      {hasActive && (
+                        <div>
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <h3 className="text-sm font-semibold text-gray-900">
+                              Muncitori pontați
+                            </h3>
+                            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
+                              {card.activeEntries.length} activi
+                            </span>
+                          </div>
+
+                          <div className="mb-2 flex items-center gap-2 px-1">
+                            <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                              Nume
+                            </span>
+                            <span className="w-20 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                              Timp
+                            </span>
+                            <span className="w-16 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                              Acțiune
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {card.activeEntries.map((entry) => {
+                              const inPause = isNowInPauseForEntry(entry.start_time);
+                              return (
+                                <div
+                                  key={entry.id}
+                                  className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${
+                                    inPause
+                                      ? "border-orange-200 bg-orange-50"
+                                      : "border-green-200 bg-green-50"
+                                  }`}
+                                >
+                                  <span className="flex-1 truncate text-sm font-semibold text-gray-900">
+                                    {entry.worker_name || "-"}
+                                  </span>
+                                  <span
+                                    className={`w-20 text-center text-sm font-bold tabular-nums ${
+                                      inPause ? "text-orange-600" : "text-green-700"
+                                    }`}
+                                  >
+                                    {inPause ? "Pauză" : formatDuration(entry.start_time)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleStopTimeEntry(project.id, entry.id)
+                                    }
+                                    disabled={
+                                      card.stoppingId === entry.id || card.submitting
+                                    }
+                                    className="w-16 rounded-xl bg-red-600 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                                  >
+                                    {card.stoppingId === entry.id ? "..." : "Stop"}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Buton principal ── */}
                       <button
                         type="button"
                         onClick={() =>
@@ -798,183 +881,10 @@ export default function PontajePage() {
                         {card.submitting
                           ? "Se procesează..."
                           : hasActive
-                          ? "■ Oprește"
+                          ? "■ Oprește toți"
                           : "Pontează"}
                       </button>
                     </div>
-
-                    {/* Active entries list — always visible when there are active entries */}
-                    {hasActive && (
-                      <div className="mt-5 border-t border-[#E8E5DE] pt-5">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                          <h3 className="text-sm font-semibold text-gray-900">
-                            Muncitori pontați
-                          </h3>
-                          <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                            {card.activeEntries.length} activi
-                          </span>
-                        </div>
-
-                        {/* Column headers */}
-                        <div className="mb-2 flex items-center gap-2 px-1">
-                          <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                            Nume
-                          </span>
-                          <span className="w-20 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                            Timp
-                          </span>
-                          <span className="w-16 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                            Acțiune
-                          </span>
-                        </div>
-
-                        <div className="space-y-2">
-                          {card.activeEntries.map((entry) => {
-                            const inPause = isNowInPauseForEntry(entry.start_time);
-
-                            return (
-                              <div
-                                key={entry.id}
-                                className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${
-                                  inPause
-                                    ? "border-orange-200 bg-orange-50"
-                                    : "border-green-200 bg-green-50"
-                                }`}
-                              >
-                                <span className="flex-1 truncate text-sm font-semibold text-gray-900">
-                                  {entry.worker_name || "-"}
-                                </span>
-
-                                <span
-                                  className={`w-20 text-center text-sm font-bold tabular-nums ${
-                                    inPause ? "text-orange-600" : "text-green-700"
-                                  }`}
-                                >
-                                  {inPause ? "Pauză" : formatDuration(entry.start_time)}
-                                </span>
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    handleStopTimeEntry(project.id, entry.id)
-                                  }
-                                  disabled={
-                                    card.stoppingId === entry.id || card.submitting
-                                  }
-                                  className="w-16 rounded-xl bg-red-600 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                                >
-                                  {card.stoppingId === entry.id ? "..." : "Stop"}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Expanded section for selecting workers */}
-                    {card.expanded && (
-                      <div className="mt-5 space-y-5">
-                        {!card.plannedTeamExists && (
-                          <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
-                            <p className="text-sm font-medium text-yellow-800">
-                              Nu există echipă organizată pentru azi pe acest șantier.
-                            </p>
-                            <p className="mt-1 text-xs text-yellow-700">
-                              Administratorul poate ponta manual, dacă este necesar.
-                            </p>
-                          </div>
-                        )}
-
-                        {card.plannedTeamExists && (
-                          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
-                            <p className="text-sm font-medium text-green-800">
-                              Echipa organizată pentru azi a fost încărcată automat.
-                            </p>
-                            <p className="mt-1 text-xs text-green-700">
-                              Dacă lipsește cineva, îl poți debifa înainte de pontare.
-                            </p>
-                          </div>
-                        )}
-
-                        {!card.plannedTeamExists && (
-                          <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
-                            <label className="flex cursor-pointer items-center gap-3">
-                              <input
-                                type="checkbox"
-                                checked={card.sameTeamAsYesterday}
-                                onChange={(e) =>
-                                  handleToggleSameTeamAsYesterday(
-                                    project.id,
-                                    e.target.checked
-                                  )
-                                }
-                                className="h-5 w-5"
-                              />
-                              <span className="text-sm font-medium text-gray-800">
-                                Aceeași echipă ca ieri
-                              </span>
-                            </label>
-                          </div>
-                        )}
-
-                        <div>
-                          <p className="mb-3 text-sm font-semibold text-gray-900">
-                            Echipa pentru pontare
-                          </p>
-
-                          {card.loading ? (
-                            <p className="text-sm text-gray-500">
-                              Se încarcă echipa...
-                            </p>
-                          ) : availableWorkers.length === 0 ? (
-                            <p className="text-sm text-gray-500">
-                              Nu există muncitori disponibili pentru pontare.
-                            </p>
-                          ) : (
-                            <div className="space-y-2">
-                              {availableWorkers.map((worker) => (
-                                <label
-                                  key={worker.id}
-                                  className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={card.selectedWorkers.includes(worker.id)}
-                                    onChange={() =>
-                                      toggleWorker(project.id, worker.id)
-                                    }
-                                    className="h-5 w-5"
-                                  />
-                                  <span className="text-sm font-medium text-gray-800">
-                                    {worker.full_name}
-                                  </span>
-                                </label>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {selectedWorkersList.length > 0 && (
-                          <div>
-                            <p className="mb-3 text-sm font-medium text-gray-700">
-                              Selectați pentru pontaj:
-                            </p>
-
-                            <div className="flex flex-wrap gap-2">
-                              {selectedWorkersList.map((worker) => (
-                                <span
-                                  key={worker.id}
-                                  className="rounded-full bg-[#66CC99]/15 px-3 py-2 text-sm font-medium text-[#2f855a]"
-                                >
-                                  {worker.full_name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })}
