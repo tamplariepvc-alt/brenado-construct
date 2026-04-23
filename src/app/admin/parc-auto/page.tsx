@@ -234,7 +234,7 @@ export default function ParcAutoPage() {
     }));
   };
 
-  const showSections = filter === "toate";
+  const showSections = filter === "toate" && search.trim() === "";
 
   const renderVehicleCard = (v: Vehicle) => {
     const status = getComputedStatus(v);
@@ -346,14 +346,14 @@ export default function ParcAutoPage() {
             <div className="flex flex-col gap-3">
               <button
                 onClick={() => router.push("/admin")}
-                className="w-full rounded-[22px] border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:text-base"
+                className="w-full rounded-[22px] border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:text-base"
               >
                 Înapoi la dashboard
               </button>
 
               <button
                 onClick={() => router.push("/admin/parc-auto/adauga")}
-                className="w-full rounded-[22px] bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 sm:text-base"
+                className="w-full rounded-[22px] bg-[#0196ff] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 sm:text-base"
               >
                 + Adaugă
               </button>
@@ -380,7 +380,7 @@ export default function ParcAutoPage() {
             <button
               type="button"
               onClick={() => setFilter("toate")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "toate"
                   ? "ring-2 ring-black bg-[#F8F7F3]"
                   : "bg-[#F8F7F3]"
@@ -389,13 +389,13 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
                 Total
               </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900">{stats.total}</p>
+              <p className="mt-1.5 text-2xl font-bold text-gray-900">{stats.total}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("active")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "active"
                   ? "ring-2 ring-green-600 bg-green-50"
                   : "bg-green-50"
@@ -404,13 +404,13 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-green-600">
                 Active
               </p>
-              <p className="mt-2 text-2xl font-bold text-green-700">{stats.active}</p>
+              <p className="mt-1.5 text-2xl font-bold text-green-700">{stats.active}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("inactive")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "inactive"
                   ? "ring-2 ring-gray-500 bg-gray-100"
                   : "bg-gray-100"
@@ -419,13 +419,13 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">
                 Inactive
               </p>
-              <p className="mt-2 text-2xl font-bold text-gray-700">{stats.inactive}</p>
+              <p className="mt-1.5 text-2xl font-bold text-gray-700">{stats.inactive}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("in_reparatie")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "in_reparatie"
                   ? "ring-2 ring-orange-600 bg-orange-50"
                   : "bg-orange-50"
@@ -434,13 +434,13 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-orange-600">
                 Reparație
               </p>
-              <p className="mt-2 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
+              <p className="mt-1.5 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("doc_expirate")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "doc_expirate"
                   ? "ring-2 ring-red-600 bg-red-50"
                   : "bg-red-50"
@@ -449,13 +449,13 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-red-600">
                 Expirate
               </p>
-              <p className="mt-2 text-2xl font-bold text-red-700">{stats.expired}</p>
+              <p className="mt-1.5 text-2xl font-bold text-red-700">{stats.expired}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("urmeaza_sa_expire")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "urmeaza_sa_expire"
                   ? "ring-2 ring-yellow-600 bg-yellow-50"
                   : "bg-yellow-50"
@@ -464,13 +464,13 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-yellow-700">
                 Urmează
               </p>
-              <p className="mt-2 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
+              <p className="mt-1.5 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("leasing")}
-              className={`rounded-2xl px-4 py-3 text-left transition ${
+              className={`rounded-2xl px-4 py-2.5 text-left transition ${
                 filter === "leasing"
                   ? "ring-2 ring-purple-600 bg-purple-50"
                   : "bg-purple-50"
@@ -479,7 +479,7 @@ export default function ParcAutoPage() {
               <p className="text-[11px] uppercase tracking-[0.12em] text-purple-600">
                 Leasing
               </p>
-              <p className="mt-2 text-2xl font-bold text-purple-700">{stats.leasing}</p>
+              <p className="mt-1.5 text-2xl font-bold text-purple-700">{stats.leasing}</p>
             </button>
           </div>
 
