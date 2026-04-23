@@ -68,8 +68,8 @@ export default function ParcAutoPage() {
   const [filter, setFilter] = useState<FilterType>("toate");
 
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
-    camion: true,
-    autoutilitara: true,
+    camion: false,
+    autoutilitara: false,
     microbuz: false,
     masina_administrativa: false,
   });
@@ -200,16 +200,6 @@ export default function ParcAutoPage() {
     };
   }, [vehicles, today]);
 
-  const filterCounts = {
-    toate: stats.total,
-    active: stats.active,
-    inactive: stats.inactive,
-    in_reparatie: stats.inRepair,
-    doc_expirate: stats.expired,
-    urmeaza_sa_expire: stats.expiring,
-    leasing: stats.leasing,
-  };
-
   const filteredVehicles = useMemo(() => {
     return vehicles.filter((v) => {
       const status = getComputedStatus(v);
@@ -242,67 +232,6 @@ export default function ParcAutoPage() {
       ...prev,
       [section]: !prev[section],
     }));
-  };
-
-  const getFilterClasses = (type: FilterType) => {
-    const isActive = filter === type;
-
-    if (type === "toate") {
-      return isActive
-        ? "bg-[#0196ff] text-white"
-        : "bg-gray-100 text-gray-900";
-    }
-
-    if (type === "active") {
-      return isActive
-        ? "bg-green-200 text-green-900"
-        : "bg-green-100 text-green-800";
-    }
-
-    if (type === "inactive") {
-      return isActive
-        ? "bg-gray-300 text-gray-900"
-        : "bg-gray-100 text-gray-800";
-    }
-
-    if (type === "in_reparatie") {
-      return isActive
-        ? "bg-orange-200 text-orange-900"
-        : "bg-orange-100 text-orange-800";
-    }
-
-    if (type === "doc_expirate") {
-      return isActive
-        ? "bg-red-200 text-red-900"
-        : "bg-red-100 text-red-800";
-    }
-
-    if (type === "urmeaza_sa_expire") {
-      return isActive
-        ? "bg-yellow-200 text-yellow-900"
-        : "bg-yellow-100 text-yellow-800";
-    }
-
-    if (type === "leasing") {
-      return isActive
-        ? "bg-purple-200 text-purple-900"
-        : "bg-purple-100 text-purple-800";
-    }
-
-    return "bg-gray-100 text-gray-800";
-  };
-
-  const getFilterBadgeClasses = (type: FilterType) => {
-    if (type === "toate") {
-      return filter === type ? "bg-white/20 text-white" : "bg-[#0196ff] text-white";
-    }
-    if (type === "active") return "bg-green-600 text-white";
-    if (type === "inactive") return "bg-gray-500 text-white";
-    if (type === "in_reparatie") return "bg-orange-500 text-white";
-    if (type === "doc_expirate") return "bg-red-600 text-white";
-    if (type === "urmeaza_sa_expire") return "bg-yellow-500 text-white";
-    if (type === "leasing") return "bg-purple-600 text-white";
-    return "bg-gray-500 text-white";
   };
 
   const showSections = filter === "toate";
@@ -402,23 +331,36 @@ export default function ParcAutoPage() {
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
-          </div>
+        <div className="mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-3 items-center gap-3">
+            <div className="flex justify-start">
+              <button
+                onClick={() => router.push("/admin")}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Înapoi
+              </button>
+            </div>
 
-          <button
-            onClick={() => router.push("/admin")}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
-            Înapoi la panou admin
-          </button>
+            <div className="flex justify-center">
+              <Image
+                src="/logo.png"
+                alt="Logo"
+                width={140}
+                height={44}
+                className="h-10 w-auto object-contain sm:h-11"
+              />
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                onClick={() => router.push("/admin/parc-auto/adauga")}
+                className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                + Adaugă auto
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -436,184 +378,110 @@ export default function ParcAutoPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
-            <div className="rounded-2xl bg-[#F8F7F3] px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                Total
-              </p>
-              <p className="mt-2 text-2xl font-bold text-gray-900">{stats.total}</p>
-            </div>
-
-            <div className="rounded-2xl bg-green-50 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-green-600">
-                Active
-              </p>
-              <p className="mt-2 text-2xl font-bold text-green-700">{stats.active}</p>
-            </div>
-
-            <div className="rounded-2xl bg-gray-100 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-500">
-                Inactive
-              </p>
-              <p className="mt-2 text-2xl font-bold text-gray-700">{stats.inactive}</p>
-            </div>
-
-            <div className="rounded-2xl bg-orange-50 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-orange-600">
-                Reparație
-              </p>
-              <p className="mt-2 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
-            </div>
-
-            <div className="rounded-2xl bg-red-50 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-red-600">
-                Expirate
-              </p>
-              <p className="mt-2 text-2xl font-bold text-red-700">{stats.expired}</p>
-            </div>
-
-            <div className="rounded-2xl bg-yellow-50 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-yellow-700">
-                Urmează
-              </p>
-              <p className="mt-2 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
-            </div>
-
-            <div className="rounded-2xl bg-purple-50 px-4 py-4">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-purple-600">
-                Leasing
-              </p>
-              <p className="mt-2 text-2xl font-bold text-purple-700">{stats.leasing}</p>
-            </div>
-          </div>
-
-          <div className="mt-5">
-            <button
-              onClick={() => router.push("/admin/parc-auto/adauga")}
-              className="w-full rounded-2xl bg-[#0196ff] px-4 py-4 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 sm:text-base"
-            >
-              + Adaugă auto
-            </button>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-4 xl:grid-cols-7">
             <button
               type="button"
               onClick={() => setFilter("toate")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "toate"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "toate"
+                  ? "ring-2 ring-black bg-[#F8F7F3]"
+                  : "bg-[#F8F7F3]"
+              }`}
             >
-              <span>Toate</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "toate"
-                )}`}
-              >
-                {filterCounts.toate}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-gray-400">
+                Total
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-gray-900">{stats.total}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("active")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "active"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "active"
+                  ? "ring-2 ring-green-500 bg-green-50"
+                  : "bg-green-50"
+              }`}
             >
-              <span>Active</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "active"
-                )}`}
-              >
-                {filterCounts.active}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-green-600">
+                Active
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-green-700">{stats.active}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("inactive")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "inactive"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "inactive"
+                  ? "ring-2 ring-gray-500 bg-gray-100"
+                  : "bg-gray-100"
+              }`}
             >
-              <span>Inactive</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "inactive"
-                )}`}
-              >
-                {filterCounts.inactive}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-gray-500">
+                Inactive
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-gray-700">{stats.inactive}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("in_reparatie")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "in_reparatie"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "in_reparatie"
+                  ? "ring-2 ring-orange-500 bg-orange-50"
+                  : "bg-orange-50"
+              }`}
             >
-              <span>În reparație</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "in_reparatie"
-                )}`}
-              >
-                {filterCounts.in_reparatie}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-orange-600">
+                Reparație
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-orange-700">{stats.inRepair}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("doc_expirate")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "doc_expirate"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "doc_expirate"
+                  ? "ring-2 ring-red-500 bg-red-50"
+                  : "bg-red-50"
+              }`}
             >
-              <span>Doc expirate</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "doc_expirate"
-                )}`}
-              >
-                {filterCounts.doc_expirate}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-red-600">
+                Expirate
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-red-700">{stats.expired}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("urmeaza_sa_expire")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "urmeaza_sa_expire"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "urmeaza_sa_expire"
+                  ? "ring-2 ring-yellow-500 bg-yellow-50"
+                  : "bg-yellow-50"
+              }`}
             >
-              <span>Urmează să expire</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "urmeaza_sa_expire"
-                )}`}
-              >
-                {filterCounts.urmeaza_sa_expire}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-yellow-700">
+                Urmează
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-yellow-800">{stats.expiring}</p>
             </button>
 
             <button
               type="button"
               onClick={() => setFilter("leasing")}
-              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition ${getFilterClasses(
-                "leasing"
-              )}`}
+              className={`rounded-2xl px-3 py-3 text-left transition ${
+                filter === "leasing"
+                  ? "ring-2 ring-purple-500 bg-purple-50"
+                  : "bg-purple-50"
+              }`}
             >
-              <span>Leasing</span>
-              <span
-                className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold ${getFilterBadgeClasses(
-                  "leasing"
-                )}`}
-              >
-                {filterCounts.leasing}
-              </span>
+              <p className="text-[10px] uppercase tracking-[0.12em] text-purple-600">
+                Leasing
+              </p>
+              <p className="mt-1.5 text-2xl font-bold text-purple-700">{stats.leasing}</p>
             </button>
           </div>
 
