@@ -75,6 +75,7 @@ export default function DetaliuAutoPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const [showRepairNoteForm, setShowRepairNoteForm] = useState(false);
   const [showDocumentHistory, setShowDocumentHistory] = useState(true);
@@ -222,7 +223,7 @@ export default function DetaliuAutoPage() {
 
   const formatDate = (value: string | null) => {
     if (!value) return "-";
-    return new Date(value).toLocaleDateString("ro-RO");
+    return new Date(`${value}T00:00:00`).toLocaleDateString("ro-RO");
   };
 
   const formatDateTime = (value: string | null) => {
@@ -245,9 +246,7 @@ export default function DetaliuAutoPage() {
     const rcaExpired = rcaDate ? rcaDate.getTime() < today.getTime() : false;
     const itpExpired = itpDate ? itpDate.getTime() < today.getTime() : false;
 
-    if (rcaExpired || itpExpired) {
-      return "doc_expirate";
-    }
+    if (rcaExpired || itpExpired) return "doc_expirate";
 
     return status;
   }, [rcaValidUntil, itpValidUntil, status, today]);
@@ -261,22 +260,10 @@ export default function DetaliuAutoPage() {
   }, [computedStatus]);
 
   const computedStatusClasses = useMemo(() => {
-    if (computedStatus === "activa") {
-      return "bg-green-100 text-green-700";
-    }
-
-    if (computedStatus === "inactiva") {
-      return "bg-gray-100 text-gray-700";
-    }
-
-    if (computedStatus === "in_reparatie") {
-      return "bg-orange-100 text-orange-700";
-    }
-
-    if (computedStatus === "doc_expirate") {
-      return "bg-red-100 text-red-700";
-    }
-
+    if (computedStatus === "activa") return "bg-green-100 text-green-700";
+    if (computedStatus === "inactiva") return "bg-gray-100 text-gray-700";
+    if (computedStatus === "in_reparatie") return "bg-orange-100 text-orange-700";
+    if (computedStatus === "doc_expirate") return "bg-red-100 text-red-700";
     return "bg-gray-100 text-gray-700";
   }, [computedStatus]);
 
@@ -323,14 +310,10 @@ export default function DetaliuAutoPage() {
     const lastDate = parseDate(lastRateDate);
     if (!lastDate) return 0;
 
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
-    const lastYear = lastDate.getFullYear();
-    const lastMonth = lastDate.getMonth();
-
     const diff =
-      (lastYear - currentYear) * 12 + (lastMonth - currentMonth) + 1;
+      (lastDate.getFullYear() - today.getFullYear()) * 12 +
+      (lastDate.getMonth() - today.getMonth()) +
+      1;
 
     return Math.max(0, diff);
   }, [isLeasing, lastRateDate, today]);
@@ -553,9 +536,6 @@ export default function DetaliuAutoPage() {
   };
 
   const handleDelete = async () => {
-    const confirmed = window.confirm("Sigur vrei să ștergi acest vehicul?");
-    if (!confirmed) return;
-
     setDeleting(true);
 
     const { error } = await supabase
@@ -566,39 +546,40 @@ export default function DetaliuAutoPage() {
     if (error) {
       alert(`A apărut o eroare la ștergere: ${error.message}`);
       setDeleting(false);
+      setShowDeleteConfirm(false);
       return;
     }
 
-    setDeleting(false);
     router.push("/admin/parc-auto");
   };
 
-if (loading) {
-  return (
-    <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
-      <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
-          <img src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-        </div>
-      </header>
-      <div className="flex flex-1 items-center justify-center px-4">
-        <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-          <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-            <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-blue-600">
-              <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-              <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
+        <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={140}
+              height={44}
+              className="h-10 w-auto object-contain sm:h-11"
+            />
           </div>
-          <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
-          <div className="text-center">
-            <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
-            <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
+        </header>
+
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
+              <div className="text-3xl">🚗</div>
+            </div>
+
+            <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   if (!vehicle) {
     return <div className="p-6">Vehiculul nu a fost găsit.</div>;
@@ -840,7 +821,8 @@ if (loading) {
                               {getDocumentTypeLabel(item.document_type)}
                             </p>
                             <p className="mt-1 text-sm text-gray-600">
-                              {formatDate(item.old_date)} → {formatDate(item.new_date)}
+                              {formatDate(item.old_date)} →{" "}
+                              {formatDate(item.new_date)}
                             </p>
                           </div>
 
@@ -921,7 +903,9 @@ if (loading) {
                             <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-500">
                               <span>Data: {formatDate(note.note_date)}</span>
                               {note.cost != null && (
-                                <span>Cost: {Number(note.cost).toFixed(2)} lei</span>
+                                <span>
+                                  Cost: {Number(note.cost).toFixed(2)} lei
+                                </span>
                               )}
                             </div>
                           </div>
@@ -1218,7 +1202,7 @@ if (loading) {
 
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Cost reparație (TVA inclus)
+                          Cost reparație TVA inclus
                         </label>
                         <input
                           type="number"
@@ -1271,14 +1255,70 @@ if (loading) {
 
                   <button
                     type="button"
-                    onClick={handleDelete}
+                    onClick={() => setShowDeleteConfirm(true)}
                     disabled={deleting}
                     className="w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
-                    {deleting ? "Se șterge..." : "Șterge auto"}
+                    Șterge auto
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-3xl bg-red-50">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-6 w-6 text-red-600"
+                >
+                  <path
+                    d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+
+              <h2 className="text-lg font-extrabold text-gray-900">
+                Șterge vehicul
+              </h2>
+
+              <p className="mt-2 text-sm text-gray-500">
+                Ești sigur că vrei să ștergi{" "}
+                <span className="font-semibold text-gray-800">
+                  {brand} {model}
+                </span>{" "}
+                ({registrationNumber})? Această acțiune nu poate fi anulată.
+              </p>
+            </div>
+
+            <div className="flex gap-3 border-t border-[#E8E5DE] px-6 py-4">
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              >
+                {deleting ? "Se șterge..." : "Da, șterge"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              >
+                Anulează
+              </button>
             </div>
           </div>
         </div>
