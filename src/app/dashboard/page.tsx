@@ -180,10 +180,11 @@ export default function DashboardPage() {
       sublabel: "Planificare",
       route: "/organizarea-echipelor",
     },
-    {
-      label: "Solicită\nBani",
-      sublabel: "Financiar",
-    },
+{
+  label: "Solicită\nBani",
+  sublabel: "Financiar",
+  route: "/solicita-bani",
+},
   ];
 
   const userActions: QuickAction[] = [
