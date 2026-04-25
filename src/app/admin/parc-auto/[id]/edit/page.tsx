@@ -181,8 +181,9 @@ export default function EditAutoPage() {
       return;
     }
 
-    setSubmitting(false);
-    router.push("/admin/parc-auto");
+setSubmitting(false);
+router.refresh();
+router.push("/admin/parc-auto");
   };
 
   const handleDelete = async () => {
