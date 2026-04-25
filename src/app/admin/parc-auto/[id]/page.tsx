@@ -607,12 +607,12 @@ export default function DetaliuAutoPage() {
               Înapoi la parc auto
             </button>
 
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              Actualizează
-            </button>
+<button
+  onClick={() => router.push(`/admin/parc-auto/${vehicleId}/edit`)}
+  className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+>
+  Actualizează
+</button>
           </div>
         </div>
       </header>
