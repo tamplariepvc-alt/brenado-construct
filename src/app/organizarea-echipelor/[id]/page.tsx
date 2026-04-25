@@ -132,7 +132,15 @@ export default function DetaliuEchipaPage() {
         supabase.from("daily_teams").select("id, project_id, work_date, created_by, created_at").eq("work_date", workDate),
         supabase.from("projects").select("id, name, status, beneficiary, project_location").eq("status", "in_lucru").order("name", { ascending: true }),
         supabase.from("vehicles").select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until").order("registration_number", { ascending: true }),
-        supabase.from("workers").select("id, full_name, is_active").eq("is_active", true).order("full_name", { ascending: true }),
+
+        // ── MODIFICARE: doar personal de executie ──────────────────────────────
+        supabase
+          .from("workers")
+          .select("id, full_name, is_active")
+          .eq("is_active", true)
+          .eq("worker_type", "executie")
+          .order("full_name", { ascending: true }),
+
         supabase.from("daily_team_vehicles").select("id, daily_team_id, vehicle_id"),
         supabase.from("daily_team_workers").select("id, daily_team_id, worker_id"),
       ]);
@@ -215,19 +223,19 @@ export default function DetaliuEchipaPage() {
     setSaving(true);
 
     const { error: updateTeamError } = await supabase.from("daily_teams").update({ project_id: selectedProjectId }).eq("id", team.id);
-    if (updateTeamError) { alert(`Eroare la actualizarea echipei: ${updateTeamError.message}`); setSaving(false); return; }
+    if (updateTeamError) { alert(`Eroare: ${updateTeamError.message}`); setSaving(false); return; }
 
     const { error: deleteWorkersError } = await supabase.from("daily_team_workers").delete().eq("daily_team_id", team.id);
-    if (deleteWorkersError) { alert(`Eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`); setSaving(false); return; }
+    if (deleteWorkersError) { alert(`Eroare: ${deleteWorkersError.message}`); setSaving(false); return; }
 
     const { error: deleteVehiclesError } = await supabase.from("daily_team_vehicles").delete().eq("daily_team_id", team.id);
-    if (deleteVehiclesError) { alert(`Eroare la actualizarea mașinilor: ${deleteVehiclesError.message}`); setSaving(false); return; }
+    if (deleteVehiclesError) { alert(`Eroare: ${deleteVehiclesError.message}`); setSaving(false); return; }
 
     const { error: insertWorkersError } = await supabase.from("daily_team_workers").insert(selectedWorkerIds.map((id) => ({ daily_team_id: team.id, worker_id: id })));
-    if (insertWorkersError) { alert(`Eroare la salvarea muncitorilor: ${insertWorkersError.message}`); setSaving(false); return; }
+    if (insertWorkersError) { alert(`Eroare: ${insertWorkersError.message}`); setSaving(false); return; }
 
     const { error: insertVehiclesError } = await supabase.from("daily_team_vehicles").insert(selectedVehicleIds.map((id) => ({ daily_team_id: team.id, vehicle_id: id })));
-    if (insertVehiclesError) { alert(`Eroare la salvarea mașinilor: ${insertVehiclesError.message}`); setSaving(false); return; }
+    if (insertVehiclesError) { alert(`Eroare: ${insertVehiclesError.message}`); setSaving(false); return; }
 
     setSaving(false);
     setShowEditModal(false);
@@ -251,12 +259,7 @@ export default function DetaliuEchipaPage() {
       : `<tr><td colspan="5">Nu există auto atribuite.</td></tr>`;
 
     const workerRowsHtml = currentWorkers.length > 0
-      ? currentWorkers.map((w, i) => `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${w.full_name}</td>
-          </tr>
-        `).join("")
+      ? currentWorkers.map((w, i) => `<tr><td>${i + 1}</td><td>${w.full_name}</td></tr>`).join("")
       : `<tr><td colspan="2">Nu există muncitori în echipă.</td></tr>`;
 
     const html = `
@@ -283,51 +286,23 @@ export default function DetaliuEchipaPage() {
         <body>
           <h1>Echipă – ${project.name}</h1>
           <div class="sub">Export generat la ${new Date().toLocaleString("ro-RO")}</div>
-
           <div class="info-grid">
-            <div class="info-box">
-              <div class="info-label">Dată planificată</div>
-              <div class="info-value">${formatDate(team.work_date)}</div>
-            </div>
-            <div class="info-box">
-              <div class="info-label">Beneficiar</div>
-              <div class="info-value">${project.beneficiary || "-"}</div>
-            </div>
-            <div class="info-box">
-              <div class="info-label">Locație</div>
-              <div class="info-value">${project.project_location || "-"}</div>
-            </div>
+            <div class="info-box"><div class="info-label">Dată planificată</div><div class="info-value">${formatDate(team.work_date)}</div></div>
+            <div class="info-box"><div class="info-label">Beneficiar</div><div class="info-value">${project.beneficiary || "-"}</div></div>
+            <div class="info-box"><div class="info-label">Locație</div><div class="info-value">${project.project_location || "-"}</div></div>
           </div>
-
           <h2>Auto atribuite (${currentVehicles.length})</h2>
           <table>
-            <thead>
-              <tr>
-                <th>Nr.</th>
-                <th>Număr înmatriculare</th>
-                <th>Vehicul</th>
-                <th>RCA până la</th>
-                <th>ITP până la</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Nr.</th><th>Număr înmatriculare</th><th>Vehicul</th><th>RCA până la</th><th>ITP până la</th></tr></thead>
             <tbody>${vehicleRowsHtml}</tbody>
           </table>
-
-          <h2>Muncitori echipă (${currentWorkers.length})</h2>
+          <h2>Personal de execuție (${currentWorkers.length})</h2>
           <table>
-            <thead>
-              <tr>
-                <th>Nr.</th>
-                <th>Nume complet</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Nr.</th><th>Nume complet</th></tr></thead>
             <tbody>${workerRowsHtml}</tbody>
           </table>
-
           <div class="footer">
-            Șantier: ${project.name} &nbsp;·&nbsp;
-            ${currentVehicles.length} auto &nbsp;·&nbsp;
-            ${currentWorkers.length} muncitori
+            Șantier: ${project.name} &nbsp;·&nbsp; ${currentVehicles.length} auto &nbsp;·&nbsp; ${currentWorkers.length} muncitori
           </div>
         </body>
       </html>
@@ -389,19 +364,11 @@ export default function DetaliuEchipaPage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {/* Header */}
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
-
           <div className="flex gap-2 sm:gap-3">
             <button
               onClick={() => router.push("/organizarea-echipelor")}
@@ -409,15 +376,12 @@ export default function DetaliuEchipaPage() {
             >
               Înapoi
             </button>
-
-            {/* Export PDF */}
             <button
               onClick={handleExportPdf}
               className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:px-4"
             >
               Export PDF
             </button>
-
             {isAdmin && (
               <button
                 onClick={() => setShowEditModal(true)}
@@ -432,7 +396,6 @@ export default function DetaliuEchipaPage() {
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
 
-        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -466,7 +429,6 @@ export default function DetaliuEchipaPage() {
           </div>
         </section>
 
-        {/* Auto atribuite */}
         <section className="mt-4 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
@@ -474,33 +436,25 @@ export default function DetaliuEchipaPage() {
             </p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
-
           {currentVehicles.length === 0 ? (
             <p className="text-sm text-gray-500">Nu există auto atribuite.</p>
           ) : (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {currentVehicles.map((vehicle) => (
-                <div
-                  key={vehicle.id}
-                  className="rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3"
-                >
+                <div key={vehicle.id} className="rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3">
                   <p className="text-sm font-bold text-gray-900">{vehicle.registration_number}</p>
                   <p className="mt-0.5 text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
                   <div className="mt-2 flex gap-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-wide text-gray-400">RCA</p>
                       <p className="text-xs font-medium text-gray-700">
-                        {vehicle.rca_valid_until
-                          ? new Date(`${vehicle.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO")
-                          : "-"}
+                        {vehicle.rca_valid_until ? new Date(`${vehicle.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-"}
                       </p>
                     </div>
                     <div>
                       <p className="text-[10px] uppercase tracking-wide text-gray-400">ITP</p>
                       <p className="text-xs font-medium text-gray-700">
-                        {vehicle.itp_valid_until
-                          ? new Date(`${vehicle.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO")
-                          : "-"}
+                        {vehicle.itp_valid_until ? new Date(`${vehicle.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-"}
                       </p>
                     </div>
                   </div>
@@ -510,24 +464,19 @@ export default function DetaliuEchipaPage() {
           )}
         </section>
 
-        {/* Muncitori echipa */}
         <section className="mt-4 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Muncitori echipă — {currentWorkers.length}
+              Personal de execuție — {currentWorkers.length}
             </p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
-
           {currentWorkers.length === 0 ? (
             <p className="text-sm text-gray-500">Nu există muncitori în echipă.</p>
           ) : (
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
               {currentWorkers.map((worker, index) => (
-                <div
-                  key={worker.id}
-                  className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3"
-                >
+                <div key={worker.id} className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3">
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-gray-500 shadow-sm">
                     {index + 1}
                   </span>
@@ -538,7 +487,6 @@ export default function DetaliuEchipaPage() {
           )}
         </section>
 
-        {/* Buton export PDF vizibil si in pagina */}
         <div className="mt-4">
           <button
             type="button"
@@ -550,16 +498,13 @@ export default function DetaliuEchipaPage() {
         </div>
       </main>
 
-      {/* Modal editare */}
       {showEditModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
               <div>
                 <h2 className="text-lg font-semibold">Editează echipa</h2>
-                <p className="text-sm text-gray-500">
-                  Modifică șantierul, mașinile și muncitorii pentru această echipă.
-                </p>
+                <p className="text-sm text-gray-500">Modifică șantierul, mașinile și muncitorii.</p>
               </div>
               <button
                 type="button"
@@ -572,12 +517,8 @@ export default function DetaliuEchipaPage() {
 
             <div className="max-h-[76vh] overflow-y-auto px-5 py-4">
               <div className="space-y-6">
-
-                {/* Santier */}
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Selectare șantier
-                  </label>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">Selectare șantier</label>
                   <select
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
@@ -590,11 +531,8 @@ export default function DetaliuEchipaPage() {
                   </select>
                 </div>
 
-                {/* Vehicule */}
                 <div>
-                  <p className="mb-3 text-sm font-semibold text-gray-700">
-                    Selectare autoturism
-                  </p>
+                  <p className="mb-3 text-sm font-semibold text-gray-700">Selectare autoturism</p>
                   {availableVehicles.length === 0 ? (
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
                       Nu există mașini disponibile.
@@ -602,16 +540,8 @@ export default function DetaliuEchipaPage() {
                   ) : (
                     <div className="space-y-2">
                       {availableVehicles.map((vehicle) => (
-                        <label
-                          key={vehicle.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedVehicleIds.includes(vehicle.id)}
-                            onChange={() => toggleVehicle(vehicle.id)}
-                            className="h-5 w-5"
-                          />
+                        <label key={vehicle.id} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
+                          <input type="checkbox" checked={selectedVehicleIds.includes(vehicle.id)} onChange={() => toggleVehicle(vehicle.id)} className="h-5 w-5" />
                           <div>
                             <p className="text-sm font-medium text-gray-800">{vehicle.registration_number}</p>
                             <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
@@ -622,10 +552,12 @@ export default function DetaliuEchipaPage() {
                   )}
                 </div>
 
-                {/* Muncitori */}
                 <div>
                   <p className="mb-3 text-sm font-semibold text-gray-700">
                     Alege echipa
+                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      Personal de execuție
+                    </span>
                   </p>
                   {availableWorkers.length === 0 ? (
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
@@ -634,16 +566,8 @@ export default function DetaliuEchipaPage() {
                   ) : (
                     <div className="space-y-2">
                       {availableWorkers.map((worker) => (
-                        <label
-                          key={worker.id}
-                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={selectedWorkerIds.includes(worker.id)}
-                            onChange={() => toggleWorker(worker.id)}
-                            className="h-5 w-5"
-                          />
+                        <label key={worker.id} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
+                          <input type="checkbox" checked={selectedWorkerIds.includes(worker.id)} onChange={() => toggleWorker(worker.id)} className="h-5 w-5" />
                           <span className="text-sm font-medium text-gray-800">{worker.full_name}</span>
                         </label>
                       ))}
@@ -651,7 +575,6 @@ export default function DetaliuEchipaPage() {
                   )}
                 </div>
 
-                {/* Sumar selectie */}
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-sm font-medium text-blue-800">
                     Șantier: {availableProjects.find((p) => p.id === selectedProjectId)?.name || "-"}
