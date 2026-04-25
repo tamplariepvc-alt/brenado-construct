@@ -9,8 +9,7 @@ type AdminAction = {
   label: string;
   sublabel: string;
   route: string;
-  dark?: boolean;
-  highlight?: "blue" | "green";
+  highlight?: "blue" | "green" | "indigo";
 };
 
 export default function AdminPage() {
@@ -44,8 +43,8 @@ export default function AdminPage() {
       route: "/admin/centre-de-cost",
     },
     {
-      label: "Muncitori",
-      sublabel: "Gestionează muncitorii și salariile lunare",
+      label: "Personal",
+      sublabel: "Gestionează personalul, funcțiile și salariile",
       route: "/admin/muncitori",
     },
     {
@@ -65,16 +64,18 @@ export default function AdminPage() {
       route: "/admin/alimentari",
       highlight: "green",
     },
+    {
+      label: "Istoric Pontaje",
+      sublabel: "Vizualizează pontajele pe șantiere, zile și personal",
+      route: "/admin/istoric-pontaje",
+      highlight: "indigo",
+    },
   ];
 
-  const renderAdminIcon = (label: string, dark?: boolean, highlight?: "blue" | "green") => {
-    const base = dark || highlight === "blue" || highlight === "green" ? "currentColor" : "#2563EB";
-    const iconClass = `h-6 w-6 sm:h-7 sm:w-7 ${
-      dark ? "text-slate-300"
-      : highlight === "blue" ? "text-white"
-      : highlight === "green" ? "text-white"
-      : ""
-    }`;
+  const renderAdminIcon = (label: string, highlight?: "blue" | "green" | "indigo") => {
+    const isColored = highlight === "blue" || highlight === "green" || highlight === "indigo";
+    const base = isColored ? "currentColor" : "#2563EB";
+    const iconClass = `h-6 w-6 sm:h-7 sm:w-7 ${isColored ? "text-white" : ""}`;
 
     if (label.includes("Centre")) {
       return (
@@ -86,7 +87,7 @@ export default function AdminPage() {
         </svg>
       );
     }
-    if (label.includes("Muncitori")) {
+    if (label.includes("Personal")) {
       return (
         <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
           <circle cx="9" cy="8" r="3" stroke={base} strokeWidth="2" />
@@ -122,12 +123,37 @@ export default function AdminPage() {
         </svg>
       );
     }
+    if (label.includes("Istoric")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <rect x="5" y="4" width="14" height="16" rx="2" stroke={base} strokeWidth="2" />
+          <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke={base} strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    }
     return (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
         <circle cx="12" cy="12" r="4" fill={base} />
       </svg>
     );
   };
+
+  const getBgClasses = (action: AdminAction) => {
+    if (action.highlight === "blue") return "border-[#0196ff] bg-[#0196ff] text-white";
+    if (action.highlight === "green") return "border-green-600 bg-green-600 text-white";
+    if (action.highlight === "indigo") return "border-indigo-600 bg-indigo-600 text-white";
+    return "border-[#E8E5DE] bg-white text-gray-900";
+  };
+
+  const getIconBg = (action: AdminAction) => {
+    if (action.highlight) return "bg-white/15";
+    if (action.label.includes("Centre")) return "bg-blue-50";
+    if (action.label.includes("Personal")) return "bg-sky-50";
+    if (action.label.includes("Parc")) return "bg-amber-50";
+    return "bg-blue-50";
+  };
+
+  const isColored = (action: AdminAction) => Boolean(action.highlight);
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
@@ -153,16 +179,14 @@ export default function AdminPage() {
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Modul administrativ</p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                Panou Admin
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
-                Gestionare date, module administrative și funcții financiare.
-              </p>
-            </div>
+          <div>
+            <p className="text-sm text-gray-500">Modul administrativ</p>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              Panou Admin
+            </h1>
+            <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
+              Gestionare date, module administrative și funcții financiare.
+            </p>
           </div>
         </section>
 
@@ -175,67 +199,42 @@ export default function AdminPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {actions.map((action) => {
-              const isBlue = action.highlight === "blue";
-              const isGreen = action.highlight === "green";
+            {actions.map((action) => (
+              <button
+                key={`${action.label}-${action.route}`}
+                type="button"
+                onClick={() => router.push(action.route)}
+                className={`relative min-h-[160px] overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[180px] sm:p-6 ${getBgClasses(action)}`}
+              >
+                {/* Badge ore neplatite */}
+                {action.label.includes("Ore") && unpaidCount > 0 && (
+                  <span className="absolute right-4 top-4 inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
+                    {unpaidCount}
+                  </span>
+                )}
 
-              return (
-                <button
-                  key={`${action.label}-${action.route}`}
-                  type="button"
-                  onClick={() => router.push(action.route)}
-                  className={`relative min-h-[160px] overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[180px] sm:p-6 ${
-                    isBlue
-                      ? "border-[#0196ff] bg-[#0196ff] text-white"
-                      : isGreen
-                      ? "border-green-600 bg-green-600 text-white"
-                      : "border-[#E8E5DE] bg-white text-gray-900"
-                  }`}
-                >
-                  {action.label.includes("Ore") && unpaidCount > 0 && (
-                    <span className="absolute right-4 top-4 inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
-                      {unpaidCount}
-                    </span>
-                  )}
-
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl sm:h-14 sm:w-14 ${
-                        isBlue ? "bg-white/15"
-                        : isGreen ? "bg-white/15"
-                        : action.label.includes("Centre") ? "bg-blue-50"
-                        : action.label.includes("Muncitori") ? "bg-sky-50"
-                        : action.label.includes("Parc") ? "bg-amber-50"
-                        : "bg-blue-50"
-                      }`}
-                    >
-                      {renderAdminIcon(action.label, false, action.highlight)}
-                    </div>
-
-                    {/* ← TEXT MARIT AICI */}
-                    <p className="text-xl font-extrabold leading-6 tracking-tight sm:text-2xl sm:leading-7">
-                      {action.label}
-                    </p>
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl sm:h-14 sm:w-14 ${getIconBg(action)}`}>
+                    {renderAdminIcon(action.label, action.highlight)}
                   </div>
-
-                  <p
-                    className={`mt-4 pr-12 text-sm leading-5 sm:text-[15px] sm:leading-6 ${
-                      isBlue || isGreen ? "text-white/80" : "text-gray-400"
-                    }`}
-                  >
-                    {action.sublabel}
+                  <p className="text-xl font-extrabold leading-6 tracking-tight sm:text-2xl sm:leading-7">
+                    {action.label}
                   </p>
+                </div>
 
-                  <div
-                    className={`absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm sm:h-8 sm:w-8 sm:text-base ${
-                      isBlue || isGreen ? "bg-white/15 text-white" : "bg-[#F0EEE9] text-gray-400"
-                    }`}
-                  >
-                    ›
-                  </div>
-                </button>
-              );
-            })}
+                <p className={`mt-4 pr-12 text-sm leading-5 sm:text-[15px] sm:leading-6 ${
+                  isColored(action) ? "text-white/80" : "text-gray-400"
+                }`}>
+                  {action.sublabel}
+                </p>
+
+                <div className={`absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm sm:h-8 sm:w-8 sm:text-base ${
+                  isColored(action) ? "bg-white/15 text-white" : "bg-[#F0EEE9] text-gray-400"
+                }`}>
+                  ›
+                </div>
+              </button>
+            ))}
           </div>
         </section>
       </main>
