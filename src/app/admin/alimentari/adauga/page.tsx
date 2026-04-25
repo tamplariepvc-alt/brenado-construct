@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -17,7 +17,8 @@ type TeamLead = {
   full_name: string;
 };
 
-export default function AdaugaAlimentarePage() {
+// ── Componenta interioara care foloseste useSearchParams ──────────────────────
+function AdaugaAlimentareInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -34,7 +35,6 @@ export default function AdaugaAlimentarePage() {
   const [selectedLeadId, setSelectedLeadId] = useState("");
   const [notes, setNotes] = useState("");
 
-  // Daca vine din solicitare
   const fromRequestId = searchParams.get("from_request");
   const isFromRequest = Boolean(fromRequestId);
 
@@ -57,7 +57,7 @@ export default function AdaugaAlimentarePage() {
       setProjects((projectsData as Project[]) || []);
       setTeamLeads((leadsData as TeamLead[]) || []);
 
-      // Prefill din query params (cand vine din solicitare)
+      // Prefill din query params
       const qProject = searchParams.get("project_id");
       const qAmount = searchParams.get("amount");
       const qLead = searchParams.get("lead_id");
@@ -185,15 +185,15 @@ export default function AdaugaAlimentarePage() {
 
         <div className="mt-6 space-y-4">
 
-          {/* Proiect */}
+          {/* Proiect & sef */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Proiect & șef</p>
               <div className="h-px flex-1 bg-[#E8E5DE]" />
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Proiect <span className="text-red-500">*</span>
                 </label>
@@ -211,7 +211,7 @@ export default function AdaugaAlimentarePage() {
                 </select>
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
                   Șef de șantier <span className="text-red-500">*</span>
                 </label>
@@ -310,7 +310,7 @@ export default function AdaugaAlimentarePage() {
             />
           </section>
 
-          {/* Preview + butoane */}
+          {/* Preview */}
           {Number(amountRon) > 0 && (
             <div className="rounded-2xl border border-[#0196ff]/20 bg-[#0196ff]/5 px-4 py-3">
               <p className="text-sm font-medium text-[#0196ff]">
@@ -342,5 +342,25 @@ export default function AdaugaAlimentarePage() {
         </div>
       </main>
     </div>
+  );
+}
+
+// ── Export default cu Suspense boundary ───────────────────────────────────────
+export default function AdaugaAlimentarePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
+        <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
+            <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain sm:h-11" />
+          </div>
+        </header>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
+        </div>
+      </div>
+    }>
+      <AdaugaAlimentareInner />
+    </Suspense>
   );
 }
