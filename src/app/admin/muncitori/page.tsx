@@ -11,21 +11,25 @@ type Worker = {
   job_title: string | null;
   monthly_salary: number | null;
   is_active: boolean;
+  worker_type: "executie" | "tesa";
 };
 
-export default function MuncitoriPage() {
+type CategoryTab = "executie" | "tesa";
+
+export default function PersonalPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState<CategoryTab>("executie");
   const [filterActive, setFilterActive] = useState<"toti" | "activi" | "inactivi">("toti");
 
   useEffect(() => {
     const loadWorkers = async () => {
       const { data, error } = await supabase
         .from("workers")
-        .select("id, full_name, job_title, monthly_salary, is_active")
+        .select("id, full_name, job_title, monthly_salary, is_active, worker_type")
         .order("full_name", { ascending: true });
 
       if (!error && data) setWorkers(data as Worker[]);
@@ -35,8 +39,17 @@ export default function MuncitoriPage() {
     loadWorkers();
   }, []);
 
-  const filteredWorkers = useMemo(() => {
+  // Muncitorii din categoria activa
+  const categoryWorkers = useMemo(() => {
     return workers.filter((w) => {
+      // Daca nu are worker_type setat, e considerat executie
+      const type = w.worker_type || "executie";
+      return type === activeTab;
+    });
+  }, [workers, activeTab]);
+
+  const filteredWorkers = useMemo(() => {
+    return categoryWorkers.filter((w) => {
       const matchSearch =
         !search.trim() ||
         w.full_name.toLowerCase().includes(search.trim().toLowerCase()) ||
@@ -49,12 +62,18 @@ export default function MuncitoriPage() {
 
       return matchSearch && matchActive;
     });
-  }, [workers, search, filterActive]);
+  }, [categoryWorkers, search, filterActive]);
 
   const stats = useMemo(() => ({
-    total: workers.length,
-    activi: workers.filter((w) => w.is_active).length,
-    inactivi: workers.filter((w) => !w.is_active).length,
+    total: categoryWorkers.length,
+    activi: categoryWorkers.filter((w) => w.is_active).length,
+    inactivi: categoryWorkers.filter((w) => !w.is_active).length,
+  }), [categoryWorkers]);
+
+  // Totale globale pentru badge-uri tab
+  const tabCounts = useMemo(() => ({
+    executie: workers.filter((w) => (w.worker_type || "executie") === "executie").length,
+    tesa: workers.filter((w) => w.worker_type === "tesa").length,
   }), [workers]);
 
   const renderWorkerIcon = () => (
@@ -94,13 +113,7 @@ export default function MuncitoriPage() {
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
           <div className="flex gap-3">
             <button
@@ -130,16 +143,52 @@ export default function MuncitoriPage() {
             <div>
               <p className="text-sm text-gray-500">Administrare</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                Muncitori
+                Personal
               </h1>
               <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
-                Administrează muncitorii, funcțiile și salariile lunare.
+                Administrează personalul, funcțiile și salariile lunare.
               </p>
             </div>
           </div>
 
+          {/* Tab-uri categorie */}
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setActiveTab("executie"); setFilterActive("toti"); setSearch(""); }}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
+                activeTab === "executie"
+                  ? "bg-gray-900 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Personal de execuție
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                activeTab === "executie" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"
+              }`}>
+                {tabCounts.executie}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setActiveTab("tesa"); setFilterActive("toti"); setSearch(""); }}
+              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
+                activeTab === "tesa"
+                  ? "bg-[#0196ff] text-white"
+                  : "bg-[#0196ff]/10 text-[#0196ff] hover:bg-[#0196ff]/20"
+              }`}
+            >
+              TESA
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                activeTab === "tesa" ? "bg-white/20 text-white" : "bg-[#0196ff]/20 text-[#0196ff]"
+              }`}>
+                {tabCounts.tesa}
+              </span>
+            </button>
+          </div>
+
           {/* Stat cards */}
-          <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
             <button
               type="button"
               onClick={() => setFilterActive("toti")}
@@ -196,7 +245,7 @@ export default function MuncitoriPage() {
           <div className="mt-4">
             <input
               type="text"
-              placeholder="Caută după nume sau funcție..."
+              placeholder={`Caută în ${activeTab === "tesa" ? "TESA" : "Personal de execuție"}...`}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
@@ -208,7 +257,7 @@ export default function MuncitoriPage() {
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Lista muncitori — {filteredWorkers.length} înregistrări
+              {activeTab === "tesa" ? "TESA" : "Personal de execuție"} — {filteredWorkers.length} înregistrări
             </p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
@@ -216,7 +265,7 @@ export default function MuncitoriPage() {
           {filteredWorkers.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-500">
-                Nu există muncitori pentru criteriile selectate.
+                Nu există personal pentru criteriile selectate.
               </p>
             </div>
           ) : (
@@ -248,13 +297,9 @@ export default function MuncitoriPage() {
                         : "-"}
                     </div>
                     <div className="col-span-2">
-                      <span
-                        className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          worker.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
+                      <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        worker.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                      }`}>
                         {worker.is_active ? "Activ" : "Inactiv"}
                       </span>
                     </div>
@@ -284,30 +329,20 @@ export default function MuncitoriPage() {
                           {renderWorkerIcon()}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[15px] font-bold text-gray-900">
-                            {worker.full_name}
-                          </p>
-                          <p className="mt-0.5 text-sm text-gray-500">
-                            {worker.job_title || "-"}
-                          </p>
+                          <p className="text-[15px] font-bold text-gray-900">{worker.full_name}</p>
+                          <p className="mt-0.5 text-sm text-gray-500">{worker.job_title || "-"}</p>
                         </div>
                       </div>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          worker.is_active
-                            ? "bg-green-100 text-green-700"
-                            : "bg-gray-100 text-gray-600"
-                        }`}
-                      >
+                      <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        worker.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
+                      }`}>
                         {worker.is_active ? "Activ" : "Inactiv"}
                       </span>
                     </div>
 
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                          Salariu lunar
-                        </p>
+                        <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Salariu lunar</p>
                         <p className="mt-1 text-sm font-bold text-gray-900">
                           {worker.monthly_salary != null
                             ? `${Number(worker.monthly_salary).toFixed(2)} lei`

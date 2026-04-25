@@ -5,9 +5,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
-export default function AdaugaMuncitorPage() {
+type WorkerType = "executie" | "tesa";
+
+export default function AdaugaPersonalPage() {
   const router = useRouter();
 
+  const [workerType, setWorkerType] = useState<WorkerType>("executie");
   const [fullName, setFullName] = useState("");
   const [jobTitle, setJobTitle] = useState("");
   const [monthlySalary, setMonthlySalary] = useState("");
@@ -21,7 +24,7 @@ export default function AdaugaMuncitorPage() {
     e.preventDefault();
 
     if (!fullName.trim()) {
-      alert("Completează numele muncitorului.");
+      alert("Completează numele.");
       return;
     }
 
@@ -40,16 +43,16 @@ export default function AdaugaMuncitorPage() {
       weekend_day_rate: weekendDayRate ? Number(weekendDayRate) : 0,
       notes: notes.trim() || null,
       is_active: isActive,
+      worker_type: workerType,
     });
 
     if (error) {
-      alert("A apărut o eroare la salvarea muncitorului.");
+      alert("A apărut o eroare la salvarea datelor.");
       setLoading(false);
       return;
     }
 
     setLoading(false);
-    alert("Muncitor adăugat cu succes.");
     router.push("/admin/muncitori");
   };
 
@@ -66,19 +69,13 @@ export default function AdaugaMuncitorPage() {
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
           <button
             onClick={() => router.push("/admin/muncitori")}
             className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            Înapoi la muncitori
+            Înapoi la personal
           </button>
         </div>
       </header>
@@ -92,12 +89,12 @@ export default function AdaugaMuncitorPage() {
               {renderWorkerIcon()}
             </div>
             <div>
-              <p className="text-sm text-gray-500">Administrare muncitori</p>
+              <p className="text-sm text-gray-500">Administrare personal</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                Adaugă muncitor
+                Adaugă personal
               </h1>
               <p className="mt-3 text-sm text-gray-500 sm:text-base">
-                Completează datele muncitorului și tarifele pentru calcule automate.
+                Completează datele și tarifele pentru calcule automate.
               </p>
             </div>
           </div>
@@ -106,7 +103,42 @@ export default function AdaugaMuncitorPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
 
-          {/* Date principale */}
+          {/* Tip personal */}
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-3 px-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                Categorie personal
+              </p>
+              <div className="h-px flex-1 bg-[#E8E5DE]" />
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setWorkerType("executie")}
+                className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  workerType === "executie"
+                    ? "border-gray-900 bg-gray-900 text-white"
+                    : "border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100"
+                }`}
+              >
+                Personal de execuție
+              </button>
+              <button
+                type="button"
+                onClick={() => setWorkerType("tesa")}
+                className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                  workerType === "tesa"
+                    ? "border-[#0196ff] bg-[#0196ff] text-white"
+                    : "border-[#0196ff]/20 bg-[#0196ff]/5 text-[#0196ff] hover:bg-[#0196ff]/10"
+                }`}
+              >
+                TESA
+              </button>
+            </div>
+          </section>
+
+          {/* Date personale */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
@@ -124,7 +156,7 @@ export default function AdaugaMuncitorPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Introdu numele muncitorului"
+                  placeholder="Introdu numele complet"
                   className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-gray-500"
                 />
               </div>
@@ -137,7 +169,7 @@ export default function AdaugaMuncitorPage() {
                   type="text"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder="Ex: Montator, Finisor"
+                  placeholder={workerType === "tesa" ? "Ex: Inginer, Contabil" : "Ex: Montator, Finisor"}
                   className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-gray-500"
                 />
               </div>
@@ -151,7 +183,7 @@ export default function AdaugaMuncitorPage() {
                     className="h-5 w-5"
                   />
                   <span className="text-sm font-medium text-gray-800">
-                    Muncitor activ
+                    Personal activ
                   </span>
                 </label>
               </div>
@@ -248,7 +280,7 @@ export default function AdaugaMuncitorPage() {
               disabled={loading}
               className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
             >
-              {loading ? "Se salvează..." : "Salvează muncitor"}
+              {loading ? "Se salvează..." : "Salvează"}
             </button>
             <button
               type="button"
