@@ -168,16 +168,16 @@ export default function AlimentariPage() {
     const now = new Date();
 
     doc.setFontSize(16);
-    doc.text("Raport alimentări carduri / conturi", 14, 16);
+    doc.text("Raport alimentari carduri / conturi", 14, 16);
     doc.setFontSize(9);
     doc.setTextColor(100);
     doc.text(`Generat la ${now.toLocaleString("ro-RO")}`, 14, 22);
-    doc.text(`Total alimentări: ${totals.count}  |  Valoare totală: ${totals.total.toFixed(2)} lei`, 14, 27);
+    doc.text(`Total alimentari: ${totals.count}  |  Valoare totala: ${totals.total.toFixed(2)} lei`, 14, 27);
     doc.setTextColor(0);
 
     autoTable(doc, {
       startY: 32,
-      head: [["Nr.", "Proiect", "Beneficiar", "Șef șantier", "Alimentat de", "Tip", "Sumă", "Data"]],
+      head: [["Nr.", "Proiect", "Beneficiar", "Sef santier", "Alimentat de", "Tip", "Suma", "Data"]],
       body: filteredFundings.map((f, i) => [
         String(i + 1),
         f.project_name,
