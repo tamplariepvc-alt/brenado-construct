@@ -1049,7 +1049,7 @@ try {
     stampila.onerror = resolve;
   });
 
-  doc.addImage(stampila, "PNG", 11, finalY + 26, 28, 28);
+  doc.addImage(stampila, "PNG", 11, finalY + 26, 35, 28);
 } catch {
   doc.setFontSize(8);
   doc.setTextColor(150);
