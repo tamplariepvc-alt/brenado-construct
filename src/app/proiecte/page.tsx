@@ -749,7 +749,12 @@ export default function ProiectePage() {
                               Poze
                             </button>
                             <button type="button"
-                              onClick={() => { setTehnicTab(project.id, "deviz"); if (!isAdmin) openDeviz(project.id); }}
+                              <button
+  type="button"
+  onClick={() => {
+    setTehnicTab(project.id, "deviz");
+    setDevizProjectId(null); // 🔴 NU deschide formularul automat
+  }}
                               className={`flex-1 rounded-2xl py-2 text-sm font-semibold transition ${tehnicTab === "deviz" ? "bg-teal-600 text-white" : "bg-teal-50 text-teal-700 hover:bg-teal-100"}`}>
                               Deviz lucrări
                             </button>
