@@ -146,6 +146,11 @@ export default function DashboardPage() {
       sublabel: "Planificare",
       route: "/organizarea-echipelor",
     },
+	{
+  label: "Creează\nDeviz",
+  sublabel: "Ofertă / lucrare",
+  route: "/devize/creeaza",
+},
     {
       label: "Panou\nAdmin",
       sublabel: "Setări sistem",
@@ -436,6 +441,25 @@ export default function DashboardPage() {
         </svg>
       );
     }
+
+if (label.includes("Deviz")) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+      <path
+        d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2Z"
+        stroke={dark ? "currentColor" : "#16A34A"}
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M8 9h8M8 13h8M8 17h5"
+        stroke={dark ? "currentColor" : "#16A34A"}
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
     return (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
