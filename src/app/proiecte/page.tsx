@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {
   ChangeEvent,
+  TouchEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -116,13 +117,7 @@ const monthOptions = [
 ];
 
 const UploadIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="none"
-    className="h-4 w-4"
-    stroke="currentColor"
-    strokeWidth="2"
-  >
+  <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
     <path d="M12 16V4" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M7 9L12 4L17 9" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M4 20H20" strokeLinecap="round" strokeLinejoin="round" />
@@ -161,12 +156,12 @@ function PhotoLightbox({
     return () => window.removeEventListener("keydown", onKey);
   }, [prev, next, onClose]);
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = (e: TouchEvent<HTMLDivElement>) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
   };
 
-  const onTouchEnd = (e: React.TouchEvent) => {
+  const onTouchEnd = (e: TouchEvent<HTMLDivElement>) => {
     if (touchStartX.current === null || touchStartY.current === null) return;
 
     const dx = e.changedTouches[0].clientX - touchStartX.current;
@@ -297,6 +292,7 @@ export default function ProiectePage() {
   const [devizItems, setDevizItems] = useState<{ service_id: string; quantity: string }[]>([]);
   const [savingDeviz, setSavingDeviz] = useState(false);
   const [devizReportId, setDevizReportId] = useState<string | null>(null);
+  const [serviceSearchByLine, setServiceSearchByLine] = useState<Record<number, string>>({});
 
   const [photoProjectId, setPhotoProjectId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -415,31 +411,16 @@ export default function ProiectePage() {
       photosRes,
     ] = await Promise.all([
       fundingsQuery,
-      supabase
-        .from("fiscal_receipts")
-        .select("project_id, total_with_vat")
-        .in("project_id", projectIds),
-      supabase
-        .from("project_invoices")
-        .select("project_id, total_with_vat")
-        .in("project_id", projectIds),
-      supabase
-        .from("project_nondeductible_expenses")
-        .select("project_id, cost_ron")
-        .in("project_id", projectIds),
-      supabase
-        .from("services")
-        .select("id, name, um, price_ron")
-        .eq("is_active", true)
-        .order("name"),
+      supabase.from("fiscal_receipts").select("project_id, total_with_vat").in("project_id", projectIds),
+      supabase.from("project_invoices").select("project_id, total_with_vat").in("project_id", projectIds),
+      supabase.from("project_nondeductible_expenses").select("project_id, cost_ron").in("project_id", projectIds),
+      supabase.from("services").select("id, name, um, price_ron").eq("is_active", true).order("name"),
       supabase
         .from("daily_reports")
         .select("id, project_id, report_date, created_by")
         .in("project_id", projectIds)
         .order("report_date", { ascending: false }),
-      supabase
-        .from("daily_report_items")
-        .select("id, daily_report_id, service_id, quantity"),
+      supabase.from("daily_report_items").select("id, daily_report_id, service_id, quantity"),
       supabase
         .from("daily_photos")
         .select("id, project_id, photo_date, photo_url, uploaded_by")
@@ -485,8 +466,7 @@ export default function ProiectePage() {
       const q = searchName.toLowerCase();
 
       return (
-        (p.name.toLowerCase().includes(q) ||
-          (p.beneficiary || "").toLowerCase().includes(q)) &&
+        (p.name.toLowerCase().includes(q) || (p.beneficiary || "").toLowerCase().includes(q)) &&
         (selectedYear === "toate" || d.getFullYear().toString() === selectedYear) &&
         (selectedMonth === "toate" || (d.getMonth() + 1).toString() === selectedMonth)
       );
@@ -510,15 +490,9 @@ export default function ProiectePage() {
       const funded = fundingTotalsByProject.get(p.id) || 0;
 
       const spent =
-        receipts
-          .filter((r) => r.project_id === p.id)
-          .reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
-        invoices
-          .filter((r) => r.project_id === p.id)
-          .reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
-        nondeductibles
-          .filter((r) => r.project_id === p.id)
-          .reduce((s, r) => s + Number(r.cost_ron || 0), 0);
+        receipts.filter((r) => r.project_id === p.id).reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
+        invoices.filter((r) => r.project_id === p.id).reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
+        nondeductibles.filter((r) => r.project_id === p.id).reduce((s, r) => s + Number(r.cost_ron || 0), 0);
 
       map.set(p.id, funded - spent);
     });
@@ -541,11 +515,7 @@ export default function ProiectePage() {
   };
 
   const renderProjectIcon = () => (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
-    >
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
       <rect x="4" y="4" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
       <rect x="13" y="4" width="7" height="4" rx="2" stroke="currentColor" strokeWidth="2" />
       <rect x="13" y="10" width="7" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
@@ -572,20 +542,14 @@ export default function ProiectePage() {
     }
   };
 
-  const uploadImageToStorage = async (
-    file: File,
-    projectId: string,
-    type: UploadDocType
-  ) => {
+  const uploadImageToStorage = async (file: File, projectId: string, type: UploadDocType) => {
     setUploadingImage(true);
 
     const bucket = type === "bon" ? "bonuri-fiscale" : "facturi";
     const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${projectId}/${Date.now()}.${fileExt}`;
 
-    const { error } = await supabase.storage
-      .from(bucket)
-      .upload(fileName, file, { upsert: false });
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file, { upsert: false });
 
     if (error) {
       setUploadingImage(false);
@@ -606,10 +570,8 @@ export default function ProiectePage() {
       documentDate: data.document_date || "",
       supplier: data.supplier || "",
       documentNumber: data.document_number || "",
-      totalWithoutVat:
-        data.total_without_vat != null ? String(data.total_without_vat) : "",
-      totalWithVat:
-        data.total_with_vat != null ? String(data.total_with_vat) : "",
+      totalWithoutVat: data.total_without_vat != null ? String(data.total_without_vat) : "",
+      totalWithVat: data.total_with_vat != null ? String(data.total_with_vat) : "",
       notes: data.notes || "",
       items:
         Array.isArray(data.items) && data.items.length > 0
@@ -623,10 +585,7 @@ export default function ProiectePage() {
     });
   };
 
-  const handleCapturedDocument = async (
-    e: ChangeEvent<HTMLInputElement>,
-    type: UploadDocType
-  ) => {
+  const handleCapturedDocument = async (e: ChangeEvent<HTMLInputElement>, type: UploadDocType) => {
     const file = e.target.files?.[0];
     const projectId = activeInlineProjectId;
 
@@ -665,19 +624,14 @@ export default function ProiectePage() {
     }
   };
 
-  const updateFormField = (
-    field: keyof Omit<InlineFormState, "items">,
-    value: string
-  ) => {
+  const updateFormField = (field: keyof Omit<InlineFormState, "items">, value: string) => {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
   const updateItem = (index: number, field: keyof InlineItem, value: string) => {
     setFormState((prev) => ({
       ...prev,
-      items: prev.items.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      ),
+      items: prev.items.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
     }));
   };
 
@@ -691,10 +645,7 @@ export default function ProiectePage() {
   const removeItem = (index: number) => {
     setFormState((prev) => ({
       ...prev,
-      items:
-        prev.items.length === 1
-          ? prev.items
-          : prev.items.filter((_, i) => i !== index),
+      items: prev.items.length === 1 ? prev.items : prev.items.filter((_, i) => i !== index),
     }));
   };
 
@@ -729,9 +680,7 @@ export default function ProiectePage() {
       return;
     }
 
-    const validItems = formState.items.filter(
-      (item) => item.item_name.trim() || Number(item.quantity || 0) > 0
-    );
+    const validItems = formState.items.filter((item) => item.item_name.trim() || Number(item.quantity || 0) > 0);
 
     if (validItems.length === 0) {
       alert("Adaugă cel puțin un material.");
@@ -834,22 +783,16 @@ export default function ProiectePage() {
 
     for (const file of Array.from(files)) {
       const fileExt = file.name.split(".").pop() || "jpg";
-      const fileName = `${photoProjectId}/${today}/${Date.now()}_${Math.random()
-        .toString(36)
-        .slice(2)}.${fileExt}`;
+      const fileName = `${photoProjectId}/${today}/${Date.now()}_${Math.random().toString(36).slice(2)}.${fileExt}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("site-photos")
-        .upload(fileName, file, { upsert: false });
+      const { error: uploadError } = await supabase.storage.from("site-photos").upload(fileName, file, { upsert: false });
 
       if (uploadError) {
         console.error(uploadError);
         continue;
       }
 
-      const { data: urlData } = supabase.storage
-        .from("site-photos")
-        .getPublicUrl(fileName);
+      const { data: urlData } = supabase.storage.from("site-photos").getPublicUrl(fileName);
 
       await supabase.from("daily_photos").insert({
         project_id: photoProjectId,
@@ -868,17 +811,14 @@ export default function ProiectePage() {
   const openDeviz = (projectId: string, date = getTodayDate()) => {
     setDevizProjectId(projectId);
     setDevizDate(date);
+    setServiceSearchByLine({});
 
-    const existing = dailyReports.find(
-      (r) => r.project_id === projectId && r.report_date === date
-    );
+    const existing = dailyReports.find((r) => r.project_id === projectId && r.report_date === date);
 
     if (existing) {
       setDevizReportId(existing.id);
 
-      const items = dailyReportItems.filter(
-        (i) => i.daily_report_id === existing.id
-      );
+      const items = dailyReportItems.filter((i) => i.daily_report_id === existing.id);
 
       setDevizItems(
         items.map((i) => ({
@@ -886,6 +826,15 @@ export default function ProiectePage() {
           quantity: String(i.quantity),
         }))
       );
+
+      const serviceMap = new Map(services.map((s) => [s.id, s]));
+      const searches: Record<number, string> = {};
+
+      items.forEach((item, index) => {
+        searches[index] = serviceMap.get(item.service_id)?.name || "";
+      });
+
+      setServiceSearchByLine(searches);
     } else {
       setDevizReportId(null);
       setDevizItems([{ service_id: "", quantity: "" }]);
@@ -897,19 +846,20 @@ export default function ProiectePage() {
   };
 
   const removeDevizLine = (index: number) => {
-    setDevizItems((prev) =>
-      prev.length === 1 ? prev : prev.filter((_, i) => i !== index)
-    );
+    setDevizItems((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+    setServiceSearchByLine((prev) => {
+      const next: Record<number, string> = {};
+      Object.entries(prev).forEach(([key, value]) => {
+        const numericKey = Number(key);
+        if (numericKey < index) next[numericKey] = value;
+        if (numericKey > index) next[numericKey - 1] = value;
+      });
+      return next;
+    });
   };
 
-  const updateDevizLine = (
-    index: number,
-    field: "service_id" | "quantity",
-    value: string
-  ) => {
-    setDevizItems((prev) =>
-      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
-    );
+  const updateDevizLine = (index: number, field: "service_id" | "quantity", value: string) => {
+    setDevizItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
   const handleSaveDeviz = async () => {
@@ -921,9 +871,7 @@ export default function ProiectePage() {
 
     if (!user) return;
 
-    const validLines = devizItems.filter(
-      (l) => l.service_id && Number(l.quantity || 0) > 0
-    );
+    const validLines = devizItems.filter((l) => l.service_id && Number(l.quantity || 0) > 0);
 
     if (validLines.length === 0) {
       alert("Adaugă cel puțin un serviciu cu cantitate.");
@@ -967,10 +915,7 @@ export default function ProiectePage() {
       setDevizReportId(reportId);
     }
 
-    await supabase
-      .from("daily_report_items")
-      .delete()
-      .eq("daily_report_id", reportId);
+    await supabase.from("daily_report_items").delete().eq("daily_report_id", reportId);
 
     const { error: itemsError } = await supabase.from("daily_report_items").insert(
       validLines.map((l) => ({
@@ -988,14 +933,13 @@ export default function ProiectePage() {
 
     setSavingDeviz(false);
     setDevizProjectId(null);
+    setServiceSearchByLine({});
 
     await loadData();
   };
 
   const handleExportDeviz = (projectId: string, date: string, projectName: string) => {
-    const report = dailyReports.find(
-      (r) => r.project_id === projectId && r.report_date === date
-    );
+    const report = dailyReports.find((r) => r.project_id === projectId && r.report_date === date);
 
     if (!report) {
       alert("Nu există deviz pentru această zi.");
@@ -1089,31 +1033,17 @@ export default function ProiectePage() {
       <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
         <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
           <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
         </header>
 
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-              {renderProjectIcon()}
-            </div>
-
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">{renderProjectIcon()}</div>
             <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
-
             <div className="text-center">
-              <p className="text-[15px] font-semibold text-gray-900">
-                Se încarcă datele...
-              </p>
-              <p className="mt-1 text-sm text-gray-400">
-                Așteptați câteva momente
-              </p>
+              <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
+              <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
             </div>
           </div>
         </div>
@@ -1143,34 +1073,17 @@ export default function ProiectePage() {
             onChange={(e) => handleCapturedDocument(e, "factura")}
           />
 
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handlePhotoUpload}
-          />
+          <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} />
         </>
       )}
 
       {lightboxPhotos.length > 0 && (
-        <PhotoLightbox
-          photos={lightboxPhotos}
-          initialIndex={lightboxIndex}
-          onClose={closeLightbox}
-        />
+        <PhotoLightbox photos={lightboxPhotos} initialIndex={lightboxIndex} onClose={closeLightbox} />
       )}
 
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <Image
-            src="/logo.png"
-            alt="Logo"
-            width={140}
-            height={44}
-            className="h-10 w-auto object-contain sm:h-11"
-          />
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
 
           <button
             onClick={() => router.push("/dashboard")}
@@ -1184,9 +1097,7 @@ export default function ProiectePage() {
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
-            <p className="text-sm text-gray-500">
-              {isAdmin ? "Administrare proiecte" : "Proiectele tale"}
-            </p>
+            <p className="text-sm text-gray-500">{isAdmin ? "Administrare proiecte" : "Proiectele tale"}</p>
 
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
               {isAdmin ? "Toate proiectele" : "Proiectele mele"}
@@ -1232,17 +1143,13 @@ export default function ProiectePage() {
 
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Lista proiecte
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Lista proiecte</p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
 
           {filteredProjects.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-              <p className="text-sm text-gray-500">
-                Nu există proiecte pentru filtrele selectate.
-              </p>
+              <p className="text-sm text-gray-500">Nu există proiecte pentru filtrele selectate.</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -1252,15 +1159,10 @@ export default function ProiectePage() {
                 const tehnicTab = getTehnicTab(project.id);
 
                 const projectPhotos = photosByProjectAndDate.get(project.id);
-                const allPhotoDates = projectPhotos
-                  ? Array.from(projectPhotos.keys()).sort((a, b) => b.localeCompare(a))
-                  : [];
+                const allPhotoDates = projectPhotos ? Array.from(projectPhotos.keys()).sort((a, b) => b.localeCompare(a)) : [];
 
-                const photoViewDateForProject =
-                  photoViewDate[project.id] || allPhotoDates[0] || getTodayDate();
-
-                const photosForDate =
-                  projectPhotos?.get(photoViewDateForProject) || [];
+                const photoViewDateForProject = photoViewDate[project.id] || allPhotoDates[0] || getTodayDate();
+                const photosForDate = projectPhotos?.get(photoViewDateForProject) || [];
 
                 const projectReports = reportsByProject.get(project.id) || [];
                 const isDevizOpen = devizProjectId === project.id;
@@ -1268,10 +1170,7 @@ export default function ProiectePage() {
                 const serviceMap = new Map(services.map((s) => [s.id, s]));
 
                 return (
-                  <div
-                    key={project.id}
-                    className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm"
-                  >
+                  <div key={project.id} className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
                     <div className="p-4 sm:p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
@@ -1280,43 +1179,25 @@ export default function ProiectePage() {
                           </div>
 
                           <div className="min-w-0">
-                            <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-xl">
-                              {project.name}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-500">
-                              {project.beneficiary || "-"}
-                            </p>
+                            <p className="text-[15px] font-bold leading-5 text-gray-900 sm:text-xl">{project.name}</p>
+                            <p className="mt-1 text-sm text-gray-500">{project.beneficiary || "-"}</p>
                           </div>
                         </div>
 
-                        <span
-                          className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                            project.status
-                          )}`}
-                        >
+                        <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
                           {getStatusLabel(project.status)}
                         </span>
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-3">
                         <div>
-                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                            Data creare
-                          </p>
-                          <p className="mt-1 text-sm text-gray-700">
-                            {new Date(project.created_at).toLocaleDateString("ro-RO")}
-                          </p>
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Data creare</p>
+                          <p className="mt-1 text-sm text-gray-700">{new Date(project.created_at).toLocaleDateString("ro-RO")}</p>
                         </div>
 
                         <div>
-                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                            Credit curent
-                          </p>
-                          <p
-                            className={`mt-1 text-sm font-bold ${
-                              currentCredit >= 0 ? "text-green-700" : "text-red-700"
-                            }`}
-                          >
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Credit curent</p>
+                          <p className={`mt-1 text-sm font-bold ${currentCredit >= 0 ? "text-green-700" : "text-red-700"}`}>
                             {currentCredit.toFixed(2)} lei
                           </p>
                         </div>
@@ -1330,9 +1211,7 @@ export default function ProiectePage() {
                             setDevizProjectId(null);
                           }}
                           className={`flex-1 rounded-2xl py-2.5 text-sm font-semibold transition ${
-                            projectTab === "financiar"
-                              ? "bg-[#0196ff] text-white"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            projectTab === "financiar" ? "bg-[#0196ff] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                           }`}
                         >
                           Financiar
@@ -1345,9 +1224,7 @@ export default function ProiectePage() {
                             setDevizProjectId(null);
                           }}
                           className={`flex-1 rounded-2xl py-2.5 text-sm font-semibold transition ${
-                            projectTab === "tehnic"
-                              ? "bg-gray-900 text-white"
-                              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            projectTab === "tehnic" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                           }`}
                         >
                           Tehnic
@@ -1376,11 +1253,7 @@ export default function ProiectePage() {
 
                               <button
                                 type="button"
-                                onClick={() =>
-                                  router.push(
-                                    `/proiecte/${project.id}/adauga-nedeductibile`
-                                  )
-                                }
+                                onClick={() => router.push(`/proiecte/${project.id}/adauga-nedeductibile`)}
                                 className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
                               >
                                 <UploadIcon /> Adaugă Nedeductibilă
@@ -1388,9 +1261,7 @@ export default function ProiectePage() {
                             </>
                           ) : (
                             <div className="rounded-2xl bg-[#F8F7F3] px-4 py-4 text-center">
-                              <p className="text-sm text-gray-400">
-                                Documentele financiare sunt gestionate de șeful de echipă.
-                              </p>
+                              <p className="text-sm text-gray-400">Documentele financiare sunt gestionate de șeful de echipă.</p>
                             </div>
                           )}
                         </div>
@@ -1406,9 +1277,7 @@ export default function ProiectePage() {
                                 setDevizProjectId(null);
                               }}
                               className={`flex-1 rounded-2xl py-2 text-sm font-semibold transition ${
-                                tehnicTab === "poze"
-                                  ? "bg-amber-500 text-white"
-                                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                tehnicTab === "poze" ? "bg-amber-500 text-white" : "bg-amber-50 text-amber-700 hover:bg-amber-100"
                               }`}
                             >
                               Poze
@@ -1421,9 +1290,7 @@ export default function ProiectePage() {
                                 setDevizProjectId(null);
                               }}
                               className={`flex-1 rounded-2xl py-2 text-sm font-semibold transition ${
-                                tehnicTab === "deviz"
-                                  ? "bg-teal-600 text-white"
-                                  : "bg-teal-50 text-teal-700 hover:bg-teal-100"
+                                tehnicTab === "deviz" ? "bg-teal-600 text-white" : "bg-teal-50 text-teal-700 hover:bg-teal-100"
                               }`}
                             >
                               Deviz lucrări
@@ -1443,18 +1310,14 @@ export default function ProiectePage() {
                                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
                                 >
                                   <UploadIcon />
-                                  {uploadingPhoto && photoProjectId === project.id
-                                    ? "Se încarcă..."
-                                    : `Adaugă poze (${getTodayDate()})`}
+                                  {uploadingPhoto && photoProjectId === project.id ? "Se încarcă..." : `Adaugă poze (${getTodayDate()})`}
                                 </button>
                               )}
 
                               {allPhotoDates.length > 0 && (
                                 <div>
                                   <div className="mb-2 flex items-center gap-3 px-1">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-                                      Istoric poze
-                                    </p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Istoric poze</p>
                                     <div className="h-px flex-1 bg-[#E8E5DE]" />
                                   </div>
 
@@ -1476,9 +1339,7 @@ export default function ProiectePage() {
                                         }`}
                                       >
                                         {new Date(date).toLocaleDateString("ro-RO")}
-                                        <span className="ml-1.5 opacity-70">
-                                          ({projectPhotos?.get(date)?.length || 0})
-                                        </span>
+                                        <span className="ml-1.5 opacity-70">({projectPhotos?.get(date)?.length || 0})</span>
                                       </button>
                                     ))}
                                   </div>
@@ -1488,15 +1349,9 @@ export default function ProiectePage() {
                               {photosForDate.length > 0 && (
                                 <div>
                                   <p className="mb-2 text-xs font-semibold text-gray-500">
-                                    {new Date(photoViewDateForProject).toLocaleDateString(
-                                      "ro-RO"
-                                    )}{" "}
-                                    — {photosForDate.length}{" "}
+                                    {new Date(photoViewDateForProject).toLocaleDateString("ro-RO")} — {photosForDate.length}{" "}
                                     {photosForDate.length === 1 ? "poză" : "poze"}
-                                    <span className="ml-2 text-gray-400">
-                                      · Apasă pe o poză pentru mărire · Swipe
-                                      stânga/dreapta
-                                    </span>
+                                    <span className="ml-2 text-gray-400">· Apasă pe o poză pentru mărire · Swipe stânga/dreapta</span>
                                   </p>
 
                                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -1519,9 +1374,7 @@ export default function ProiectePage() {
                               )}
 
                               {allPhotoDates.length === 0 && (
-                                <p className="text-sm text-gray-400">
-                                  Nu există poze încărcate pentru acest proiect.
-                                </p>
+                                <p className="text-sm text-gray-400">Nu există poze încărcate pentru acest proiect.</p>
                               )}
                             </div>
                           )}
@@ -1531,17 +1384,13 @@ export default function ProiectePage() {
                               {projectReports.length > 0 && (
                                 <div>
                                   <div className="mb-2 flex items-center gap-3 px-1">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-                                      Devize
-                                    </p>
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Devize</p>
                                     <div className="h-px flex-1 bg-[#E8E5DE]" />
                                   </div>
 
                                   <div className="space-y-2">
                                     {projectReports.map((report) => {
-                                      const items = dailyReportItems.filter(
-                                        (i) => i.daily_report_id === report.id
-                                      );
+                                      const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
 
                                       const total = items.reduce((s, item) => {
                                         const svc = serviceMap.get(item.service_id);
@@ -1549,38 +1398,23 @@ export default function ProiectePage() {
                                       }, 0);
 
                                       return (
-                                        <div
-                                          key={report.id}
-                                          className="rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3"
-                                        >
+                                        <div key={report.id} className="rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3">
                                           <div className="flex items-center justify-between gap-3">
                                             <div>
                                               <p className="text-sm font-semibold text-gray-900">
-                                                {new Date(
-                                                  report.report_date
-                                                ).toLocaleDateString("ro-RO")}
+                                                {new Date(report.report_date).toLocaleDateString("ro-RO")}
                                               </p>
-                                              <p className="text-xs text-gray-500">
-                                                {items.length} servicii
-                                              </p>
+                                              <p className="text-xs text-gray-500">{items.length} servicii</p>
                                             </div>
 
                                             <div className="flex items-center gap-2">
                                               {isAdmin && (
                                                 <>
-                                                  <p className="text-sm font-bold text-teal-700">
-                                                    {total.toFixed(2)} lei
-                                                  </p>
+                                                  <p className="text-sm font-bold text-teal-700">{total.toFixed(2)} lei</p>
 
                                                   <button
                                                     type="button"
-                                                    onClick={() =>
-                                                      handleExportDeviz(
-                                                        project.id,
-                                                        report.report_date,
-                                                        project.name
-                                                      )
-                                                    }
+                                                    onClick={() => handleExportDeviz(project.id, report.report_date, project.name)}
                                                     className="rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
                                                   >
                                                     Export PDF
@@ -1591,12 +1425,7 @@ export default function ProiectePage() {
                                               {!isAdmin && (
                                                 <button
                                                   type="button"
-                                                  onClick={() =>
-                                                    openDeviz(
-                                                      project.id,
-                                                      report.report_date
-                                                    )
-                                                  }
+                                                  onClick={() => openDeviz(project.id, report.report_date)}
                                                   className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
                                                 >
                                                   Editează
@@ -1609,26 +1438,21 @@ export default function ProiectePage() {
                                             <div className="mt-3 space-y-1">
                                               {items.map((item) => {
                                                 const svc = serviceMap.get(item.service_id);
-                                                const lineTotal =
-                                                  (svc?.price_ron || 0) * item.quantity;
+                                                const lineTotal = (svc?.price_ron || 0) * item.quantity;
 
                                                 return (
                                                   <div
                                                     key={item.id}
                                                     className="grid grid-cols-[1fr_auto] gap-2 text-xs sm:grid-cols-[1fr_auto_auto]"
                                                   >
-                                                    <span className="text-gray-700">
-                                                      {svc?.name || "-"}
-                                                    </span>
+                                                    <span className="text-gray-700">{svc?.name || "-"}</span>
 
                                                     <span className="text-gray-500">
                                                       {item.quantity} {svc?.um}
                                                     </span>
 
                                                     {isAdmin && (
-                                                      <span className="text-right font-medium text-gray-900">
-                                                        {lineTotal.toFixed(2)} lei
-                                                      </span>
+                                                      <span className="text-right font-medium text-gray-900">{lineTotal.toFixed(2)} lei</span>
                                                     )}
                                                   </div>
                                                 );
@@ -1647,12 +1471,9 @@ export default function ProiectePage() {
                                   <div className="mb-4 flex items-center justify-between gap-3">
                                     <div>
                                       <p className="text-sm font-bold text-teal-900">
-                                        Deviz —{" "}
-                                        {new Date(devizDate).toLocaleDateString("ro-RO")}
+                                        Deviz — {new Date(devizDate).toLocaleDateString("ro-RO")}
                                       </p>
-                                      <p className="text-xs text-teal-700">
-                                        Adaugă serviciile efectuate
-                                      </p>
+                                      <p className="text-xs text-teal-700">Adaugă serviciile efectuate</p>
                                     </div>
 
                                     <input
@@ -1665,38 +1486,66 @@ export default function ProiectePage() {
 
                                   <div className="space-y-3">
                                     {devizItems.map((line, index) => {
-                                      const selectedSvc = services.find(
-                                        (s) => s.id === line.service_id
-                                      );
+                                      const selectedSvc = services.find((s) => s.id === line.service_id);
+                                      const searchValue = serviceSearchByLine[index] || "";
+                                      const filteredServices = services
+                                        .filter((svc) => svc.name.toLowerCase().includes(searchValue.toLowerCase()))
+                                        .slice(0, 3);
 
                                       return (
-                                        <div
-                                          key={index}
-                                          className="rounded-xl border border-teal-200 bg-white p-3"
-                                        >
+                                        <div key={index} className="rounded-xl border border-teal-200 bg-white p-3">
                                           <div className="flex items-start gap-2">
-                                            <div className="flex-1 space-y-2">
-                                              <select
-                                                value={line.service_id}
-                                                onChange={(e) =>
-                                                  updateDevizLine(
-                                                    index,
-                                                    "service_id",
-                                                    e.target.value
-                                                  )
-                                                }
-                                                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
-                                              >
-                                                <option value="">
-                                                  Alege serviciu...
-                                                </option>
+                                            <div className="flex-1 space-y-3">
+                                              <div className="rounded-xl border border-gray-200 bg-white p-2">
+                                                <input
+                                                  type="text"
+                                                  value={searchValue}
+                                                  onChange={(e) => {
+                                                    const value = e.target.value;
 
-                                                {services.map((svc) => (
-                                                  <option key={svc.id} value={svc.id}>
-                                                    {svc.name} ({svc.um})
-                                                  </option>
-                                                ))}
-                                              </select>
+                                                    setServiceSearchByLine((prev) => ({
+                                                      ...prev,
+                                                      [index]: value,
+                                                    }));
+
+                                                    updateDevizLine(index, "service_id", "");
+                                                  }}
+                                                  placeholder="Caută serviciu..."
+                                                  className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
+                                                />
+
+                                                <div className="space-y-1">
+                                                  {filteredServices.map((svc) => {
+                                                    const selected = line.service_id === svc.id;
+
+                                                    return (
+                                                      <button
+                                                        key={svc.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                          updateDevizLine(index, "service_id", svc.id);
+                                                          setServiceSearchByLine((prev) => ({
+                                                            ...prev,
+                                                            [index]: svc.name,
+                                                          }));
+                                                        }}
+                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
+                                                          selected
+                                                            ? "bg-teal-600 text-white"
+                                                            : "bg-gray-50 text-gray-700 hover:bg-gray-100"
+                                                        }`}
+                                                      >
+                                                        <span className="font-medium">{svc.name}</span>
+                                                        <span className={selected ? "text-white/80" : "text-gray-400"}>{svc.um}</span>
+                                                      </button>
+                                                    );
+                                                  })}
+                                                </div>
+
+                                                {filteredServices.length === 0 && (
+                                                  <p className="px-2 py-2 text-xs text-gray-400">Nu s-a găsit niciun serviciu.</p>
+                                                )}
+                                              </div>
 
                                               <div className="flex items-center gap-2">
                                                 <input
@@ -1704,22 +1553,12 @@ export default function ProiectePage() {
                                                   min="0"
                                                   step="0.01"
                                                   value={line.quantity}
-                                                  onChange={(e) =>
-                                                    updateDevizLine(
-                                                      index,
-                                                      "quantity",
-                                                      e.target.value
-                                                    )
-                                                  }
+                                                  onChange={(e) => updateDevizLine(index, "quantity", e.target.value)}
                                                   placeholder="Cantitate"
                                                   className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
                                                 />
 
-                                                {selectedSvc && (
-                                                  <span className="shrink-0 text-sm font-medium text-gray-500">
-                                                    {selectedSvc.um}
-                                                  </span>
-                                                )}
+                                                {selectedSvc && <span className="shrink-0 text-sm font-medium text-gray-500">{selectedSvc.um}</span>}
                                               </div>
                                             </div>
 
@@ -1753,14 +1592,15 @@ export default function ProiectePage() {
                                       disabled={savingDeviz}
                                       className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                                     >
-                                      {savingDeviz
-                                        ? "Se salvează..."
-                                        : "Salvează devizul"}
+                                      {savingDeviz ? "Se salvează..." : "Salvează devizul"}
                                     </button>
 
                                     <button
                                       type="button"
-                                      onClick={() => setDevizProjectId(null)}
+                                      onClick={() => {
+                                        setDevizProjectId(null);
+                                        setServiceSearchByLine({});
+                                      }}
                                       className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                                     >
                                       Închide
@@ -1775,17 +1615,12 @@ export default function ProiectePage() {
                                   onClick={() => openDeviz(project.id)}
                                   className="w-full rounded-2xl bg-teal-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
                                 >
-                                  {projectReports.length === 0
-                                    ? "+ Creează deviz pentru azi"
-                                    : "+ Deviz nou pentru azi"}
+                                  {projectReports.length === 0 ? "+ Creează deviz pentru azi" : "+ Deviz nou pentru azi"}
                                 </button>
                               )}
 
                               {isAdmin && projectReports.length === 0 && (
-                                <p className="text-sm text-gray-400">
-                                  Șeful de echipă nu a adăugat încă devize pentru acest
-                                  proiect.
-                                </p>
+                                <p className="text-sm text-gray-400">Șeful de echipă nu a adăugat încă devize pentru acest proiect.</p>
                               )}
                             </div>
                           )}
@@ -1793,308 +1628,223 @@ export default function ProiectePage() {
                       )}
                     </div>
 
-                    {!isAdmin &&
-                      activeInlineProjectId === project.id &&
-                      projectTab === "financiar" && (
-                        <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
-                          <div className="mb-4">
-                            <p className="text-base font-semibold text-gray-900">
-                              {activeInlineType === "bon"
-                                ? "Card bon fiscal"
-                                : "Card factură"}
-                            </p>
-                            <p className="mt-1 text-sm text-gray-500">
-                              Datele sunt extrase automat și pot fi corectate.
-                            </p>
-                          </div>
+                    {!isAdmin && activeInlineProjectId === project.id && projectTab === "financiar" && (
+                      <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
+                        <div className="mb-4">
+                          <p className="text-base font-semibold text-gray-900">
+                            {activeInlineType === "bon" ? "Card bon fiscal" : "Card factură"}
+                          </p>
+                          <p className="mt-1 text-sm text-gray-500">Datele sunt extrase automat și pot fi corectate.</p>
+                        </div>
 
-                          {imagePreview && (
-                            <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-3">
-                              <img
-                                src={imagePreview}
-                                alt="Preview"
-                                className="max-h-[420px] w-full rounded-xl object-contain"
+                        {imagePreview && (
+                          <div className="mb-4 overflow-hidden rounded-2xl border border-gray-200 bg-white p-3">
+                            <img src={imagePreview} alt="Preview" className="max-h-[420px] w-full rounded-xl object-contain" />
+                          </div>
+                        )}
+
+                        {uploadingImage && (
+                          <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                            <p className="text-sm font-medium text-blue-800">Se încarcă imaginea...</p>
+                          </div>
+                        )}
+
+                        {isExtracting && (
+                          <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
+                            <p className="text-sm font-medium text-purple-800">AI analizează documentul...</p>
+                          </div>
+                        )}
+
+                        {extractionError && (
+                          <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                            <p className="text-sm font-medium text-red-700">{extractionError}</p>
+                          </div>
+                        )}
+
+                        <div className="rounded-2xl bg-white p-4 shadow-sm">
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">Data</label>
+                              <input
+                                type="date"
+                                value={formState.documentDate}
+                                onChange={(e) => updateFormField("documentDate", e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
                               />
                             </div>
-                          )}
 
-                          {uploadingImage && (
-                            <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                              <p className="text-sm font-medium text-blue-800">
-                                Se încarcă imaginea...
-                              </p>
-                            </div>
-                          )}
-
-                          {isExtracting && (
-                            <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
-                              <p className="text-sm font-medium text-purple-800">
-                                AI analizează documentul...
-                              </p>
-                            </div>
-                          )}
-
-                          {extractionError && (
-                            <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-                              <p className="text-sm font-medium text-red-700">
-                                {extractionError}
-                              </p>
-                            </div>
-                          )}
-
-                          <div className="rounded-2xl bg-white p-4 shadow-sm">
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                              <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  Data
-                                </label>
-                                <input
-                                  type="date"
-                                  value={formState.documentDate}
-                                  onChange={(e) =>
-                                    updateFormField("documentDate", e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  Număr document
-                                </label>
-                                <input
-                                  type="text"
-                                  value={formState.documentNumber}
-                                  onChange={(e) =>
-                                    updateFormField("documentNumber", e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
-                                />
-                              </div>
-
-                              <div className="md:col-span-2">
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  Furnizor
-                                </label>
-                                <input
-                                  type="text"
-                                  value={formState.supplier}
-                                  onChange={(e) =>
-                                    updateFormField("supplier", e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  Total fără TVA
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={formState.totalWithoutVat}
-                                  onChange={(e) =>
-                                    updateFormField("totalWithoutVat", e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
-                                />
-                              </div>
-
-                              <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  Total cu TVA
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={formState.totalWithVat}
-                                  onChange={(e) =>
-                                    updateFormField("totalWithVat", e.target.value)
-                                  }
-                                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
-                                />
-                              </div>
-
-                              <div className="md:col-span-2">
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  Observații
-                                </label>
-                                <textarea
-                                  value={formState.notes}
-                                  onChange={(e) =>
-                                    updateFormField("notes", e.target.value)
-                                  }
-                                  rows={3}
-                                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <h3 className="text-base font-semibold text-gray-900">
-                                Materiale
-                              </h3>
-
-                              <button
-                                type="button"
-                                onClick={addItem}
-                                className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
-                                  activeInlineType === "bon"
-                                    ? "bg-[#0196ff]"
-                                    : "bg-purple-600"
-                                }`}
-                              >
-                                + Adaugă
-                              </button>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">Număr document</label>
+                              <input
+                                type="text"
+                                value={formState.documentNumber}
+                                onChange={(e) => updateFormField("documentNumber", e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                              />
                             </div>
 
-                            <div className="space-y-3">
-                              {formState.items.map((item, index) => (
-                                <div
-                                  key={index}
-                                  className="rounded-xl border border-gray-200 bg-gray-50 p-3"
-                                >
-                                  <div className="mb-2 flex items-center justify-between">
-                                    <p className="text-sm font-semibold text-gray-800">
-                                      Material {index + 1}
-                                    </p>
-
-                                    {formState.items.length > 1 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => removeItem(index)}
-                                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white"
-                                      >
-                                        Șterge
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-                                    <div className="md:col-span-4">
-                                      <input
-                                        type="text"
-                                        value={item.item_name}
-                                        onChange={(e) =>
-                                          updateItem(
-                                            index,
-                                            "item_name",
-                                            e.target.value
-                                          )
-                                        }
-                                        placeholder="Denumire material"
-                                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={item.quantity}
-                                        onChange={(e) =>
-                                          updateItem(
-                                            index,
-                                            "quantity",
-                                            e.target.value
-                                          )
-                                        }
-                                        placeholder="Cantitate"
-                                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={item.unit_price}
-                                        onChange={(e) =>
-                                          updateItem(
-                                            index,
-                                            "unit_price",
-                                            e.target.value
-                                          )
-                                        }
-                                        placeholder="Preț unitar"
-                                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <input
-                                        type="number"
-                                        step="0.01"
-                                        value={item.line_total}
-                                        onChange={(e) =>
-                                          updateItem(
-                                            index,
-                                            "line_total",
-                                            e.target.value
-                                          )
-                                        }
-                                        placeholder="Total linie"
-                                        className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
+                            <div className="md:col-span-2">
+                              <label className="mb-2 block text-sm font-medium text-gray-700">Furnizor</label>
+                              <input
+                                type="text"
+                                value={formState.supplier}
+                                onChange={(e) => updateFormField("supplier", e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                              />
                             </div>
 
-                            <div
-                              className={`mt-4 rounded-xl px-4 py-3 ${
-                                activeInlineType === "bon"
-                                  ? "border border-blue-200 bg-blue-50"
-                                  : "border border-purple-200 bg-purple-50"
-                              }`}
-                            >
-                              <p
-                                className={`text-sm font-medium ${
-                                  activeInlineType === "bon"
-                                    ? "text-blue-800"
-                                    : "text-purple-800"
-                                }`}
-                              >
-                                Total materiale: {computedItemsTotal.toFixed(2)} lei
-                              </p>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">Total fără TVA</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={formState.totalWithoutVat}
+                                onChange={(e) => updateFormField("totalWithoutVat", e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                              />
                             </div>
-                          </div>
 
-                          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                            <button
-                              type="button"
-                              onClick={handleSaveInline}
-                              disabled={savingInline || uploadingImage || isExtracting}
-                              className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                            >
-                              {savingInline
-                                ? "Se salvează..."
-                                : activeInlineType === "bon"
-                                  ? "Salvează Bon"
-                                  : "Salvează Factură"}
-                            </button>
+                            <div>
+                              <label className="mb-2 block text-sm font-medium text-gray-700">Total cu TVA</label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={formState.totalWithVat}
+                                onChange={(e) => updateFormField("totalWithVat", e.target.value)}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                              />
+                            </div>
 
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setActiveInlineProjectId(null);
-                                setActiveInlineType(null);
-                                setImagePreview("");
-                                setUploadedImageUrl("");
-                                setExtractionError("");
-                                setFormState(createEmptyForm());
-                              }}
-                              className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                            >
-                              Renunță
-                            </button>
+                            <div className="md:col-span-2">
+                              <label className="mb-2 block text-sm font-medium text-gray-700">Observații</label>
+                              <textarea
+                                value={formState.notes}
+                                onChange={(e) => updateFormField("notes", e.target.value)}
+                                rows={3}
+                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                              />
+                            </div>
                           </div>
                         </div>
-                      )}
+
+                        <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <h3 className="text-base font-semibold text-gray-900">Materiale</h3>
+
+                            <button
+                              type="button"
+                              onClick={addItem}
+                              className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+                                activeInlineType === "bon" ? "bg-[#0196ff]" : "bg-purple-600"
+                              }`}
+                            >
+                              + Adaugă
+                            </button>
+                          </div>
+
+                          <div className="space-y-3">
+                            {formState.items.map((item, index) => (
+                              <div key={index} className="rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <p className="text-sm font-semibold text-gray-800">Material {index + 1}</p>
+
+                                  {formState.items.length > 1 && (
+                                    <button
+                                      type="button"
+                                      onClick={() => removeItem(index)}
+                                      className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white"
+                                    >
+                                      Șterge
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+                                  <div className="md:col-span-4">
+                                    <input
+                                      type="text"
+                                      value={item.item_name}
+                                      onChange={(e) => updateItem(index, "item_name", e.target.value)}
+                                      placeholder="Denumire material"
+                                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.quantity}
+                                      onChange={(e) => updateItem(index, "quantity", e.target.value)}
+                                      placeholder="Cantitate"
+                                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.unit_price}
+                                      onChange={(e) => updateItem(index, "unit_price", e.target.value)}
+                                      placeholder="Preț unitar"
+                                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={item.line_total}
+                                      onChange={(e) => updateItem(index, "line_total", e.target.value)}
+                                      placeholder="Total linie"
+                                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm outline-none focus:border-gray-500"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div
+                            className={`mt-4 rounded-xl px-4 py-3 ${
+                              activeInlineType === "bon" ? "border border-blue-200 bg-blue-50" : "border border-purple-200 bg-purple-50"
+                            }`}
+                          >
+                            <p className={`text-sm font-medium ${activeInlineType === "bon" ? "text-blue-800" : "text-purple-800"}`}>
+                              Total materiale: {computedItemsTotal.toFixed(2)} lei
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={handleSaveInline}
+                            disabled={savingInline || uploadingImage || isExtracting}
+                            className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                          >
+                            {savingInline ? "Se salvează..." : activeInlineType === "bon" ? "Salvează Bon" : "Salvează Factură"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setActiveInlineProjectId(null);
+                              setActiveInlineType(null);
+                              setImagePreview("");
+                              setUploadedImageUrl("");
+                              setExtractionError("");
+                              setFormState(createEmptyForm());
+                            }}
+                            className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                          >
+                            Renunță
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
