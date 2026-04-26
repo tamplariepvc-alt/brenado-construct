@@ -1223,8 +1223,8 @@ export default function ProiectePage() {
 
                 const expandedKey = `${project.id}_${photoViewDateForProject}`;
                 const isPhotoDayExpanded = expandedPhotoDays[expandedKey] || false;
-                const visiblePhotosForDate = isPhotoDayExpanded ? photosForDate : photosForDate.slice(0, 2);
-                const hiddenPhotosCount = Math.max(photosForDate.length - 2, 0);
+const visiblePhotosForDate = isPhotoDayExpanded ? photosForDate : photosForDate.slice(0, 1);
+const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
 
                 const projectReports = reportsByProject.get(project.id) || [];
                 const isDevizOpen = devizProjectId === project.id;
@@ -1445,7 +1445,7 @@ export default function ProiectePage() {
                                             [expandedKey]: true,
                                           }))
                                         }
-                                        className="flex h-28 w-full items-center justify-center rounded-2xl bg-black/70 text-xl font-bold text-white transition hover:bg-black/80 sm:h-36"
+                                        className="flex h-28 w-full items-center justify-center rounded-2xl bg-[#0196ff] text-xl font-bold text-white transition hover:bg-[#0186e5] sm:h-36"
                                       >
                                         +{hiddenPhotosCount}
                                       </button>
