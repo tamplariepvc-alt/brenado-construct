@@ -22,6 +22,7 @@ type DailyPhoto = { id: string; project_id: string; photo_date: string; photo_ur
 
 type ProjectTab = "financiar" | "tehnic";
 type TehnicTab = "poze" | "deviz";
+type UploadDocType = "bon" | "factura" | "nedeductibil";
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
 
@@ -33,6 +34,10 @@ const UploadIcon = () => (
 
 export default function ProiectePage() {
   const router = useRouter();
+  
+  // Refs pentru input-uri de fișiere
+  const bonInputRef = useRef<HTMLInputElement | null>(null);
+  const facturaInputRef = useRef<HTMLInputElement | null>(null);
   const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -51,9 +56,8 @@ export default function ProiectePage() {
   const [searchName, setSearchName] = useState("");
   const [projectTabs, setProjectTabs] = useState<Record<string, ProjectTab>>({});
   const [tehnicTabs, setTehnicTabs] = useState<Record<string, TehnicTab>>({});
-  const [photoViewDate, setPhotoViewDate] = useState<Record<string, string>>({});
-
-  // State pentru Modal Deviz
+  
+  // Modal Deviz
   const [isDevizModalOpen, setIsDevizModalOpen] = useState(false);
   const [devizProjectId, setDevizProjectId] = useState<string | null>(null);
   const [devizItems, setDevizItems] = useState<{ service_id: string; quantity: string }[]>([]);
@@ -93,20 +97,22 @@ export default function ProiectePage() {
 
   useEffect(() => { loadData(); }, []);
 
-  // --- Logica Credit ---
-  const currentCreditByProject = useMemo(() => {
-    const map = new Map<string, number>();
-    projects.forEach(p => {
-      const funded = fundings.filter(f => f.project_id === p.id).reduce((acc, curr) => acc + (curr.amount_ron || 0), 0);
-      const spent = receipts.filter(r => r.project_id === p.id).reduce((acc, curr) => acc + (curr.total_with_vat || 0), 0) +
-                    invoices.filter(inv => inv.project_id === p.id).reduce((acc, curr) => acc + (curr.total_with_vat || 0), 0) +
-                    nondeductibles.filter(nd => nd.project_id === p.id).reduce((acc, curr) => acc + (curr.cost_ron || 0), 0);
-      map.set(p.id, funded - spent);
-    });
-    return map;
-  }, [projects, fundings, receipts, invoices, nondeductibles]);
+  // --- Handlers Financiar ---
+  const openCameraFor = (type: UploadDocType) => {
+    if (type === "bon") bonInputRef.current?.click();
+    else if (type === "factura") facturaInputRef.current?.click();
+    else if (type === "nedeductibil") {
+      // Aici poți adăuga logica pentru nedeductibile (ex: un modal simplu sau redirecționare)
+      alert("Funcționalitate nedeductibile în curs de activare...");
+    }
+  };
 
-  // --- Handlers Deviz ---
+  const handleDocumentUpload = async (e: ChangeEvent<HTMLInputElement>, type: "bon" | "factura") => {
+    // Aici vine logica ta de upload la Supabase Storage și procesare AI
+    console.log(`Incarcare ${type}...`);
+  };
+
+  // --- Handlers Tehnic ---
   const openDeviz = (projectId: string) => {
     setDevizProjectId(projectId);
     const existing = dailyReports.find(r => r.project_id === projectId && r.report_date === getTodayDate());
@@ -158,22 +164,42 @@ export default function ProiectePage() {
     doc.save(`Deviz_${projectName}_${date}.pdf`);
   };
 
+  const currentCreditByProject = useMemo(() => {
+    const map = new Map<string, number>();
+    projects.forEach(p => {
+      const funded = fundings.filter(f => f.project_id === p.id).reduce((acc, curr) => acc + (curr.amount_ron || 0), 0);
+      const spent = receipts.filter(r => r.project_id === p.id).reduce((acc, curr) => acc + (curr.total_with_vat || 0), 0) +
+                    invoices.filter(inv => inv.project_id === p.id).reduce((acc, curr) => acc + (curr.total_with_vat || 0), 0) +
+                    nondeductibles.filter(nd => nd.project_id === p.id).reduce((acc, curr) => acc + (curr.cost_ron || 0), 0);
+      map.set(p.id, funded - spent);
+    });
+    return map;
+  }, [projects, fundings, receipts, invoices, nondeductibles]);
+
   if (loading) return <div className="p-10 text-center">Se încarcă...</div>;
 
   return (
     <div className="min-h-screen bg-[#F0EEE9] pb-20">
-      <header className="bg-white p-4 shadow-sm mb-6">
+      {/* HEADER CORECTAT: Buton Inapoi in dreapta */}
+      <header className="sticky top-0 z-20 bg-white border-b border-[#E8E5DE] px-4 py-4 backdrop-blur-md bg-white/90">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <Image src="/logo.png" alt="Logo" width={120} height={40} />
-          <h1 className="font-bold text-gray-800">Sistem Gestiune Proiecte</h1>
+          <Image src="/logo.png" alt="Logo" width={110} height={36} className="object-contain" />
+          <button 
+            onClick={() => router.push("/dashboard")} 
+            className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 transition-all"
+          >
+            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2.5">
+              <path d="M15 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            ÎNAPOI
+          </button>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 space-y-6">
-        {/* Search */}
+      <main className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
         <input 
-          type="text" placeholder="Caută proiect..." 
-          className="w-full p-4 rounded-2xl border-none shadow-sm outline-none"
+          type="text" placeholder="Caută proiect după nume sau beneficiar..." 
+          className="w-full p-4 rounded-2xl border-none shadow-sm outline-none bg-white text-sm"
           onChange={(e) => setSearchName(e.target.value)}
         />
 
@@ -183,63 +209,74 @@ export default function ProiectePage() {
           const credit = currentCreditByProject.get(project.id) || 0;
 
           return (
-            <div key={project.id} className="bg-white rounded-[24px] shadow-sm overflow-hidden border border-[#E8E5DE]">
+            <div key={project.id} className="bg-white rounded-[28px] shadow-sm overflow-hidden border border-[#E8E5DE]">
               <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-black text-gray-900">{project.name}</h3>
-                    <p className="text-sm text-gray-500">{project.beneficiary}</p>
+                <div className="flex justify-between items-start mb-6">
+                  <div className="max-w-[60%]">
+                    <h3 className="text-xl font-black text-gray-900 leading-tight">{project.name}</h3>
+                    <p className="text-xs text-gray-500 font-medium mt-1">{project.beneficiary}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Credit Disponibil</p>
-                    <p className={`text-lg font-black ${credit < 0 ? 'text-red-500' : 'text-green-600'}`}>{credit} RON</p>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Credit Disponibil</p>
+                    <p className={`text-lg font-black ${credit < 0 ? 'text-red-500' : 'text-[#0196ff]'}`}>{credit.toLocaleString('ro-RO')} RON</p>
                   </div>
                 </div>
 
-                {/* Tab Switcher Principal */}
-                <div className="flex gap-2 bg-gray-100 p-1 rounded-xl mb-6">
+                {/* Tab Switcher */}
+                <div className="flex gap-2 bg-gray-100/80 p-1.5 rounded-2xl mb-6">
                   <button onClick={() => setProjectTabs({...projectTabs, [project.id]: "financiar"})}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold ${tab === "financiar" ? "bg-white shadow-sm" : "text-gray-500"}`}>FINANCIAR</button>
+                    className={`flex-1 py-2.5 rounded-xl text-[11px] font-black tracking-wider transition-all ${tab === "financiar" ? "bg-white text-[#0196ff] shadow-sm" : "text-gray-400"}`}>FINANCIAR</button>
                   <button onClick={() => setProjectTabs({...projectTabs, [project.id]: "tehnic"})}
-                    className={`flex-1 py-2 rounded-lg text-xs font-bold ${tab === "tehnic" ? "bg-white shadow-sm" : "text-gray-500"}`}>TEHNIC</button>
+                    className={`flex-1 py-2.5 rounded-xl text-[11px] font-black tracking-wider transition-all ${tab === "tehnic" ? "bg-white text-[#0196ff] shadow-sm" : "text-gray-400"}`}>TEHNIC</button>
                 </div>
 
                 {tab === "financiar" ? (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {!isAdmin && (
+                    {!isAdmin ? (
                       <>
-                        <button className="p-4 bg-blue-50 text-blue-600 rounded-2xl flex flex-col items-center font-bold text-xs"><UploadIcon/> ADĂUGĂ BON</button>
-                        <button className="p-4 bg-blue-50 text-blue-600 rounded-2xl flex flex-col items-center font-bold text-xs"><UploadIcon/> ADĂUGĂ FACTURĂ</button>
-                        <button className="p-4 bg-orange-50 text-orange-600 rounded-2xl flex flex-col items-center font-bold text-xs">⚠️ NEDEDUCTIBIL</button>
+                        <button onClick={() => openCameraFor("bon")} className="p-5 bg-blue-50/50 text-[#0196ff] rounded-[22px] flex flex-col items-center gap-2 font-bold text-[11px] border border-blue-100 hover:bg-blue-50 transition-colors">
+                          <div className="bg-white p-2 rounded-full shadow-sm"><UploadIcon/></div> ADĂUGĂ BON
+                        </button>
+                        <button onClick={() => openCameraFor("factura")} className="p-5 bg-blue-50/50 text-[#0196ff] rounded-[22px] flex flex-col items-center gap-2 font-bold text-[11px] border border-blue-100 hover:bg-blue-50 transition-colors">
+                          <div className="bg-white p-2 rounded-full shadow-sm"><UploadIcon/></div> ADĂUGĂ FACTURĂ
+                        </button>
+                        <button onClick={() => openCameraFor("nedeductibil")} className="p-5 bg-orange-50/50 text-orange-600 rounded-[22px] flex flex-col items-center gap-2 font-bold text-[11px] border border-orange-100 hover:bg-orange-50 transition-colors">
+                          <div className="bg-white p-2 rounded-full shadow-sm text-orange-500">⚠️</div> NEDEDUCTIBIL
+                        </button>
                       </>
+                    ) : (
+                      <div className="col-span-3 py-10 text-center border-2 border-dashed border-gray-100 rounded-[22px]">
+                         <p className="text-gray-400 text-sm italic font-medium">Vizualizare raport financiar disponibilă în panoul detaliat.</p>
+                      </div>
                     )}
-                    {isAdmin && <div className="col-span-3 text-center py-4 text-gray-400 text-sm italic">Vizualizare raport financiar disponibilă în panoul detaliat.</div>}
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    {/* Sub-Tabs Tehnic */}
-                    <div className="flex border-b">
+                  <div className="space-y-6">
+                    <div className="flex gap-4 border-b border-gray-100">
                       <button onClick={() => setTehnicTabs({...tehnicTabs, [project.id]: "poze"})}
-                        className={`px-4 py-2 text-xs font-bold ${tTab === "poze" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-400"}`}>POZE</button>
+                        className={`pb-3 px-1 text-[11px] font-black transition-all ${tTab === "poze" ? "border-b-2 border-[#0196ff] text-[#0196ff]" : "text-gray-400"}`}>POZE PROGRES</button>
                       <button onClick={() => setTehnicTabs({...tehnicTabs, [project.id]: "deviz"})}
-                        className={`px-4 py-2 text-xs font-bold ${tTab === "deviz" ? "border-b-2 border-blue-600 text-blue-600" : "text-gray-400"}`}>DEVIZ</button>
+                        className={`pb-3 px-1 text-[11px] font-black transition-all ${tTab === "deviz" ? "border-b-2 border-[#0196ff] text-[#0196ff]" : "text-gray-400"}`}>DEVIZ ZILNIC</button>
                     </div>
 
                     {tTab === "poze" && (
                       <div className="space-y-4">
                         <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase">Galerie Progres</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Galerie Zilnică</span>
                           {!isAdmin && (
-                            <button onClick={() => photoInputRef.current?.click()} className="bg-[#0196ff] text-white px-3 py-1 rounded-lg text-[10px] font-bold">+ ADAUGĂ POZE</button>
+                            <button onClick={() => photoInputRef.current?.click()} className="bg-[#0196ff] text-white px-4 py-2 rounded-xl text-[10px] font-black shadow-lg shadow-blue-200">+ ADAUGĂ POZE</button>
                           )}
                         </div>
-                        {/* SWIPE GALLERY */}
-                        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-2 scrollbar-hide">
-                          {dailyPhotos.filter(p => p.project_id === project.id).map(photo => (
-                            <div key={photo.id} className="min-w-[280px] h-[200px] relative snap-center rounded-2xl overflow-hidden border">
-                              <Image src={photo.photo_url} alt="Progres" fill className="object-cover" />
-                            </div>
-                          ))}
+                        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory pb-4 scrollbar-hide">
+                          {dailyPhotos.filter(p => p.project_id === project.id).length > 0 ? (
+                            dailyPhotos.filter(p => p.project_id === project.id).map(photo => (
+                              <div key={photo.id} className="min-w-[85%] sm:min-w-[300px] h-[220px] relative snap-center rounded-[22px] overflow-hidden border border-gray-100 shadow-sm">
+                                <Image src={photo.photo_url} alt="Progres" fill className="object-cover" />
+                              </div>
+                            ))
+                          ) : (
+                            <div className="w-full text-center py-10 bg-gray-50 rounded-[22px] text-gray-400 text-xs italic">Nicio poză încărcată încă.</div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -247,13 +284,16 @@ export default function ProiectePage() {
                     {tTab === "deviz" && (
                       <div className="space-y-4">
                         {!isAdmin && (
-                          <button onClick={() => openDeviz(project.id)} className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm">+ ADĂUGĂ DEVIZ ZILNIC</button>
+                          <button onClick={() => openDeviz(project.id)} className="w-full py-4 bg-[#0196ff] text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-200 uppercase tracking-widest">+ ÎNCEPE DEVIZ AZI</button>
                         )}
-                        <div className="space-y-2">
+                        <div className="grid gap-3">
                           {dailyReports.filter(r => r.project_id === project.id).map(report => (
-                            <div key={report.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl border">
-                              <span className="font-bold text-sm">{report.report_date}</span>
-                              <button onClick={() => handleExportDeviz(project.id, report.report_date, project.name)} className="text-blue-600 font-bold text-[10px] border border-blue-200 bg-white px-3 py-1 rounded-lg">EXPORT PDF</button>
+                            <div key={report.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-[20px] border border-gray-100">
+                              <div>
+                                <p className="font-black text-sm text-gray-900">{new Date(report.report_date).toLocaleDateString('ro-RO')}</p>
+                                <p className="text-[10px] text-gray-400 uppercase font-bold">Raport Progres</p>
+                              </div>
+                              <button onClick={() => handleExportDeviz(project.id, report.report_date, project.name)} className="text-[#0196ff] font-black text-[10px] border-2 border-blue-100 bg-white px-4 py-2 rounded-xl hover:bg-blue-50 transition-all">EXPORT PDF</button>
                             </div>
                           ))}
                         </div>
@@ -267,16 +307,23 @@ export default function ProiectePage() {
         })}
       </main>
 
-      {/* --- MODAL DEVIZ --- */}
+      {/* MODALE HIDDEN INPUTS */}
+      <input ref={bonInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => handleDocumentUpload(e, "bon")} />
+      <input ref={facturaInputRef} type="file" className="hidden" accept="image/*" onChange={(e) => handleDocumentUpload(e, "factura")} />
+      <input ref={photoInputRef} type="file" multiple className="hidden" accept="image/*" />
+
+      {/* MODAL DEVIZ */}
       {isDevizModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-2xl">
-            <h2 className="text-xl font-black mb-4">Completare Deviz Zilnic</h2>
-            <div className="space-y-3 max-h-[60vh] overflow-y-auto mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-[32px] bg-white p-8 shadow-2xl scale-in-center">
+            <h2 className="text-xl font-black mb-2 text-gray-900">Deviz Lucrări</h2>
+            <p className="text-xs text-gray-400 font-bold mb-6 uppercase tracking-widest">Selectează serviciile prestate astăzi</p>
+            
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto mb-8 pr-2 scrollbar-hide">
               {devizItems.map((item, idx) => (
-                <div key={idx} className="flex gap-2">
+                <div key={idx} className="flex gap-3 items-center bg-gray-50 p-3 rounded-[20px] border border-gray-100">
                   <select 
-                    className="flex-1 p-3 bg-gray-100 rounded-xl text-sm"
+                    className="flex-1 bg-transparent text-sm font-bold text-gray-700 outline-none"
                     value={item.service_id}
                     onChange={(e) => {
                       const newItems = [...devizItems];
@@ -284,12 +331,12 @@ export default function ProiectePage() {
                       setDevizItems(newItems);
                     }}
                   >
-                    <option value="">Selectează Serviciu</option>
+                    <option value="">Alege Serviciu</option>
                     {services.map(s => <option key={s.id} value={s.id}>{s.name} ({s.um})</option>)}
                   </select>
                   <input 
-                    type="number" placeholder="Cant." 
-                    className="w-20 p-3 bg-gray-100 rounded-xl text-sm"
+                    type="number" placeholder="0" 
+                    className="w-16 bg-white p-2 rounded-xl text-center text-sm font-black text-[#0196ff] border border-gray-100 shadow-sm"
                     value={item.quantity}
                     onChange={(e) => {
                       const newItems = [...devizItems];
@@ -297,21 +344,23 @@ export default function ProiectePage() {
                       setDevizItems(newItems);
                     }}
                   />
+                  {devizItems.length > 1 && (
+                    <button onClick={() => setDevizItems(devizItems.filter((_, i) => i !== idx))} className="text-red-300 hover:text-red-500">✕</button>
+                  )}
                 </div>
               ))}
-              <button onClick={() => setDevizItems([...devizItems, { service_id: "", quantity: "" }])} className="text-blue-600 font-bold text-xs">+ Adaugă rând</button>
+              <button onClick={() => setDevizItems([...devizItems, { service_id: "", quantity: "" }])} className="w-full py-3 border-2 border-dashed border-blue-100 rounded-[20px] text-[11px] font-black text-[#0196ff] uppercase">+ Adaugă rând nou</button>
             </div>
-            <div className="flex gap-3">
-              <button onClick={() => setIsDevizModalOpen(false)} className="flex-1 py-3 font-bold text-gray-500">Anulează</button>
-              <button onClick={handleSaveDeviz} disabled={savingDeviz} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold">
-                {savingDeviz ? "Se salvează..." : "Salvează Deviz"}
+
+            <div className="flex gap-4">
+              <button onClick={() => setIsDevizModalOpen(false)} className="flex-1 py-4 font-black text-gray-400 text-xs tracking-widest uppercase">Anulează</button>
+              <button onClick={handleSaveDeviz} disabled={savingDeviz} className="flex-1 py-4 bg-[#0196ff] text-white rounded-2xl font-black text-xs shadow-lg shadow-blue-200 tracking-widest uppercase">
+                {savingDeviz ? "Se salvează..." : "Finalizează"}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <input ref={photoInputRef} type="file" multiple className="hidden" accept="image/*" />
     </div>
   );
 }
