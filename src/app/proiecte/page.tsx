@@ -1054,6 +1054,7 @@ try {
   doc.setFontSize(8);
   doc.setTextColor(150);
   doc.text("Stampila indisponibila", 14, finalY + 30);
+}
 
   // Text jos
   doc.setFontSize(8);
