@@ -798,4 +798,4 @@ export default function ProiectePage() {
       {/* Aici poți adăuga modalele de editare dacă dorești să le păstrezi vizibile doar pentru non-admini */}
     </div>
   );
-}
+}  
