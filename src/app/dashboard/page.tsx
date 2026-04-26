@@ -150,7 +150,7 @@ export default function DashboardPage() {
   label: "Creează\nDeviz",
   sublabel: "Ofertă / lucrare",
   route: "/devize",
-}
+},
     {
       label: "Panou\nAdmin",
       sublabel: "Setări sistem",
