@@ -951,8 +951,12 @@ export default function ProiectePage() {
 
     const doc = new jsPDF("p", "mm", "a4");
 
-    doc.setFontSize(16);
-    doc.text(`Deviz lucrări - ${projectName}`, 14, 16);
+const img = new Image();
+img.src = "/logo.png"; // trebuie să fie în public/
+
+doc.addImage(img, "PNG", 14, 10, 40, 12);
+doc.setFontSize(16);
+doc.text(`Deviz lucrari – ${projectName}`, 14, 28);
 
     doc.setFontSize(9);
     doc.setTextColor(100);
@@ -981,15 +985,23 @@ export default function ProiectePage() {
     });
 
     autoTable(doc, {
-      startY: 28,
+      startY: 36,
       head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
       body: rows,
       foot: [["", "", "", "", "TOTAL", `${total.toFixed(2)} lei`]],
       styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [1, 150, 255] },
-      footStyles: { fillColor: [240, 238, 233], fontStyle: "bold" },
+      headStyles: { fillColor: [21, 128, 61] },
+      footStyles: { fillColor: [187, 247, 208], textColor: [20, 83, 45], fontStyle: "bold" },
       theme: "grid",
     });
+	
+	const finalY = (doc as any).lastAutoTable.finalY || 36;
+
+doc.setFontSize(10);
+doc.text("Semnătură executant:", 14, finalY + 20);
+
+doc.setDrawColor(0);
+doc.line(14, finalY + 22, 80, finalY + 22);
 
     doc.save(`deviz_${projectName.replace(/\s+/g, "_")}_${date}.pdf`);
   };
@@ -1490,7 +1502,7 @@ export default function ProiectePage() {
                                       const searchValue = serviceSearchByLine[index] || "";
                                       const filteredServices = services
                                         .filter((svc) => svc.name.toLowerCase().includes(searchValue.toLowerCase()))
-                                        .slice(0, 3);
+                                        .slice(0, 30);
 
                                       return (
                                         <div key={index} className="rounded-xl border border-teal-200 bg-white p-3">
@@ -1514,7 +1526,7 @@ export default function ProiectePage() {
                                                   className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
                                                 />
 
-                                                <div className="space-y-1">
+                                               <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                                                   {filteredServices.map((svc) => {
                                                     const selected = line.service_id === svc.id;
 
