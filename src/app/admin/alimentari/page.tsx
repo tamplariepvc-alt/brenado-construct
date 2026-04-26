@@ -196,20 +196,23 @@ export default function AlimentariPage() {
     doc.save("raport_alimentari.pdf");
   };
 
-  // ── Aprobare solicitare → deschide pagina adauga cu datele prefilled ──────
-  const handleApproveRequest = async (req: FundingRequest) => {
-    setApprovingId(req.id);
-    // Marcheaza ca approved
-    const { error } = await supabase
-      .from("funding_requests")
-      .update({ status: "approved" })
-      .eq("id", req.id);
+// ÎNAINTE - aproba inainte de navigare
+const handleApproveRequest = async (req: FundingRequest) => {
+  setApprovingId(req.id);
+  const { error } = await supabase
+    .from("funding_requests")
+    .update({ status: "approved" })
+    .eq("id", req.id);
+  // ...
+  router.push(`/admin/alimentari/adauga?...&from_request=${req.id}`);
+};
 
-    if (error) {
-      alert(`Eroare: ${error.message}`);
-      setApprovingId(null);
-      return;
-    }
+// DUPĂ - navigheaza direct, fara sa aprobe inca
+const handleApproveRequest = (req: FundingRequest) => {
+  router.push(
+    `/admin/alimentari/adauga?project_id=${req.project_id}&amount=${req.amount_ron}&lead_id=${req.team_lead_user_id}&notes=${encodeURIComponent(req.notes || "")}&from_request=${req.id}`
+  );
+};
 
     // Navigheaza la adauga cu query params prefilled
     router.push(

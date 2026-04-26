@@ -84,6 +84,27 @@ function AdaugaAlimentareInner() {
     if (!selectedLeadId) { alert("Selectează șeful de șantier."); return; }
 
     setSaving(true);
+	
+	const { error } = await supabase.from("project_fundings").insert({
+  // ... campurile existente
+});
+
+if (error) {
+  alert(`A apărut o eroare la salvarea alimentării: ${error.message}`);
+  setSaving(false);
+  return;
+}
+
+// ← ADAUGĂ ASTA: marcheaza solicitarea ca approved doar dupa salvare reusita
+if (fromRequestId) {
+  await supabase
+    .from("funding_requests")
+    .update({ status: "approved" })
+    .eq("id", fromRequestId);
+}
+
+setSaving(false);
+router.push("/admin/alimentari");
 
     const { error } = await supabase.from("project_fundings").insert({
       project_id: selectedProjectId,
