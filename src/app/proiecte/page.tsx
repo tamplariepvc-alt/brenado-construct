@@ -1036,13 +1036,24 @@ const handleExportDeviz = async (projectId: string, date: string, projectName: s
   const finalY = (doc as any).lastAutoTable.finalY || 58;
 
   // Semnătură jos stânga
-  doc.setFontSize(10);
-  doc.setTextColor(0);
-  doc.text("Semnatura executant:", 14, finalY + 22);
+doc.setFontSize(10);
+doc.setTextColor(0);
+doc.text("Semnatura executant:", 14, finalY + 22);
 
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.3);
-  doc.line(14, finalY + 26, 82, finalY + 26);
+try {
+  const stampila = new window.Image();
+  stampila.src = "/stampila.png";
+
+  await new Promise((resolve) => {
+    stampila.onload = resolve;
+    stampila.onerror = resolve;
+  });
+
+  doc.addImage(stampila, "PNG", 14, finalY + 26, 45, 28);
+} catch {
+  doc.setFontSize(8);
+  doc.setTextColor(150);
+  doc.text("Stampila indisponibila", 14, finalY + 30);
 
   // Text jos
   doc.setFontSize(8);
