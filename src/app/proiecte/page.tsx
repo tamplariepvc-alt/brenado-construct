@@ -297,6 +297,7 @@ export default function ProiectePage() {
   const [photoProjectId, setPhotoProjectId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoViewDate, setPhotoViewDate] = useState<Record<string, string>>({});
+  const [expandedPhotoDays, setExpandedPhotoDays] = useState<Record<string, boolean>>({});
 
   const [lightboxPhotos, setLightboxPhotos] = useState<DailyPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -938,131 +939,114 @@ export default function ProiectePage() {
     await loadData();
   };
 
-const handleExportDeviz = async (projectId: string, date: string, projectName: string) => {
-  const report = dailyReports.find(
-    (r) => r.project_id === projectId && r.report_date === date
-  );
+  const handleExportDeviz = async (projectId: string, date: string, projectName: string) => {
+    const report = dailyReports.find((r) => r.project_id === projectId && r.report_date === date);
 
-  if (!report) {
-    alert("Nu există deviz pentru această zi.");
-    return;
-  }
+    if (!report) {
+      alert("Nu există deviz pentru această zi.");
+      return;
+    }
 
-  const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
-  const serviceMap = new Map(services.map((s) => [s.id, s]));
+    const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
+    const serviceMap = new Map(services.map((s) => [s.id, s]));
 
-  const doc = new jsPDF("p", "mm", "a4");
+    const doc = new jsPDF("p", "mm", "a4");
 
-  // Logo
-  try {
-    const logo = new window.Image();
-    logo.src = "/logo.png";
-    await new Promise((resolve) => {
-      logo.onload = resolve;
-      logo.onerror = resolve;
+    try {
+      const logo = new window.Image();
+      logo.src = "/logo.png";
+      await new Promise((resolve) => {
+        logo.onload = resolve;
+        logo.onerror = resolve;
+      });
+      doc.addImage(logo, "PNG", 14, 10, 42, 13);
+    } catch {}
+
+    doc.setDrawColor(21, 128, 61);
+    doc.setLineWidth(0.6);
+    doc.line(14, 28, 196, 28);
+
+    doc.setFontSize(17);
+    doc.setTextColor(20, 83, 45);
+    doc.text(`Deviz lucrari - ${projectName}`, 14, 38);
+
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    doc.text(`Data deviz: ${new Date(date).toLocaleDateString("ro-RO")}`, 14, 45);
+    doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 50);
+
+    let total = 0;
+
+    const rows = items.map((item, i) => {
+      const svc = serviceMap.get(item.service_id);
+      const lineTotal = (svc?.price_ron || 0) * item.quantity;
+      total += lineTotal;
+
+      return [
+        String(i + 1),
+        svc?.name || "-",
+        svc?.um || "-",
+        String(item.quantity),
+        `${(svc?.price_ron || 0).toFixed(2)} lei`,
+        `${lineTotal.toFixed(2)} lei`,
+      ];
     });
-    doc.addImage(logo, "PNG", 14, 10, 42, 13);
-  } catch {
-    // dacă nu se încarcă logo-ul, PDF-ul se generează oricum
-  }
 
-  // Linie sus
-  doc.setDrawColor(21, 128, 61);
-  doc.setLineWidth(0.6);
-  doc.line(14, 28, 196, 28);
+    autoTable(doc, {
+      startY: 58,
+      head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
+      body: rows,
+      foot: [["", "", "", "", "TOTAL", `${total.toFixed(2)} lei`]],
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [210, 210, 210],
+        lineWidth: 0.2,
+      },
+      headStyles: {
+        fillColor: [20, 83, 45],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      footStyles: {
+        fillColor: [20, 83, 45],
+        textColor: [255, 255, 255],
+        fontStyle: "bold",
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
+      theme: "grid",
+    });
 
-  // Titlu
-  doc.setFontSize(17);
-  doc.setTextColor(20, 83, 45);
-  doc.text(`Deviz lucrari - ${projectName}`, 14, 38);
+    const finalY = (doc as any).lastAutoTable.finalY || 58;
 
-  doc.setFontSize(9);
-  doc.setTextColor(90);
-  doc.text(
-    `Data deviz: ${new Date(date).toLocaleDateString("ro-RO")}`,
-    14,
-    45
-  );
-  doc.text(
-    `Generat la: ${new Date().toLocaleString("ro-RO")}`,
-    14,
-    50
-  );
+    doc.setFontSize(10);
+    doc.setTextColor(0);
+    doc.text("Semnatura executant:", 14, finalY + 22);
 
-  let total = 0;
+    try {
+      const stampila = new window.Image();
+      stampila.src = "/stampila.png";
 
-  const rows = items.map((item, i) => {
-    const svc = serviceMap.get(item.service_id);
-    const lineTotal = (svc?.price_ron || 0) * item.quantity;
-    total += lineTotal;
+      await new Promise((resolve) => {
+        stampila.onload = resolve;
+        stampila.onerror = resolve;
+      });
 
-    return [
-      String(i + 1),
-      svc?.name || "-",
-      svc?.um || "-",
-      String(item.quantity),
-      `${(svc?.price_ron || 0).toFixed(2)} lei`,
-      `${lineTotal.toFixed(2)} lei`,
-    ];
-  });
+      doc.addImage(stampila, "PNG", 11, finalY + 26, 35, 28);
+    } catch {
+      doc.setFontSize(8);
+      doc.setTextColor(150);
+      doc.text("Stampila indisponibila", 14, finalY + 30);
+    }
 
-  autoTable(doc, {
-    startY: 58,
-    head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
-    body: rows,
-    foot: [["", "", "", "", "TOTAL", `${total.toFixed(2)} lei`]],
-    styles: {
-      fontSize: 9,
-      cellPadding: 3,
-      lineColor: [210, 210, 210],
-      lineWidth: 0.2,
-    },
-    headStyles: {
-      fillColor: [20, 83, 45],
-      textColor: [255, 255, 255],
-      fontStyle: "bold",
-    },
-    footStyles: {
-      fillColor: [20, 83, 45],
-      textColor: [255, 255, 255],
-      fontStyle: "bold",
-    },
-    alternateRowStyles: {
-      fillColor: [248, 250, 252],
-    },
-    theme: "grid",
-  });
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
 
-  const finalY = (doc as any).lastAutoTable.finalY || 58;
-
-  // Semnătură jos stânga
-doc.setFontSize(10);
-doc.setTextColor(0);
-doc.text("Semnatura executant:", 14, finalY + 22);
-
-try {
-  const stampila = new window.Image();
-  stampila.src = "/stampila.png";
-
-  await new Promise((resolve) => {
-    stampila.onload = resolve;
-    stampila.onerror = resolve;
-  });
-
-  doc.addImage(stampila, "PNG", 11, finalY + 26, 35, 28);
-} catch {
-  doc.setFontSize(8);
-  doc.setTextColor(150);
-  doc.text("Stampila indisponibila", 14, finalY + 30);
-}
-
-  // Text jos
-  doc.setFontSize(8);
-  doc.setTextColor(120);
-  doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
-
-  doc.save(`deviz_${projectName.replace(/\s+/g, "_")}_${date}.pdf`);
-};
+    doc.save(`deviz_${projectName.replace(/\s+/g, "_")}_${date}.pdf`);
+  };
 
   const photosByProjectAndDate = useMemo(() => {
     const map = new Map<string, Map<string, DailyPhoto[]>>();
@@ -1231,8 +1215,16 @@ try {
                 const projectPhotos = photosByProjectAndDate.get(project.id);
                 const allPhotoDates = projectPhotos ? Array.from(projectPhotos.keys()).sort((a, b) => b.localeCompare(a)) : [];
 
-                const photoViewDateForProject = photoViewDate[project.id] || allPhotoDates[0] || getTodayDate();
+                const photoViewDateForProject = isAdmin
+                  ? photoViewDate[project.id] || allPhotoDates[0] || getTodayDate()
+                  : getTodayDate();
+
                 const photosForDate = projectPhotos?.get(photoViewDateForProject) || [];
+
+                const expandedKey = `${project.id}_${photoViewDateForProject}`;
+                const isPhotoDayExpanded = expandedPhotoDays[expandedKey] || false;
+                const visiblePhotosForDate = isPhotoDayExpanded ? photosForDate : photosForDate.slice(0, 2);
+                const hiddenPhotosCount = Math.max(photosForDate.length - 2, 0);
 
                 const projectReports = reportsByProject.get(project.id) || [];
                 const isDevizOpen = devizProjectId === project.id;
@@ -1384,34 +1376,38 @@ try {
                                 </button>
                               )}
 
-                              {allPhotoDates.length > 0 && (
+                              {isAdmin && (
                                 <div>
                                   <div className="mb-2 flex items-center gap-3 px-1">
                                     <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Istoric poze</p>
                                     <div className="h-px flex-1 bg-[#E8E5DE]" />
                                   </div>
 
-                                  <div className="flex flex-wrap gap-2">
-                                    {allPhotoDates.map((date) => (
-                                      <button
-                                        key={date}
-                                        type="button"
-                                        onClick={() =>
-                                          setPhotoViewDate((prev) => ({
-                                            ...prev,
-                                            [project.id]: date,
-                                          }))
-                                        }
-                                        className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
-                                          photoViewDateForProject === date
-                                            ? "bg-amber-500 text-white"
-                                            : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                        }`}
-                                      >
-                                        {new Date(date).toLocaleDateString("ro-RO")}
-                                        <span className="ml-1.5 opacity-70">({projectPhotos?.get(date)?.length || 0})</span>
-                                      </button>
-                                    ))}
+                                  <div className="rounded-2xl border border-gray-200 bg-[#F8F7F3] p-3">
+                                    <label className="mb-2 block text-xs font-semibold text-gray-500">Selectează data</label>
+
+                                    <input
+                                      type="date"
+                                      value={photoViewDateForProject}
+                                      onChange={(e) => {
+                                        const selectedDate = e.target.value;
+
+                                        setPhotoViewDate((prev) => ({
+                                          ...prev,
+                                          [project.id]: selectedDate,
+                                        }));
+
+                                        setExpandedPhotoDays((prev) => ({
+                                          ...prev,
+                                          [`${project.id}_${selectedDate}`]: false,
+                                        }));
+                                      }}
+                                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-gray-500"
+                                    />
+
+                                    {allPhotoDates.length > 0 && (
+                                      <p className="mt-2 text-xs text-gray-400">Zile cu poze: {allPhotoDates.length}</p>
+                                    )}
                                   </div>
                                 </div>
                               )}
@@ -1425,7 +1421,7 @@ try {
                                   </p>
 
                                   <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                    {photosForDate.map((photo, idx) => (
+                                    {visiblePhotosForDate.map((photo, idx) => (
                                       <button
                                         key={photo.id}
                                         type="button"
@@ -1439,12 +1435,44 @@ try {
                                         />
                                       </button>
                                     ))}
+
+                                    {!isPhotoDayExpanded && hiddenPhotosCount > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setExpandedPhotoDays((prev) => ({
+                                            ...prev,
+                                            [expandedKey]: true,
+                                          }))
+                                        }
+                                        className="flex h-28 w-full items-center justify-center rounded-2xl bg-black/70 text-xl font-bold text-white transition hover:bg-black/80 sm:h-36"
+                                      >
+                                        +{hiddenPhotosCount}
+                                      </button>
+                                    )}
+
+                                    {isPhotoDayExpanded && photosForDate.length > 2 && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setExpandedPhotoDays((prev) => ({
+                                            ...prev,
+                                            [expandedKey]: false,
+                                          }))
+                                        }
+                                        className="col-span-2 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 sm:col-span-3"
+                                      >
+                                        Arată mai puține poze
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               )}
 
-                              {allPhotoDates.length === 0 && (
-                                <p className="text-sm text-gray-400">Nu există poze încărcate pentru acest proiect.</p>
+                              {photosForDate.length === 0 && (
+                                <p className="text-sm text-gray-400">
+                                  {isAdmin ? "Nu există poze pentru data selectată." : "Nu ai încărcat poze pentru ziua de azi."}
+                                </p>
                               )}
                             </div>
                           )}
@@ -1584,7 +1612,7 @@ try {
                                                   className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
                                                 />
 
-                                               <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                                                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
                                                   {filteredServices.map((svc) => {
                                                     const selected = line.service_id === svc.id;
 
