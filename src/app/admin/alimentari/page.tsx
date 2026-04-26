@@ -46,7 +46,6 @@ export default function AlimentariPage() {
   const [requests, setRequests] = useState<FundingRequest[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState<"alimentari" | "solicitari">("alimentari");
-  const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
 
   const getFundingTypeLabel = (type: string) => {
@@ -64,7 +63,6 @@ export default function AlimentariPage() {
   const loadData = async () => {
     setLoading(true);
 
-    // ── Alimentari ────────────────────────────────────────────────────────────
     const { data: fundingData } = await supabase
       .from("project_fundings")
       .select("id, project_id, added_by, team_lead_user_id, amount_ron, funding_type, funding_date, notes, created_at")
@@ -73,26 +71,22 @@ export default function AlimentariPage() {
 
     const baseRows = (fundingData || []) as FundingBaseRow[];
 
-    const projectIds = Array.from(new Set([
-      ...baseRows.map((r) => r.project_id),
-    ].filter(Boolean)));
-
-    const profileIds = Array.from(new Set(
-      baseRows.flatMap((r) => [r.team_lead_user_id, r.added_by]).filter(Boolean)
-    ));
-
-    // ── Solicitari ────────────────────────────────────────────────────────────
     const { data: requestsData } = await supabase
       .from("funding_requests")
       .select("id, project_id, team_lead_user_id, amount_ron, notes, status, created_at")
       .order("created_at", { ascending: false });
 
     const reqRows = (requestsData || []) as FundingRequest[];
-    const reqProjectIds = Array.from(new Set(reqRows.map((r) => r.project_id).filter(Boolean)));
-    const reqProfileIds = Array.from(new Set(reqRows.map((r) => r.team_lead_user_id).filter(Boolean)));
 
-    const allProjectIds = Array.from(new Set([...projectIds, ...reqProjectIds]));
-    const allProfileIds = Array.from(new Set([...profileIds, ...reqProfileIds]));
+    const allProjectIds = Array.from(new Set([
+      ...baseRows.map((r) => r.project_id),
+      ...reqRows.map((r) => r.project_id),
+    ].filter(Boolean)));
+
+    const allProfileIds = Array.from(new Set([
+      ...baseRows.flatMap((r) => [r.team_lead_user_id, r.added_by]),
+      ...reqRows.map((r) => r.team_lead_user_id),
+    ].filter(Boolean)));
 
     const [projectsRes, profilesRes] = await Promise.all([
       allProjectIds.length > 0
@@ -106,22 +100,20 @@ export default function AlimentariPage() {
     const projectMap = new Map((projectsRes.data || []).map((p: any) => [p.id, p]));
     const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
 
-    const formattedFundings: FundingRow[] = baseRows.map((row) => ({
+    setFundings(baseRows.map((row) => ({
       ...row,
       project_name: (projectMap.get(row.project_id) as any)?.name || "-",
       project_beneficiary: (projectMap.get(row.project_id) as any)?.beneficiary || "-",
       team_lead_name: (profileMap.get(row.team_lead_user_id) as any)?.full_name || "-",
       added_by_name: (profileMap.get(row.added_by) as any)?.full_name || "-",
-    }));
+    })));
 
-    const formattedRequests: FundingRequest[] = reqRows.map((row) => ({
+    setRequests(reqRows.map((row) => ({
       ...row,
       project_name: (projectMap.get(row.project_id) as any)?.name || "-",
       team_lead_name: (profileMap.get(row.team_lead_user_id) as any)?.full_name || "-",
-    }));
+    })));
 
-    setFundings(formattedFundings);
-    setRequests(formattedRequests);
     setLoading(false);
   };
 
@@ -160,7 +152,6 @@ export default function AlimentariPage() {
 
   const pendingRequests = useMemo(() => requests.filter((r) => r.status === "pending"), [requests]);
 
-  // ── Export jsPDF direct ───────────────────────────────────────────────────
   const handleExportPdf = () => {
     if (filteredFundings.length === 0) { alert("Nu există date pentru export."); return; }
 
@@ -172,7 +163,7 @@ export default function AlimentariPage() {
     doc.setFontSize(9);
     doc.setTextColor(100);
     doc.text(`Generat la ${now.toLocaleString("ro-RO")}`, 14, 22);
-    doc.text(`Total alimentari: ${totals.count}  |  Valoare totala: ${totals.total.toFixed(2)} lei`, 14, 27);
+    doc.text(`Total: ${totals.count}  |  Valoare totala: ${totals.total.toFixed(2)} lei`, 14, 27);
     doc.setTextColor(0);
 
     autoTable(doc, {
@@ -196,25 +187,8 @@ export default function AlimentariPage() {
     doc.save("raport_alimentari.pdf");
   };
 
-// ÎNAINTE - aproba inainte de navigare
-const handleApproveRequest = async (req: FundingRequest) => {
-  setApprovingId(req.id);
-  const { error } = await supabase
-    .from("funding_requests")
-    .update({ status: "approved" })
-    .eq("id", req.id);
-  // ...
-  router.push(`/admin/alimentari/adauga?...&from_request=${req.id}`);
-};
-
-// DUPĂ - navigheaza direct, fara sa aprobe inca
-const handleApproveRequest = (req: FundingRequest) => {
-  router.push(
-    `/admin/alimentari/adauga?project_id=${req.project_id}&amount=${req.amount_ron}&lead_id=${req.team_lead_user_id}&notes=${encodeURIComponent(req.notes || "")}&from_request=${req.id}`
-  );
-};
-
-    // Navigheaza la adauga cu query params prefilled
+  // ── Navigheaza direct la adauga, FARA sa marcheze approved ──────────────
+  const handleApproveRequest = (req: FundingRequest) => {
     router.push(
       `/admin/alimentari/adauga?project_id=${req.project_id}&amount=${req.amount_ron}&lead_id=${req.team_lead_user_id}&notes=${encodeURIComponent(req.notes || "")}&from_request=${req.id}`
     );
@@ -227,11 +201,7 @@ const handleApproveRequest = (req: FundingRequest) => {
       .update({ status: "rejected" })
       .eq("id", reqId);
 
-    if (error) {
-      alert(`Eroare: ${error.message}`);
-      setRejectingId(null);
-      return;
-    }
+    if (error) { alert(`Eroare: ${error.message}`); setRejectingId(null); return; }
 
     await loadData();
     setRejectingId(null);
@@ -255,9 +225,7 @@ const handleApproveRequest = (req: FundingRequest) => {
         </header>
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-              {renderFundingIcon()}
-            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">{renderFundingIcon()}</div>
             <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
             <div className="text-center">
               <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
@@ -295,7 +263,6 @@ const handleApproveRequest = (req: FundingRequest) => {
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
 
-        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -318,9 +285,7 @@ const handleApproveRequest = (req: FundingRequest) => {
               type="button"
               onClick={() => setActiveTab("alimentari")}
               className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
-                activeTab === "alimentari"
-                  ? "bg-[#0196ff] text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                activeTab === "alimentari" ? "bg-[#0196ff] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
               Alimentări
@@ -334,9 +299,7 @@ const handleApproveRequest = (req: FundingRequest) => {
               type="button"
               onClick={() => setActiveTab("solicitari")}
               className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
-                activeTab === "solicitari"
-                  ? "bg-orange-500 text-white"
-                  : "bg-orange-50 text-orange-600 hover:bg-orange-100"
+                activeTab === "solicitari" ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600 hover:bg-orange-100"
               }`}
             >
               Solicitări
@@ -350,7 +313,6 @@ const handleApproveRequest = (req: FundingRequest) => {
             </button>
           </div>
 
-          {/* Search + Export — doar la alimentari */}
           {activeTab === "alimentari" && (
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <input
@@ -371,7 +333,7 @@ const handleApproveRequest = (req: FundingRequest) => {
           )}
         </section>
 
-        {/* ── TAB ALIMENTARI ─────────────────────────────────────────────────── */}
+        {/* ── TAB ALIMENTARI ── */}
         {activeTab === "alimentari" && (
           <>
             <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -407,7 +369,6 @@ const handleApproveRequest = (req: FundingRequest) => {
                 </div>
               ) : (
                 <>
-                  {/* Desktop */}
                   <div className="hidden overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm lg:block">
                     <div className="grid grid-cols-12 border-b border-[#E8E5DE] bg-[#F8F7F3] px-5 py-4 text-sm font-semibold text-gray-700">
                       <div className="col-span-3">Șantier</div>
@@ -446,7 +407,6 @@ const handleApproveRequest = (req: FundingRequest) => {
                     ))}
                   </div>
 
-                  {/* Mobile */}
                   <div className="space-y-3 lg:hidden">
                     {filteredFundings.map((funding) => (
                       <button
@@ -493,7 +453,7 @@ const handleApproveRequest = (req: FundingRequest) => {
           </>
         )}
 
-        {/* ── TAB SOLICITARI ─────────────────────────────────────────────────── */}
+        {/* ── TAB SOLICITARI ── */}
         {activeTab === "solicitari" && (
           <section className="mt-6">
             <div className="mb-3 flex items-center gap-3 px-1">
@@ -521,7 +481,7 @@ const handleApproveRequest = (req: FundingRequest) => {
                         <p className="text-base font-bold text-gray-900">{req.project_name}</p>
                         <p className="mt-0.5 text-sm text-gray-500">Solicitat de: {req.team_lead_name}</p>
                         {req.notes && (
-                          <p className="mt-1 text-sm text-gray-400 italic">"{req.notes}"</p>
+                          <p className="mt-1 text-sm italic text-gray-400">"{req.notes}"</p>
                         )}
                         <p className="mt-1 text-xs text-gray-400">
                           {new Date(req.created_at).toLocaleDateString("ro-RO")} la{" "}
@@ -549,10 +509,9 @@ const handleApproveRequest = (req: FundingRequest) => {
                         <button
                           type="button"
                           onClick={() => handleApproveRequest(req)}
-                          disabled={approvingId === req.id}
-                          className="flex-1 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                          className="flex-1 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
                         >
-                          {approvingId === req.id ? "Se procesează..." : "Aprobă & Alimentează"}
+                          Aprobă & Alimentează
                         </button>
                         <button
                           type="button"

@@ -17,7 +17,6 @@ type TeamLead = {
   full_name: string;
 };
 
-// ── Componenta interioara care foloseste useSearchParams ──────────────────────
 function AdaugaAlimentareInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,6 +34,7 @@ function AdaugaAlimentareInner() {
   const [selectedLeadId, setSelectedLeadId] = useState("");
   const [notes, setNotes] = useState("");
 
+  // ID-ul solicitarii din care vine (daca exista)
   const fromRequestId = searchParams.get("from_request");
   const isFromRequest = Boolean(fromRequestId);
 
@@ -57,7 +57,7 @@ function AdaugaAlimentareInner() {
       setProjects((projectsData as Project[]) || []);
       setTeamLeads((leadsData as TeamLead[]) || []);
 
-      // Prefill din query params
+      // Prefill din query params cand vine din solicitare
       const qProject = searchParams.get("project_id");
       const qAmount = searchParams.get("amount");
       const qLead = searchParams.get("lead_id");
@@ -84,28 +84,8 @@ function AdaugaAlimentareInner() {
     if (!selectedLeadId) { alert("Selectează șeful de șantier."); return; }
 
     setSaving(true);
-	
-	const { error } = await supabase.from("project_fundings").insert({
-  // ... campurile existente
-});
 
-if (error) {
-  alert(`A apărut o eroare la salvarea alimentării: ${error.message}`);
-  setSaving(false);
-  return;
-}
-
-// ← ADAUGĂ ASTA: marcheaza solicitarea ca approved doar dupa salvare reusita
-if (fromRequestId) {
-  await supabase
-    .from("funding_requests")
-    .update({ status: "approved" })
-    .eq("id", fromRequestId);
-}
-
-setSaving(false);
-router.push("/admin/alimentari");
-
+    // 1. Salvează alimentarea
     const { error } = await supabase.from("project_fundings").insert({
       project_id: selectedProjectId,
       added_by: user.id,
@@ -120,6 +100,14 @@ router.push("/admin/alimentari");
       alert(`A apărut o eroare la salvarea alimentării: ${error.message}`);
       setSaving(false);
       return;
+    }
+
+    // 2. Doar daca salvarea a reusit si vine din solicitare, marcheaza ca approved
+    if (fromRequestId) {
+      await supabase
+        .from("funding_requests")
+        .update({ status: "approved" })
+        .eq("id", fromRequestId);
     }
 
     setSaving(false);
@@ -176,7 +164,6 @@ router.push("/admin/alimentari");
 
       <main className="mx-auto w-full max-w-3xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
 
-        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -198,7 +185,7 @@ router.push("/admin/alimentari");
           {isFromRequest && (
             <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
               <p className="text-sm font-medium text-green-800">
-                ✓ Solicitare aprobată — completează tipul și data alimentării, apoi salvează.
+                Verifică datele, selectează tipul și data alimentării, apoi salvează pentru a aproba solicitarea.
               </p>
             </div>
           )}
@@ -206,7 +193,6 @@ router.push("/admin/alimentari");
 
         <div className="mt-6 space-y-4">
 
-          {/* Proiect & sef */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Proiect & șef</p>
@@ -250,7 +236,6 @@ router.push("/admin/alimentari");
             </div>
           </section>
 
-          {/* Detalii alimentare */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Detalii alimentare</p>
@@ -316,7 +301,6 @@ router.push("/admin/alimentari");
             </div>
           </section>
 
-          {/* Observatii */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Observații</p>
@@ -331,7 +315,6 @@ router.push("/admin/alimentari");
             />
           </section>
 
-          {/* Preview */}
           {Number(amountRon) > 0 && (
             <div className="rounded-2xl border border-[#0196ff]/20 bg-[#0196ff]/5 px-4 py-3">
               <p className="text-sm font-medium text-[#0196ff]">
@@ -350,7 +333,7 @@ router.push("/admin/alimentari");
               disabled={saving}
               className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 sm:w-auto"
             >
-              {saving ? "Se salvează..." : "Salvează alimentarea"}
+              {saving ? "Se salvează..." : isFromRequest ? "Aprobă & salvează alimentarea" : "Salvează alimentarea"}
             </button>
             <button
               type="button"
@@ -366,7 +349,6 @@ router.push("/admin/alimentari");
   );
 }
 
-// ── Export default cu Suspense boundary ───────────────────────────────────────
 export default function AdaugaAlimentarePage() {
   return (
     <Suspense fallback={
