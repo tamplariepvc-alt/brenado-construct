@@ -70,6 +70,11 @@ export default function AdminPage() {
       route: "/admin/istoric-pontaje",
       highlight: "indigo",
     },
+	{
+  label: "Alte Setări",
+  sublabel: "Servicii, materiale și configurări",
+  route: "/admin/setari",
+},
   ];
 
   const renderAdminIcon = (label: string, highlight?: "blue" | "green" | "indigo") => {
