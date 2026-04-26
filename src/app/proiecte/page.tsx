@@ -938,73 +938,119 @@ export default function ProiectePage() {
     await loadData();
   };
 
-  const handleExportDeviz = (projectId: string, date: string, projectName: string) => {
-    const report = dailyReports.find((r) => r.project_id === projectId && r.report_date === date);
+const handleExportDeviz = async (projectId: string, date: string, projectName: string) => {
+  const report = dailyReports.find(
+    (r) => r.project_id === projectId && r.report_date === date
+  );
 
-    if (!report) {
-      alert("Nu există deviz pentru această zi.");
-      return;
-    }
+  if (!report) {
+    alert("Nu există deviz pentru această zi.");
+    return;
+  }
 
-    const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
-    const serviceMap = new Map(services.map((s) => [s.id, s]));
+  const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
+  const serviceMap = new Map(services.map((s) => [s.id, s]));
 
-    const doc = new jsPDF("p", "mm", "a4");
+  const doc = new jsPDF("p", "mm", "a4");
 
-const img = new Image();
-img.src = "/logo.png"; // trebuie să fie în public/
-
-doc.addImage(img, "PNG", 14, 10, 40, 12);
-doc.setFontSize(16);
-doc.text(`Deviz lucrari – ${projectName}`, 14, 28);
-
-    doc.setFontSize(9);
-    doc.setTextColor(100);
-    doc.text(
-      `Data: ${new Date(date).toLocaleDateString("ro-RO")} | Generat la ${new Date().toLocaleString("ro-RO")}`,
-      14,
-      22
-    );
-    doc.setTextColor(0);
-
-    let total = 0;
-
-    const rows = items.map((item, i) => {
-      const svc = serviceMap.get(item.service_id);
-      const lineTotal = (svc?.price_ron || 0) * item.quantity;
-      total += lineTotal;
-
-      return [
-        String(i + 1),
-        svc?.name || "-",
-        svc?.um || "-",
-        String(item.quantity),
-        `${(svc?.price_ron || 0).toFixed(2)} lei`,
-        `${lineTotal.toFixed(2)} lei`,
-      ];
+  // Logo
+  try {
+    const logo = new window.Image();
+    logo.src = "/logo.png";
+    await new Promise((resolve) => {
+      logo.onload = resolve;
+      logo.onerror = resolve;
     });
+    doc.addImage(logo, "PNG", 14, 10, 42, 13);
+  } catch {
+    // dacă nu se încarcă logo-ul, PDF-ul se generează oricum
+  }
 
-    autoTable(doc, {
-      startY: 36,
-      head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
-      body: rows,
-      foot: [["", "", "", "", "TOTAL", `${total.toFixed(2)} lei`]],
-      styles: { fontSize: 9, cellPadding: 3 },
-      headStyles: { fillColor: [21, 128, 61] },
-      footStyles: { fillColor: [187, 247, 208], textColor: [20, 83, 45], fontStyle: "bold" },
-      theme: "grid",
-    });
-	
-	const finalY = (doc as any).lastAutoTable.finalY || 36;
+  // Linie sus
+  doc.setDrawColor(21, 128, 61);
+  doc.setLineWidth(0.6);
+  doc.line(14, 28, 196, 28);
 
-doc.setFontSize(10);
-doc.text("Semnătură executant:", 14, finalY + 20);
+  // Titlu
+  doc.setFontSize(17);
+  doc.setTextColor(20, 83, 45);
+  doc.text(`Deviz lucrari - ${projectName}`, 14, 38);
 
-doc.setDrawColor(0);
-doc.line(14, finalY + 22, 80, finalY + 22);
+  doc.setFontSize(9);
+  doc.setTextColor(90);
+  doc.text(
+    `Data deviz: ${new Date(date).toLocaleDateString("ro-RO")}`,
+    14,
+    45
+  );
+  doc.text(
+    `Generat la: ${new Date().toLocaleString("ro-RO")}`,
+    14,
+    50
+  );
 
-    doc.save(`deviz_${projectName.replace(/\s+/g, "_")}_${date}.pdf`);
-  };
+  let total = 0;
+
+  const rows = items.map((item, i) => {
+    const svc = serviceMap.get(item.service_id);
+    const lineTotal = (svc?.price_ron || 0) * item.quantity;
+    total += lineTotal;
+
+    return [
+      String(i + 1),
+      svc?.name || "-",
+      svc?.um || "-",
+      String(item.quantity),
+      `${(svc?.price_ron || 0).toFixed(2)} lei`,
+      `${lineTotal.toFixed(2)} lei`,
+    ];
+  });
+
+  autoTable(doc, {
+    startY: 58,
+    head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
+    body: rows,
+    foot: [["", "", "", "", "TOTAL", `${total.toFixed(2)} lei`]],
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      lineColor: [210, 210, 210],
+      lineWidth: 0.2,
+    },
+    headStyles: {
+      fillColor: [20, 83, 45],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    footStyles: {
+      fillColor: [20, 83, 45],
+      textColor: [255, 255, 255],
+      fontStyle: "bold",
+    },
+    alternateRowStyles: {
+      fillColor: [248, 250, 252],
+    },
+    theme: "grid",
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY || 58;
+
+  // Semnătură jos stânga
+  doc.setFontSize(10);
+  doc.setTextColor(0);
+  doc.text("Semnatura executant:", 14, finalY + 22);
+
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.3);
+  doc.line(14, finalY + 26, 82, finalY + 26);
+
+  // Text jos
+  doc.setFontSize(8);
+  doc.setTextColor(120);
+  doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
+
+  doc.save(`deviz_${projectName.replace(/\s+/g, "_")}_${date}.pdf`);
+};
 
   const photosByProjectAndDate = useMemo(() => {
     const map = new Map<string, Map<string, DailyPhoto[]>>();
