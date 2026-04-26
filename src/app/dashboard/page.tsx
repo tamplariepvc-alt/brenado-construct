@@ -146,11 +146,11 @@ export default function DashboardPage() {
       sublabel: "Planificare",
       route: "/organizarea-echipelor",
     },
-	{
+{
   label: "Creează\nDeviz",
   sublabel: "Ofertă / lucrare",
-  route: "/devize/creeaza",
-},
+  route: "/devize",
+}
     {
       label: "Panou\nAdmin",
       sublabel: "Setări sistem",
