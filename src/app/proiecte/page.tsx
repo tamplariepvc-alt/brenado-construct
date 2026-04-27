@@ -1486,7 +1486,7 @@ export default function ProiectePage() {
             <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
               <div className="flex items-center gap-3">
                 <span
-                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                  className={`flex h-9 w-9 items-center justify-center rounded-full text-base font-extrabold ${
                     financialDocModal.kind === "bon"
                       ? "bg-blue-100 text-blue-700"
                       : financialDocModal.kind === "factura"
@@ -1494,12 +1494,15 @@ export default function ProiectePage() {
                       : "bg-orange-100 text-orange-700"
                   }`}
                 >
+                  {financialDocModal.kind === "bon" ? "B" : financialDocModal.kind === "factura" ? "F" : "N"}
+                </span>
+                <p className="text-base font-bold text-gray-900">
                   {financialDocModal.kind === "bon"
                     ? "Bon fiscal"
                     : financialDocModal.kind === "factura"
                     ? "Factură"
                     : "Nedeductibilă"}
-                </span>
+                </p>
               </div>
               <button
                 type="button"
@@ -1809,6 +1812,20 @@ export default function ProiectePage() {
                             {currentCredit.toFixed(2)} lei
                           </p>
                         </div>
+
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Credit alimentat</p>
+                          <p className="mt-1 text-sm font-bold text-blue-700">
+                            {(fundingTotalsByProject.get(project.id) || 0).toFixed(2)} lei
+                          </p>
+                        </div>
+
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Credit cheltuit</p>
+                          <p className="mt-1 text-sm font-bold text-orange-600">
+                            {((fundingTotalsByProject.get(project.id) || 0) - currentCredit).toFixed(2)} lei
+                          </p>
+                        </div>
                       </div>
 
                       <div className="mt-5 flex gap-2">
@@ -1989,9 +2006,9 @@ export default function ProiectePage() {
                                             >
                                               <div className="flex min-w-0 flex-1 items-center gap-3">
                                                 <span
-                                                  className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClasses}`}
+                                                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${badgeClasses}`}
                                                 >
-                                                  {labelText}
+                                                  {doc.kind === "bon" ? "B" : doc.kind === "factura" ? "F" : "N"}
                                                 </span>
 
                                                 <div className="min-w-0 flex-1">
