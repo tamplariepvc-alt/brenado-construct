@@ -359,6 +359,8 @@ export default function ProiectePage() {
   const [deletingProject, setDeletingProject] = useState(false);
 
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
+  const [statusModal, setStatusModal] = useState<{ projectId: string; currentStatus: string | null } | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   const isAdmin = profile?.role === "administrator";
 
@@ -378,20 +380,24 @@ export default function ProiectePage() {
     setDeleteProjectPasswordError("");
   };
 
-  const handleUpdateStatus = async (projectId: string, newStatus: string) => {
+  const handleUpdateStatus = async () => {
+    if (!statusModal || !pendingStatus) return;
+    const projectId = statusModal.projectId;
     setSavingStatusId(projectId);
     const { error } = await supabase
       .from("projects")
-      .update({ status: newStatus })
+      .update({ status: pendingStatus })
       .eq("id", projectId);
     if (error) {
       alert(`Eroare la actualizarea statusului: ${error.message}`);
     } else {
       setProjects((prev) =>
-        prev.map((p) => p.id === projectId ? { ...p, status: newStatus } : p)
+        prev.map((p) => p.id === projectId ? { ...p, status: pendingStatus } : p)
       );
     }
     setSavingStatusId(null);
+    setStatusModal(null);
+    setPendingStatus(null);
   };
 
   const handleDeleteProject = async () => {
@@ -1853,6 +1859,70 @@ export default function ProiectePage() {
         </div>
       )}
 
+      {/* MODAL SCHIMBARE STATUS PROIECT */}
+      {statusModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <h3 className="text-center text-lg font-bold text-gray-900">Schimbă statusul</h3>
+              <p className="mt-1 text-center text-sm text-gray-500">
+                {projects.find((p) => p.id === statusModal.projectId)?.name || ""}
+              </p>
+
+              <div className="mt-5 space-y-2">
+                {[
+                  { value: "in_asteptare", label: "În așteptare", classes: "bg-yellow-100 text-yellow-700 border-yellow-300 ring-yellow-200" },
+                  { value: "in_lucru", label: "În lucru", classes: "bg-[#0196ff]/10 text-[#0196ff] border-[#0196ff]/30 ring-[#0196ff]/20" },
+                  { value: "finalizat", label: "Finalizat", classes: "bg-green-100 text-green-700 border-green-300 ring-green-200" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPendingStatus(opt.value)}
+                    className={`w-full rounded-2xl border-2 px-4 py-3 text-sm font-semibold transition ${
+                      pendingStatus === opt.value
+                        ? `${opt.classes} ring-2`
+                        : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+
+              {pendingStatus && pendingStatus !== statusModal.currentStatus && (
+                <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
+                  <p className="text-sm font-medium text-amber-800">
+                    Ești sigur că vrei să schimbi statusul în{" "}
+                    <span className="font-bold">
+                      {pendingStatus === "in_asteptare" ? "În așteptare" : pendingStatus === "in_lucru" ? "În lucru" : "Finalizat"}
+                    </span>?
+                  </p>
+                </div>
+              )}
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleUpdateStatus}
+                  disabled={savingStatusId === statusModal.projectId || !pendingStatus || pendingStatus === statusModal.currentStatus}
+                  className="flex-1 rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingStatusId === statusModal.projectId ? "Se salvează..." : "Confirmă"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setStatusModal(null); setPendingStatus(null); }}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODAL CONFIRMARE ȘTERGERE PROIECT */}
       {deleteProjectId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -2020,31 +2090,18 @@ export default function ProiectePage() {
 
                         <div className="flex flex-col items-end gap-2">
                           {isAdmin ? (
-                            <div className="flex gap-1">
-                              {[
-                                { value: "in_asteptare", label: "Așteptare", active: "bg-yellow-100 text-yellow-700 border-yellow-300", inactive: "bg-white text-gray-400 border-gray-200" },
-                                { value: "in_lucru", label: "În lucru", active: "bg-[#0196ff]/10 text-[#0196ff] border-[#0196ff]/30", inactive: "bg-white text-gray-400 border-gray-200" },
-                                { value: "finalizat", label: "Finalizat", active: "bg-green-100 text-green-700 border-green-300", inactive: "bg-white text-gray-400 border-gray-200" },
-                              ].map((opt) => (
-                                <button
-                                  key={opt.value}
-                                  type="button"
-                                  disabled={savingStatusId === project.id}
-                                  onClick={() => {
-                                    if (project.status !== opt.value) {
-                                      handleUpdateStatus(project.id, opt.value);
-                                    }
-                                  }}
-                                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
-                                    project.status === opt.value ? opt.active : opt.inactive + " hover:border-gray-300"
-                                  } disabled:opacity-50`}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setStatusModal({ projectId: project.id, currentStatus: project.status }); setPendingStatus(project.status); }}
+                              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition hover:opacity-80 ${getStatusClasses(project.status)}`}
+                            >
+                              {getStatusLabel(project.status)}
+                              <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            </button>
                           ) : (
-                            <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
+                            <span className={`inline-flex shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ${getStatusClasses(project.status)}`}>
                               {getStatusLabel(project.status)}
                             </span>
                           )}
