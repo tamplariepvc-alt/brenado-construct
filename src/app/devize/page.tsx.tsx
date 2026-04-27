@@ -143,11 +143,7 @@ export default function DevizePage() {
     doc.setTextColor(90);
     doc.text(`Beneficiar: ${estimate.beneficiary || "-"}`, 14, 45);
     doc.text(`Santier: ${estimate.site_name || "-"}`, 14, 50);
-    doc.text(
-      `Data deviz: ${new Date(estimate.created_at).toLocaleDateString("ro-RO")}`,
-      14,
-      55
-    );
+    doc.text(`Data deviz: ${new Date(estimate.created_at).toLocaleDateString("ro-RO")}`, 14, 55);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 60);
 
     let total = 0;
@@ -220,9 +216,7 @@ export default function DevizePage() {
     doc.setTextColor(120);
     doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
 
-    doc.save(
-      `deviz_${estimate.site_name.replace(/\s+/g, "_")}_${estimate.id.slice(0, 8)}.pdf`
-    );
+    doc.save(`deviz_${estimate.site_name.replace(/\s+/g, "_")}_${estimate.id.slice(0, 8)}.pdf`);
   };
 
   if (loading) {
@@ -230,9 +224,7 @@ export default function DevizePage() {
       <div className="flex min-h-screen items-center justify-center bg-[#F0EEE9] px-4">
         <div className="rounded-[22px] border border-[#E8E5DE] bg-white px-8 py-10 text-center shadow-sm">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
-          <p className="mt-4 text-sm font-semibold text-gray-700">
-            Se încarcă...
-          </p>
+          <p className="mt-4 text-sm font-semibold text-gray-700">Se încarcă...</p>
         </div>
       </div>
     );
@@ -255,7 +247,7 @@ export default function DevizePage() {
               onClick={() => router.push("/devize/creeaza")}
               className="rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
             >
-              Creează deviz
+              + Adaugă deviz
             </button>
 
             <button
@@ -274,9 +266,7 @@ export default function DevizePage() {
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
             Istoric devize
           </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            {profile?.full_name}
-          </p>
+          <p className="mt-2 text-sm text-gray-500">{profile?.full_name}</p>
 
           <div className="mt-5">
             <input
@@ -299,7 +289,7 @@ export default function DevizePage() {
           {filteredEstimates.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
               <p className="text-sm text-gray-500">
-                Nu există devize pentru căutarea curentă.
+                Nu există devize încă. Apasă pe „+ Adaugă deviz” pentru a crea primul deviz.
               </p>
             </div>
           ) : (
@@ -315,21 +305,15 @@ export default function DevizePage() {
                   >
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <p className="text-lg font-bold text-gray-900">
-                          {estimate.site_name}
-                        </p>
-                        <p className="mt-1 text-sm text-gray-500">
-                          Beneficiar: {estimate.beneficiary}
-                        </p>
+                        <p className="text-lg font-bold text-gray-900">{estimate.site_name}</p>
+                        <p className="mt-1 text-sm text-gray-500">Beneficiar: {estimate.beneficiary}</p>
                         <p className="mt-1 text-xs text-gray-400">
                           {new Date(estimate.created_at).toLocaleString("ro-RO")}
                         </p>
                       </div>
 
                       <div className="flex flex-col items-start gap-2 sm:items-end">
-                        <p className="text-lg font-extrabold text-green-700">
-                          {total.toFixed(2)} lei
-                        </p>
+                        <p className="text-lg font-extrabold text-green-700">{total.toFixed(2)} lei</p>
 
                         <button
                           type="button"
@@ -345,17 +329,14 @@ export default function DevizePage() {
                       <div className="mt-4 space-y-1 rounded-2xl bg-[#F8F7F3] p-3">
                         {estimateItems.slice(0, 4).map((item) => {
                           const service = serviceMap.get(item.service_id);
-                          const lineTotal =
-                            Number(item.quantity || 0) * Number(item.unit_price || 0);
+                          const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0);
 
                           return (
                             <div
                               key={item.id}
                               className="grid grid-cols-[1fr_auto] gap-2 text-xs sm:grid-cols-[1fr_auto_auto]"
                             >
-                              <span className="text-gray-700">
-                                {service?.name || "-"}
-                              </span>
+                              <span className="text-gray-700">{service?.name || "-"}</span>
                               <span className="text-gray-500">
                                 {item.quantity} {service?.um || ""}
                               </span>
