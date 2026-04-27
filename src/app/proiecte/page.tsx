@@ -293,11 +293,25 @@ export default function ProiectePage() {
   const [savingDeviz, setSavingDeviz] = useState(false);
   const [devizReportId, setDevizReportId] = useState<string | null>(null);
   const [serviceSearchByLine, setServiceSearchByLine] = useState<Record<number, string>>({});
+  const [showDevizValidation, setShowDevizValidation] = useState(false);
 
   const [photoProjectId, setPhotoProjectId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [photoViewDate, setPhotoViewDate] = useState<Record<string, string>>({});
-  const [expandedPhotoDays, setExpandedPhotoDays] = useState<Record<string, boolean>>({});
+
+  // NEW: modal pentru poze pe zi
+  const [photosModal, setPhotosModal] = useState<{
+    projectId: string;
+    date: string;
+    photos: DailyPhoto[];
+  } | null>(null);
+
+  // NEW: modal pentru deviz pe zi
+  const [devizModal, setDevizModal] = useState<{
+    projectId: string;
+    projectName: string;
+    date: string;
+    reportId: string;
+  } | null>(null);
 
   const [lightboxPhotos, setLightboxPhotos] = useState<DailyPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -813,6 +827,7 @@ export default function ProiectePage() {
     setDevizProjectId(projectId);
     setDevizDate(date);
     setServiceSearchByLine({});
+    setShowDevizValidation(false);
 
     const existing = dailyReports.find((r) => r.project_id === projectId && r.report_date === date);
 
@@ -863,21 +878,29 @@ export default function ProiectePage() {
     setDevizItems((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
   };
 
+  // Validare deviz: fiecare rând trebuie să aibă serviciu + cantitate > 0
+  const isDevizLineValid = (line: { service_id: string; quantity: string }) =>
+    Boolean(line.service_id) && Number(line.quantity || 0) > 0;
+
+  const isDevizFullyValid = useMemo(() => {
+    return devizItems.length > 0 && devizItems.every(isDevizLineValid);
+  }, [devizItems]);
+
   const handleSaveDeviz = async () => {
     if (!devizProjectId || isAdmin) return;
+
+    // Validare strictă: serviciu + cantitate obligatorii pe fiecare linie
+    if (!isDevizFullyValid) {
+      setShowDevizValidation(true);
+      alert("Fiecare rând trebuie să aibă un serviciu selectat și o cantitate mai mare ca 0.");
+      return;
+    }
 
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
     if (!user) return;
-
-    const validLines = devizItems.filter((l) => l.service_id && Number(l.quantity || 0) > 0);
-
-    if (validLines.length === 0) {
-      alert("Adaugă cel puțin un serviciu cu cantitate.");
-      return;
-    }
 
     setSavingDeviz(true);
 
@@ -919,7 +942,7 @@ export default function ProiectePage() {
     await supabase.from("daily_report_items").delete().eq("daily_report_id", reportId);
 
     const { error: itemsError } = await supabase.from("daily_report_items").insert(
-      validLines.map((l) => ({
+      devizItems.map((l) => ({
         daily_report_id: reportId,
         service_id: l.service_id,
         quantity: Number(l.quantity),
@@ -935,6 +958,7 @@ export default function ProiectePage() {
     setSavingDeviz(false);
     setDevizProjectId(null);
     setServiceSearchByLine({});
+    setShowDevizValidation(false);
 
     await loadData();
   };
@@ -1082,6 +1106,23 @@ export default function ProiectePage() {
     return map;
   }, [dailyReports]);
 
+  // Total per zi pentru fiecare proiect (folosit la totaluri admin)
+  const reportTotalById = useMemo(() => {
+    const map = new Map<string, number>();
+    const serviceMap = new Map(services.map((s) => [s.id, s]));
+
+    dailyReports.forEach((report) => {
+      const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
+      const total = items.reduce((s, item) => {
+        const svc = serviceMap.get(item.service_id);
+        return s + (svc?.price_ron || 0) * item.quantity;
+      }, 0);
+      map.set(report.id, total);
+    });
+
+    return map;
+  }, [dailyReports, dailyReportItems, services]);
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
@@ -1104,6 +1145,19 @@ export default function ProiectePage() {
       </div>
     );
   }
+
+  // Date pentru modalul de deviz deschis
+  const devizModalReport = devizModal
+    ? dailyReports.find((r) => r.id === devizModal.reportId)
+    : null;
+  const devizModalItems = devizModalReport
+    ? dailyReportItems.filter((i) => i.daily_report_id === devizModalReport.id)
+    : [];
+  const serviceMapAll = new Map(services.map((s) => [s.id, s]));
+  const devizModalTotal = devizModalItems.reduce((s, item) => {
+    const svc = serviceMapAll.get(item.service_id);
+    return s + (svc?.price_ron || 0) * item.quantity;
+  }, 0);
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
@@ -1133,6 +1187,161 @@ export default function ProiectePage() {
 
       {lightboxPhotos.length > 0 && (
         <PhotoLightbox photos={lightboxPhotos} initialIndex={lightboxIndex} onClose={closeLightbox} />
+      )}
+
+      {/* MODAL POZE PE ZI */}
+      {photosModal && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-3"
+          onClick={() => setPhotosModal(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[22px] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <p className="text-base font-bold text-gray-900">
+                  Poze {new Date(photosModal.date).toLocaleDateString("ro-RO")}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {photosModal.photos.length} {photosModal.photos.length === 1 ? "poză" : "poze"} · Apasă pe o poză pentru zoom
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPhotosModal(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-600 transition hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-72px)] overflow-y-auto p-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {photosModal.photos.map((photo, idx) => (
+                  <button
+                    key={photo.id}
+                    type="button"
+                    onClick={() => openLightbox(photosModal.photos, idx)}
+                    className="overflow-hidden rounded-2xl focus:outline-none"
+                  >
+                    <img
+                      src={photo.photo_url}
+                      alt="Poză șantier"
+                      className="h-32 w-full rounded-2xl object-cover transition hover:opacity-90 sm:h-40"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DEVIZ PE ZI */}
+      {devizModal && devizModalReport && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-3"
+          onClick={() => setDevizModal(null)}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-[22px] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div>
+                <p className="text-base font-bold text-gray-900">
+                  Deviz {new Date(devizModal.date).toLocaleDateString("ro-RO")}
+                </p>
+                <p className="text-xs text-gray-500">{devizModal.projectName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDevizModal(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-600 transition hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-160px)] overflow-y-auto px-5 py-4">
+              {devizModalItems.length === 0 ? (
+                <p className="text-sm text-gray-400">Nu există servicii în acest deviz.</p>
+              ) : (
+                <div className="space-y-2">
+                  {devizModalItems.map((item, idx) => {
+                    const svc = serviceMapAll.get(item.service_id);
+                    const lineTotal = (svc?.price_ron || 0) * item.quantity;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-gray-100 bg-[#F8F7F3] px-3 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {idx + 1}. {svc?.name || "-"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {item.quantity} {svc?.um} × {(svc?.price_ron || 0).toFixed(2)} lei
+                          </p>
+                        </div>
+                        {isAdmin && (
+                          <p className="shrink-0 text-sm font-bold text-teal-700">{lineTotal.toFixed(2)} lei</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-gray-100 bg-[#FCFBF8] px-5 py-4">
+              {isAdmin && (
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-sm font-semibold text-gray-700">Total deviz</p>
+                  <p className="text-lg font-bold text-teal-700">{devizModalTotal.toFixed(2)} lei</p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => handleExportDeviz(devizModal.projectId, devizModal.date, devizModal.projectName)}
+                    className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Export PDF
+                  </button>
+                )}
+
+                {!isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const projectId = devizModal.projectId;
+                      const date = devizModal.date;
+                      setDevizModal(null);
+                      openDeviz(projectId, date);
+                    }}
+                    className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Editează deviz
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setDevizModal(null)}
+                  className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Închide
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
@@ -1213,23 +1422,18 @@ export default function ProiectePage() {
                 const tehnicTab = getTehnicTab(project.id);
 
                 const projectPhotos = photosByProjectAndDate.get(project.id);
-                const allPhotoDates = projectPhotos ? Array.from(projectPhotos.keys()).sort((a, b) => b.localeCompare(a)) : [];
-
-                const photoViewDateForProject = isAdmin
-                  ? photoViewDate[project.id] || allPhotoDates[0] || getTodayDate()
-                  : getTodayDate();
-
-                const photosForDate = projectPhotos?.get(photoViewDateForProject) || [];
-
-                const expandedKey = `${project.id}_${photoViewDateForProject}`;
-                const isPhotoDayExpanded = expandedPhotoDays[expandedKey] || false;
-const visiblePhotosForDate = isPhotoDayExpanded ? photosForDate : photosForDate.slice(0, 1);
-const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
+                const photoDates = projectPhotos
+                  ? Array.from(projectPhotos.keys()).sort((a, b) => b.localeCompare(a))
+                  : [];
 
                 const projectReports = reportsByProject.get(project.id) || [];
                 const isDevizOpen = devizProjectId === project.id;
 
-                const serviceMap = new Map(services.map((s) => [s.id, s]));
+                // Total cumulat pe proiect (admin only) — doar în tab Deviz
+                const projectDevizTotal = projectReports.reduce(
+                  (s, r) => s + (reportTotalById.get(r.id) || 0),
+                  0
+                );
 
                 return (
                   <div key={project.id} className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
@@ -1359,8 +1563,9 @@ const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
                             </button>
                           </div>
 
+                          {/* TAB POZE — listă pe zile, click → modal */}
                           {tehnicTab === "poze" && (
-                            <div className="mt-4 space-y-4">
+                            <div className="mt-4 space-y-3">
                               {!isAdmin && (
                                 <button
                                   type="button"
@@ -1372,217 +1577,185 @@ const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
                                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
                                 >
                                   <UploadIcon />
-                                  {uploadingPhoto && photoProjectId === project.id ? "Se încarcă..." : `Adaugă poze (${getTodayDate()})`}
+                                  {uploadingPhoto && photoProjectId === project.id
+                                    ? "Se încarcă..."
+                                    : `Adaugă poze (${getTodayDate()})`}
                                 </button>
                               )}
 
-                              {isAdmin && (
-                                <div>
-                                  <div className="mb-2 flex items-center gap-3 px-1">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Istoric poze</p>
+                              {photoDates.length > 0 ? (
+                                <div className="space-y-2">
+                                  <div className="mb-1 flex items-center gap-3 px-1">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                                      Zile cu poze ({photoDates.length})
+                                    </p>
                                     <div className="h-px flex-1 bg-[#E8E5DE]" />
                                   </div>
 
-                                  <div className="rounded-2xl border border-gray-200 bg-[#F8F7F3] p-3">
-                                    <label className="mb-2 block text-xs font-semibold text-gray-500">Selectează data</label>
-
-                                    <input
-                                      type="date"
-                                      value={photoViewDateForProject}
-                                      onChange={(e) => {
-                                        const selectedDate = e.target.value;
-
-                                        setPhotoViewDate((prev) => ({
-                                          ...prev,
-                                          [project.id]: selectedDate,
-                                        }));
-
-                                        setExpandedPhotoDays((prev) => ({
-                                          ...prev,
-                                          [`${project.id}_${selectedDate}`]: false,
-                                        }));
-                                      }}
-                                      className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-gray-500"
-                                    />
-
-                                    {allPhotoDates.length > 0 && (
-                                      <p className="mt-2 text-xs text-gray-400">Zile cu poze: {allPhotoDates.length}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {photosForDate.length > 0 && (
-                                <div>
-                                  <p className="mb-2 text-xs font-semibold text-gray-500">
-                                    {new Date(photoViewDateForProject).toLocaleDateString("ro-RO")} — {photosForDate.length}{" "}
-                                    {photosForDate.length === 1 ? "poză" : "poze"}
-                                    <span className="ml-2 text-gray-400">· Apasă pe o poză pentru mărire · Swipe stânga/dreapta</span>
-                                  </p>
-
-                                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                    {visiblePhotosForDate.map((photo, idx) => (
+                                  {photoDates.map((date) => {
+                                    const photos = projectPhotos!.get(date) || [];
+                                    return (
                                       <button
-                                        key={photo.id}
-                                        type="button"
-                                        onClick={() => openLightbox(photosForDate, idx)}
-                                        className="overflow-hidden rounded-2xl focus:outline-none"
-                                      >
-                                        <img
-                                          src={photo.photo_url}
-                                          alt="Poză șantier"
-                                          className="h-28 w-full rounded-2xl object-cover transition hover:opacity-90 sm:h-36"
-                                        />
-                                      </button>
-                                    ))}
-
-                                    {!isPhotoDayExpanded && hiddenPhotosCount > 0 && (
-                                      <button
+                                        key={date}
                                         type="button"
                                         onClick={() =>
-                                          setExpandedPhotoDays((prev) => ({
-                                            ...prev,
-                                            [expandedKey]: true,
-                                          }))
+                                          setPhotosModal({
+                                            projectId: project.id,
+                                            date,
+                                            photos,
+                                          })
                                         }
-                                        className="flex h-28 w-full items-center justify-center rounded-2xl bg-[#0196ff] text-xl font-bold text-white transition hover:bg-[#0186e5] sm:h-36"
+                                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-left transition hover:bg-amber-50"
                                       >
-                                        +{hiddenPhotosCount}
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+                                            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-amber-600" stroke="currentColor" strokeWidth="2">
+                                              <rect x="3" y="5" width="18" height="14" rx="2" />
+                                              <circle cx="9" cy="11" r="2" />
+                                              <path d="M3 17l5-5 4 4 3-3 6 6" strokeLinecap="round" strokeLinejoin="round" />
+                                            </svg>
+                                          </div>
+                                          <div>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                              {new Date(date).toLocaleDateString("ro-RO", {
+                                                weekday: "short",
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                              })}
+                                            </p>
+                                            <p className="text-xs text-gray-500">
+                                              {photos.length} {photos.length === 1 ? "poză" : "poze"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <span className="text-amber-600">›</span>
                                       </button>
-                                    )}
-
-                                    {isPhotoDayExpanded && photosForDate.length > 2 && (
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          setExpandedPhotoDays((prev) => ({
-                                            ...prev,
-                                            [expandedKey]: false,
-                                          }))
-                                        }
-                                        className="col-span-2 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 sm:col-span-3"
-                                      >
-                                        Arată mai puține poze
-                                      </button>
-                                    )}
-                                  </div>
+                                    );
+                                  })}
                                 </div>
-                              )}
-
-                              {photosForDate.length === 0 && (
+                              ) : (
                                 <p className="text-sm text-gray-400">
-                                  {isAdmin ? "Nu există poze pentru data selectată." : "Nu ai încărcat poze pentru ziua de azi."}
+                                  {isAdmin
+                                    ? "Nu există poze pentru acest proiect."
+                                    : "Nu ai încărcat încă poze pentru acest proiect."}
                                 </p>
                               )}
                             </div>
                           )}
 
+                          {/* TAB DEVIZ — total cumulat (admin) + listă pe zile, click → modal */}
                           {tehnicTab === "deviz" && (
-                            <div className="mt-4 space-y-4">
-                              {projectReports.length > 0 && (
-                                <div>
-                                  <div className="mb-2 flex items-center gap-3 px-1">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Devize</p>
-                                    <div className="h-px flex-1 bg-[#E8E5DE]" />
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    {projectReports.map((report) => {
-                                      const items = dailyReportItems.filter((i) => i.daily_report_id === report.id);
-
-                                      const total = items.reduce((s, item) => {
-                                        const svc = serviceMap.get(item.service_id);
-                                        return s + (svc?.price_ron || 0) * item.quantity;
-                                      }, 0);
-
-                                      return (
-                                        <div key={report.id} className="rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3">
-                                          <div className="flex items-center justify-between gap-3">
-                                            <div>
-                                              <p className="text-sm font-semibold text-gray-900">
-                                                {new Date(report.report_date).toLocaleDateString("ro-RO")}
-                                              </p>
-                                              <p className="text-xs text-gray-500">{items.length} servicii</p>
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                              {isAdmin && (
-                                                <>
-                                                  <p className="text-sm font-bold text-teal-700">{total.toFixed(2)} lei</p>
-
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => handleExportDeviz(project.id, report.report_date, project.name)}
-                                                    className="rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
-                                                  >
-                                                    Export PDF
-                                                  </button>
-                                                </>
-                                              )}
-
-                                              {!isAdmin && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => openDeviz(project.id, report.report_date)}
-                                                  className="rounded-xl border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 transition hover:bg-gray-50"
-                                                >
-                                                  Editează
-                                                </button>
-                                              )}
-                                            </div>
-                                          </div>
-
-                                          {items.length > 0 && (
-                                            <div className="mt-3 space-y-1">
-                                              {items.map((item) => {
-                                                const svc = serviceMap.get(item.service_id);
-                                                const lineTotal = (svc?.price_ron || 0) * item.quantity;
-
-                                                return (
-                                                  <div
-                                                    key={item.id}
-                                                    className="grid grid-cols-[1fr_auto] gap-2 text-xs sm:grid-cols-[1fr_auto_auto]"
-                                                  >
-                                                    <span className="text-gray-700">{svc?.name || "-"}</span>
-
-                                                    <span className="text-gray-500">
-                                                      {item.quantity} {svc?.um}
-                                                    </span>
-
-                                                    {isAdmin && (
-                                                      <span className="text-right font-medium text-gray-900">{lineTotal.toFixed(2)} lei</span>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
+                            <div className="mt-4 space-y-3">
+                              {/* Total cumulat — doar admin */}
+                              {isAdmin && projectReports.length > 0 && (
+                                <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-4">
+                                  <div className="flex items-center justify-between">
+                                    <div>
+                                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">
+                                        Total cumulat
+                                      </p>
+                                      <p className="mt-1 text-2xl font-extrabold text-teal-800">
+                                        {projectDevizTotal.toFixed(2)} <span className="text-sm font-semibold">lei</span>
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-teal-700">
+                                        Devize
+                                      </p>
+                                      <p className="mt-1 text-2xl font-extrabold text-teal-800">{projectReports.length}</p>
+                                    </div>
                                   </div>
                                 </div>
                               )}
 
+                              {projectReports.length > 0 ? (
+                                <div className="space-y-2">
+                                  <div className="mb-1 flex items-center gap-3 px-1">
+                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                                      Zile cu deviz ({projectReports.length})
+                                    </p>
+                                    <div className="h-px flex-1 bg-[#E8E5DE]" />
+                                  </div>
+
+                                  {projectReports.map((report) => {
+                                    const itemsCount = dailyReportItems.filter(
+                                      (i) => i.daily_report_id === report.id
+                                    ).length;
+                                    const dayTotal = reportTotalById.get(report.id) || 0;
+
+                                    return (
+                                      <button
+                                        key={report.id}
+                                        type="button"
+                                        onClick={() =>
+                                          setDevizModal({
+                                            projectId: project.id,
+                                            projectName: project.name,
+                                            date: report.report_date,
+                                            reportId: report.id,
+                                          })
+                                        }
+                                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-teal-50/40 px-4 py-3 text-left transition hover:bg-teal-50"
+                                      >
+                                        <div className="flex items-center gap-3">
+                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100">
+                                            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-teal-600" stroke="currentColor" strokeWidth="2">
+                                              <rect x="4" y="3" width="16" height="18" rx="2" />
+                                              <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+                                            </svg>
+                                          </div>
+                                          <div>
+                                            <p className="text-sm font-semibold text-gray-900">
+                                              {new Date(report.report_date).toLocaleDateString("ro-RO", {
+                                                weekday: "short",
+                                                day: "numeric",
+                                                month: "short",
+                                                year: "numeric",
+                                              })}
+                                            </p>
+                                            <p className="text-xs text-gray-500">{itemsCount} servicii</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                          {isAdmin && (
+                                            <p className="text-sm font-bold text-teal-700">{dayTotal.toFixed(2)} lei</p>
+                                          )}
+                                          <span className="text-teal-600">›</span>
+                                        </div>
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                isAdmin && (
+                                  <p className="text-sm text-gray-400">
+                                    Șeful de echipă nu a adăugat încă devize pentru acest proiect.
+                                  </p>
+                                )
+                              )}
+
+                              {/* Form creare deviz — doar șef echipă */}
                               {!isAdmin && isDevizOpen && (
-                                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-4">
-                                  <div className="mb-4 flex items-center justify-between gap-3">
-                                    <div>
+                                <div className="rounded-2xl border border-teal-200 bg-teal-50 p-3 sm:p-4">
+                                  <div className="mb-3 flex items-center justify-between gap-2">
+                                    <div className="min-w-0">
                                       <p className="text-sm font-bold text-teal-900">
                                         Deviz — {new Date(devizDate).toLocaleDateString("ro-RO")}
                                       </p>
-                                      <p className="text-xs text-teal-700">Adaugă serviciile efectuate</p>
+                                      <p className="text-[11px] text-teal-700">Adaugă serviciile efectuate</p>
                                     </div>
 
                                     <input
                                       type="date"
                                       value={devizDate}
                                       onChange={(e) => openDeviz(project.id, e.target.value)}
-                                      className="rounded-xl border border-teal-300 bg-white px-3 py-2 text-xs outline-none focus:border-teal-500"
+                                      className="shrink-0 rounded-lg border border-teal-300 bg-white px-2 py-1.5 text-xs outline-none focus:border-teal-500"
                                     />
                                   </div>
 
-                                  <div className="space-y-3">
+                                  {/* CARDURI ARTICOLE — VERSIUNE COMPACTĂ MOBIL */}
+                                  <div className="space-y-2">
                                     {devizItems.map((line, index) => {
                                       const selectedSvc = services.find((s) => s.id === line.service_id);
                                       const searchValue = serviceSearchByLine[index] || "";
@@ -1590,105 +1763,136 @@ const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
                                         .filter((svc) => svc.name.toLowerCase().includes(searchValue.toLowerCase()))
                                         .slice(0, 30);
 
+                                      const lineValid = isDevizLineValid(line);
+                                      const showError = showDevizValidation && !lineValid;
+                                      const missingService = !line.service_id;
+                                      const missingQty = !(Number(line.quantity || 0) > 0);
+
                                       return (
-                                        <div key={index} className="rounded-xl border border-teal-200 bg-white p-3">
-                                          <div className="flex items-start gap-2">
-                                            <div className="flex-1 space-y-3">
-                                              <div className="rounded-xl border border-gray-200 bg-white p-2">
-                                                <input
-                                                  type="text"
-                                                  value={searchValue}
-                                                  onChange={(e) => {
-                                                    const value = e.target.value;
-
-                                                    setServiceSearchByLine((prev) => ({
-                                                      ...prev,
-                                                      [index]: value,
-                                                    }));
-
-                                                    updateDevizLine(index, "service_id", "");
-                                                  }}
-                                                  placeholder="Caută serviciu..."
-                                                  className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
-                                                />
-
-                                                <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                                                  {filteredServices.map((svc) => {
-                                                    const selected = line.service_id === svc.id;
-
-                                                    return (
-                                                      <button
-                                                        key={svc.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                          updateDevizLine(index, "service_id", svc.id);
-                                                          setServiceSearchByLine((prev) => ({
-                                                            ...prev,
-                                                            [index]: svc.name,
-                                                          }));
-                                                        }}
-                                                        className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm transition ${
-                                                          selected
-                                                            ? "bg-teal-600 text-white"
-                                                            : "bg-gray-50 text-gray-700 hover:bg-gray-100"
-                                                        }`}
-                                                      >
-                                                        <span className="font-medium">{svc.name}</span>
-                                                        <span className={selected ? "text-white/80" : "text-gray-400"}>{svc.um}</span>
-                                                      </button>
-                                                    );
-                                                  })}
-                                                </div>
-
-                                                {filteredServices.length === 0 && (
-                                                  <p className="px-2 py-2 text-xs text-gray-400">Nu s-a găsit niciun serviciu.</p>
-                                                )}
-                                              </div>
-
-                                              <div className="flex items-center gap-2">
-                                                <input
-                                                  type="number"
-                                                  min="0"
-                                                  step="0.01"
-                                                  value={line.quantity}
-                                                  onChange={(e) => updateDevizLine(index, "quantity", e.target.value)}
-                                                  placeholder="Cantitate"
-                                                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
-                                                />
-
-                                                {selectedSvc && <span className="shrink-0 text-sm font-medium text-gray-500">{selectedSvc.um}</span>}
-                                              </div>
-                                            </div>
+                                        <div
+                                          key={index}
+                                          className={`rounded-xl border bg-white p-2.5 transition ${
+                                            showError ? "border-red-300 ring-1 ring-red-200" : "border-teal-200"
+                                          }`}
+                                        >
+                                          <div className="mb-1.5 flex items-center justify-between gap-2">
+                                            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
+                                              #{index + 1}
+                                              {selectedSvc && (
+                                                <span className="ml-2 text-gray-500 normal-case">{selectedSvc.name}</span>
+                                              )}
+                                            </p>
 
                                             {devizItems.length > 1 && (
                                               <button
                                                 type="button"
                                                 onClick={() => removeDevizLine(index)}
-                                                className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-sm text-red-600 hover:bg-red-100"
                                               >
                                                 ×
                                               </button>
                                             )}
                                           </div>
+
+                                          <input
+                                            type="text"
+                                            value={searchValue}
+                                            onChange={(e) => {
+                                              const value = e.target.value;
+                                              setServiceSearchByLine((prev) => ({
+                                                ...prev,
+                                                [index]: value,
+                                              }));
+                                              updateDevizLine(index, "service_id", "");
+                                            }}
+                                            placeholder="Caută serviciu..."
+                                            className={`mb-1.5 w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-teal-500 ${
+                                              showError && missingService ? "border-red-300" : "border-gray-200"
+                                            }`}
+                                          />
+
+                                          {searchValue && !line.service_id && (
+                                            <div className="mb-1.5 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-1">
+                                              {filteredServices.length === 0 ? (
+                                                <p className="px-2 py-1.5 text-xs text-gray-400">Nu s-a găsit niciun serviciu.</p>
+                                              ) : (
+                                                filteredServices.map((svc) => (
+                                                  <button
+                                                    key={svc.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                      updateDevizLine(index, "service_id", svc.id);
+                                                      setServiceSearchByLine((prev) => ({
+                                                        ...prev,
+                                                        [index]: svc.name,
+                                                      }));
+                                                    }}
+                                                    className="flex w-full items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-left text-xs text-gray-700 transition hover:bg-teal-50"
+                                                  >
+                                                    <span className="font-medium">{svc.name}</span>
+                                                    <span className="text-gray-400">{svc.um}</span>
+                                                  </button>
+                                                ))
+                                              )}
+                                            </div>
+                                          )}
+
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="number"
+                                              inputMode="decimal"
+                                              min="0"
+                                              step="0.01"
+                                              value={line.quantity}
+                                              onChange={(e) => updateDevizLine(index, "quantity", e.target.value)}
+                                              placeholder="Cantitate"
+                                              className={`w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-teal-500 ${
+                                                showError && missingQty ? "border-red-300" : "border-gray-200"
+                                              }`}
+                                            />
+                                            {selectedSvc && (
+                                              <span className="shrink-0 rounded-md bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700">
+                                                {selectedSvc.um}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          {showError && (
+                                            <p className="mt-1.5 text-[11px] font-medium text-red-600">
+                                              {missingService && missingQty
+                                                ? "Selectează un serviciu și introdu cantitatea."
+                                                : missingService
+                                                ? "Selectează un serviciu."
+                                                : "Introdu o cantitate mai mare ca 0."}
+                                            </p>
+                                          )}
                                         </div>
                                       );
                                     })}
                                   </div>
 
-                                  <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-                                    <button
-                                      type="button"
-                                      onClick={addDevizLine}
-                                      className="rounded-xl border border-teal-300 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
-                                    >
-                                      + Adaugă serviciu
-                                    </button>
+                                  <button
+                                    type="button"
+                                    onClick={addDevizLine}
+                                    className="mt-2 w-full rounded-xl border border-dashed border-teal-300 bg-white px-3 py-2 text-xs font-semibold text-teal-700 transition hover:bg-teal-50"
+                                  >
+                                    + Adaugă serviciu
+                                  </button>
 
+                                  {showDevizValidation && !isDevizFullyValid && (
+                                    <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2">
+                                      <p className="text-xs font-medium text-red-700">
+                                        Toate rândurile trebuie să aibă serviciu selectat și cantitate &gt; 0.
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                                     <button
                                       type="button"
                                       onClick={handleSaveDeviz}
-                                      disabled={savingDeviz}
-                                      className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                                      disabled={savingDeviz || !isDevizFullyValid}
+                                      className="flex-1 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
                                       {savingDeviz ? "Se salvează..." : "Salvează devizul"}
                                     </button>
@@ -1698,6 +1902,7 @@ const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
                                       onClick={() => {
                                         setDevizProjectId(null);
                                         setServiceSearchByLine({});
+                                        setShowDevizValidation(false);
                                       }}
                                       className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                                     >
@@ -1716,16 +1921,13 @@ const hiddenPhotosCount = Math.max(photosForDate.length - 1, 0);
                                   {projectReports.length === 0 ? "+ Creează deviz pentru azi" : "+ Deviz nou pentru azi"}
                                 </button>
                               )}
-
-                              {isAdmin && projectReports.length === 0 && (
-                                <p className="text-sm text-gray-400">Șeful de echipă nu a adăugat încă devize pentru acest proiect.</p>
-                              )}
                             </div>
                           )}
                         </div>
                       )}
                     </div>
 
+                    {/* FORMULAR BON / FACTURĂ — neatins */}
                     {!isAdmin && activeInlineProjectId === project.id && projectTab === "financiar" && (
                       <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
                         <div className="mb-4">
