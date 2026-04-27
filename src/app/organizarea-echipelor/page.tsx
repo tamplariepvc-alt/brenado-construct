@@ -629,7 +629,7 @@ export default function OrganizareaEchipelorPage() {
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-500">
                 {isAdmin
-                  ? "Nu există echipe create. Apasă „Creează echipă" pentru a adăuga una."
+                  ? "Nu există echipe create. Apasă &bdquo;Creează echipă&rdquo; pentru a adăuga una."
                   : "Nu ești atribuit niciunei echipe. Contactează administratorul."}
               </p>
             </div>
