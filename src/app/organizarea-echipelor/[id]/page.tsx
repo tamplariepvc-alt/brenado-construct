@@ -65,24 +65,20 @@ export default function DetaliuEchipaPage() {
   const teamId = params.id as string;
 
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [team, setTeam] = useState<Team | null>(null);
   const [project, setProject] = useState<Project | null>(null);
 
-  const [allTeams, setAllTeams] = useState<Team[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [teamVehicles, setTeamVehicles] = useState<TeamVehicleRelation[]>([]);
   const [teamWorkers, setTeamWorkers] = useState<TeamWorkerRelation[]>([]);
 
-  const [showEditModal, setShowEditModal] = useState(false);
-
-  const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
-  const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
+  // Modal ștergere
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deletePasswordError, setDeletePasswordError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const isAdmin = profile?.role === "administrator";
 
@@ -123,113 +119,61 @@ export default function DetaliuEchipaPage() {
 
     if (teamError || !teamData) { router.push("/organizarea-echipelor"); return; }
 
-    // Toate echipele (fără filtrare pe dată — echipe permanente)
-    const [allTeamsRes, projectsRes, vehiclesRes, workersRes, teamVehiclesRes, teamWorkersRes] =
+    // Dacă e sef_echipa, verifică că are acces la această echipă
+    if (profileData.role === "sef_echipa") {
+      const { data: workerData } = await supabase
+        .from("workers")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (workerData) {
+        const { data: membershipData } = await supabase
+          .from("daily_team_workers")
+          .select("daily_team_id")
+          .eq("worker_id", workerData.id)
+          .eq("daily_team_id", teamId)
+          .maybeSingle();
+
+        if (!membershipData) {
+          // Nu face parte din această echipă
+          router.push("/organizarea-echipelor");
+          return;
+        }
+      } else {
+        router.push("/organizarea-echipelor");
+        return;
+      }
+    }
+
+    const [projectsRes, vehiclesRes, workersRes, teamVehiclesRes, teamWorkersRes] =
       await Promise.all([
-        supabase.from("daily_teams").select("id, project_id, work_date, created_by, created_at"),
-        supabase.from("projects").select("id, name, status, beneficiary, project_location").eq("status", "in_lucru").order("name", { ascending: true }),
+        supabase.from("projects").select("id, name, status, beneficiary, project_location").eq("status", "in_lucru"),
         supabase.from("vehicles").select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until").order("registration_number", { ascending: true }),
         supabase.from("workers").select("id, full_name, is_active").eq("is_active", true).eq("worker_type", "executie").order("full_name", { ascending: true }),
-        supabase.from("daily_team_vehicles").select("id, daily_team_id, vehicle_id"),
-        supabase.from("daily_team_workers").select("id, daily_team_id, worker_id"),
+        supabase.from("daily_team_vehicles").select("id, daily_team_id, vehicle_id").eq("daily_team_id", teamId),
+        supabase.from("daily_team_workers").select("id, daily_team_id, worker_id").eq("daily_team_id", teamId),
       ]);
 
     const projectsList = (projectsRes.data as Project[]) || [];
-    const vehiclesList = (vehiclesRes.data as Vehicle[]) || [];
-    const workersList = (workersRes.data as Worker[]) || [];
-    const teamVehiclesList = (teamVehiclesRes.data as TeamVehicleRelation[]) || [];
-    const teamWorkersList = (teamWorkersRes.data as TeamWorkerRelation[]) || [];
 
     setProfile(profileData as Profile);
     setTeam(teamData as Team);
     setProject(projectsList.find((item) => item.id === teamData.project_id) || null);
-    setAllTeams((allTeamsRes.data as Team[]) || []);
-    setProjects(projectsList);
-    setVehicles(vehiclesList);
-    setWorkers(workersList);
-    setTeamVehicles(teamVehiclesList);
-    setTeamWorkers(teamWorkersList);
-
-    setSelectedProjectId(teamData.project_id);
-    setSelectedVehicleIds(teamVehiclesList.filter((item) => item.daily_team_id === teamData.id).map((item) => item.vehicle_id));
-    setSelectedWorkerIds(teamWorkersList.filter((item) => item.daily_team_id === teamData.id).map((item) => item.worker_id));
+    setVehicles((vehiclesRes.data as Vehicle[]) || []);
+    setWorkers((workersRes.data as Worker[]) || []);
+    setTeamVehicles((teamVehiclesRes.data as TeamVehicleRelation[]) || []);
+    setTeamWorkers((teamWorkersRes.data as TeamWorkerRelation[]) || []);
 
     setLoading(false);
   };
 
   useEffect(() => { loadData(); }, [teamId]);
 
-  const usedProjectIds = useMemo(() =>
-    allTeams.filter((item) => item.id !== teamId).map((item) => item.project_id),
-    [allTeams, teamId]
-  );
-
-  const usedVehicleIds = useMemo(() =>
-    teamVehicles.filter((item) => item.daily_team_id !== teamId).map((item) => item.vehicle_id),
-    [teamVehicles, teamId]
-  );
-
-  const usedWorkerIds = useMemo(() =>
-    teamWorkers.filter((item) => item.daily_team_id !== teamId).map((item) => item.worker_id),
-    [teamWorkers, teamId]
-  );
-
-  const availableProjects = useMemo(() =>
-    projects.filter((item) => item.id === selectedProjectId || !usedProjectIds.includes(item.id)),
-    [projects, usedProjectIds, selectedProjectId]
-  );
-
-  const availableVehicles = useMemo(() =>
-    vehicles
-      .filter((v) => getVehicleComputedStatus(v) !== "doc_expirate")
-      .filter((v) => selectedVehicleIds.includes(v.id) || !usedVehicleIds.includes(v.id)),
-    [vehicles, usedVehicleIds, selectedVehicleIds]
-  );
-
-  const availableWorkers = useMemo(() =>
-    workers.filter((w) => selectedWorkerIds.includes(w.id) || !usedWorkerIds.includes(w.id)),
-    [workers, usedWorkerIds, selectedWorkerIds]
-  );
-
-  const toggleVehicle = (vehicleId: string) => {
-    setSelectedVehicleIds((prev) =>
-      prev.includes(vehicleId) ? prev.filter((id) => id !== vehicleId) : [...prev, vehicleId]
-    );
-  };
-
-  const toggleWorker = (workerId: string) => {
-    setSelectedWorkerIds((prev) =>
-      prev.includes(workerId) ? prev.filter((id) => id !== workerId) : [...prev, workerId]
-    );
-  };
-
-  const handleSave = async () => {
-    if (!team) return;
-    if (!selectedProjectId) { alert("Selectează șantierul."); return; }
-    if (selectedVehicleIds.length === 0) { alert("Selectează cel puțin un autoturism."); return; }
-    if (selectedWorkerIds.length === 0) { alert("Selectează cel puțin un muncitor."); return; }
-
-    setSaving(true);
-
-    const { error: updateTeamError } = await supabase.from("daily_teams").update({ project_id: selectedProjectId }).eq("id", team.id);
-    if (updateTeamError) { alert(`Eroare: ${updateTeamError.message}`); setSaving(false); return; }
-
-    const { error: deleteWorkersError } = await supabase.from("daily_team_workers").delete().eq("daily_team_id", team.id);
-    if (deleteWorkersError) { alert(`Eroare: ${deleteWorkersError.message}`); setSaving(false); return; }
-
-    const { error: deleteVehiclesError } = await supabase.from("daily_team_vehicles").delete().eq("daily_team_id", team.id);
-    if (deleteVehiclesError) { alert(`Eroare: ${deleteVehiclesError.message}`); setSaving(false); return; }
-
-    const { error: insertWorkersError } = await supabase.from("daily_team_workers").insert(selectedWorkerIds.map((id) => ({ daily_team_id: team.id, worker_id: id })));
-    if (insertWorkersError) { alert(`Eroare: ${insertWorkersError.message}`); setSaving(false); return; }
-
-    const { error: insertVehiclesError } = await supabase.from("daily_team_vehicles").insert(selectedVehicleIds.map((id) => ({ daily_team_id: team.id, vehicle_id: id })));
-    if (insertVehiclesError) { alert(`Eroare: ${insertVehiclesError.message}`); setSaving(false); return; }
-
-    setSaving(false);
-    setShowEditModal(false);
-    await loadData();
-  };
+  const currentTeamVehicleIds = teamVehicles.map((item) => item.vehicle_id);
+  const currentTeamWorkerIds = teamWorkers.map((item) => item.worker_id);
+  const currentVehicles = vehicles.filter((v) => currentTeamVehicleIds.includes(v.id));
+  const currentWorkers = workers.filter((w) => currentTeamWorkerIds.includes(w.id));
 
   const handleExportPdf = async () => {
     if (!team || !project) return;
@@ -257,14 +201,6 @@ export default function DetaliuEchipaPage() {
     doc.text(`Locație: ${project.project_location || "-"}`, 14, 50);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
 
-    const vehicleRows = currentVehicles.map((v, i) => [
-      String(i + 1),
-      v.registration_number,
-      `${v.brand} ${v.model}`,
-      v.rca_valid_until ? new Date(`${v.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
-      v.itp_valid_until ? new Date(`${v.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
-    ]);
-
     doc.setFontSize(12);
     doc.setTextColor(30, 64, 175);
     doc.text(`Auto atribuite (${currentVehicles.length})`, 14, 65);
@@ -272,7 +208,13 @@ export default function DetaliuEchipaPage() {
     autoTable(doc, {
       startY: 69,
       head: [["Nr.", "Înmatriculare", "Vehicul", "RCA până la", "ITP până la"]],
-      body: vehicleRows.length > 0 ? vehicleRows : [["", "Nu există auto atribuite.", "", "", ""]],
+      body: currentVehicles.length > 0
+        ? currentVehicles.map((v, i) => [
+            String(i + 1), v.registration_number, `${v.brand} ${v.model}`,
+            v.rca_valid_until ? new Date(`${v.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
+            v.itp_valid_until ? new Date(`${v.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
+          ])
+        : [["", "Nu există auto atribuite.", "", "", ""]],
       styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
       headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -285,12 +227,12 @@ export default function DetaliuEchipaPage() {
     doc.setTextColor(30, 64, 175);
     doc.text(`Personal de execuție (${currentWorkers.length})`, 14, afterVehicles);
 
-    const workerRows = currentWorkers.map((w, i) => [String(i + 1), w.full_name]);
-
     autoTable(doc, {
       startY: afterVehicles + 4,
       head: [["Nr.", "Nume complet"]],
-      body: workerRows.length > 0 ? workerRows : [["", "Nu există muncitori în echipă."]],
+      body: currentWorkers.length > 0
+        ? currentWorkers.map((w, i) => [String(i + 1), w.full_name])
+        : [["", "Nu există muncitori în echipă."]],
       styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
       headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -304,16 +246,26 @@ export default function DetaliuEchipaPage() {
     doc.save(`echipa_${project.name.replace(/\s+/g, "_")}.pdf`);
   };
 
-  const currentTeamVehicleIds = team
-    ? teamVehicles.filter((item) => item.daily_team_id === team.id).map((item) => item.vehicle_id)
-    : [];
+  const handleDeleteTeam = async () => {
+    if (deletePassword !== "brenado***") {
+      setDeletePasswordError("Parolă incorectă. Încearcă din nou.");
+      return;
+    }
 
-  const currentTeamWorkerIds = team
-    ? teamWorkers.filter((item) => item.daily_team_id === team.id).map((item) => item.worker_id)
-    : [];
+    setDeleting(true);
 
-  const currentVehicles = vehicles.filter((v) => currentTeamVehicleIds.includes(v.id));
-  const currentWorkers = workers.filter((w) => currentTeamWorkerIds.includes(w.id));
+    await supabase.from("daily_team_workers").delete().eq("daily_team_id", teamId);
+    await supabase.from("daily_team_vehicles").delete().eq("daily_team_id", teamId);
+    const { error } = await supabase.from("daily_teams").delete().eq("id", teamId);
+
+    if (error) {
+      alert(`Eroare la ștergerea echipei: ${error.message}`);
+      setDeleting(false);
+      return;
+    }
+
+    router.push("/organizarea-echipelor");
+  };
 
   const renderTeamIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
@@ -360,20 +312,14 @@ export default function DetaliuEchipaPage() {
             >
               Înapoi
             </button>
+            {/* Export PDF — vizibil pentru toți */}
             <button
               onClick={handleExportPdf}
               className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:px-4"
             >
               Export PDF
             </button>
-            {isAdmin && (
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="rounded-xl bg-[#0196ff] px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90 sm:px-4"
-              >
-                Editează
-              </button>
-            )}
+            {/* Fără buton Editează — mutat pe pagina principală */}
           </div>
         </div>
       </header>
@@ -469,117 +415,87 @@ export default function DetaliuEchipaPage() {
           )}
         </section>
 
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            className="w-full rounded-xl border border-gray-200 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 sm:w-auto"
-          >
-            Export PDF echipă
-          </button>
-        </div>
+        {/* Buton Șterge — doar admin, jos în pagină */}
+        {isAdmin && (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeleteModal(true);
+                setDeletePassword("");
+                setDeletePasswordError("");
+              }}
+              className="w-full rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 sm:w-auto"
+            >
+              Șterge echipa
+            </button>
+          </div>
+        )}
       </main>
 
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
-              <div>
-                <h2 className="text-lg font-semibold">Editează echipa</h2>
-                <p className="text-sm text-gray-500">Modifică șantierul, mașinile și muncitorii.</p>
+      {/* MODAL CONFIRMARE ȘTERGERE CU PAROLĂ */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <div className="mb-4 mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-red-600" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 9v4M12 17h.01" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-              >
-                Închide
-              </button>
-            </div>
 
-            <div className="max-h-[76vh] overflow-y-auto px-5 py-4">
-              <div className="space-y-6">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">Selectare șantier</label>
-                  <select
-                    value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-gray-500"
-                  >
-                    <option value="">Alege șantier</option>
-                    {availableProjects.map((item) => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
-                </div>
+              <h3 className="text-center text-lg font-bold text-gray-900">Ștergi această echipă?</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Acțiunea este ireversibilă. Echipa și toate relațiile sale vor fi șterse definitiv.
+              </p>
 
-                <div>
-                  <p className="mb-3 text-sm font-semibold text-gray-700">Selectare autoturism</p>
-                  {availableVehicles.length === 0 ? (
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu există mașini disponibile.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {availableVehicles.map((vehicle) => (
-                        <label key={vehicle.id} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
-                          <input type="checkbox" checked={selectedVehicleIds.includes(vehicle.id)} onChange={() => toggleVehicle(vehicle.id)} className="h-5 w-5" />
-                          <div>
-                            <p className="text-sm font-medium text-gray-800">{vehicle.registration_number}</p>
-                            <p className="text-xs text-gray-500">{vehicle.brand} {vehicle.model}</p>
-                          </div>
-                        </label>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <p className="mb-3 text-sm font-semibold text-gray-700">
-                    Alege echipa
-                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">Personal de execuție</span>
+              {project && (
+                <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-sm font-semibold text-red-800">{project.name}</p>
+                  <p className="mt-1 text-xs text-red-600">
+                    {currentWorkers.length} muncitori · {currentVehicles.length} auto
                   </p>
-                  {availableWorkers.length === 0 ? (
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu există muncitori disponibili. Toți sunt atribuiți altor echipe.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {availableWorkers.map((worker) => (
-                        <label key={worker.id} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
-                          <input type="checkbox" checked={selectedWorkerIds.includes(worker.id)} onChange={() => toggleWorker(worker.id)} className="h-5 w-5" />
-                          <span className="text-sm font-medium text-gray-800">{worker.full_name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  )}
                 </div>
+              )}
 
-                <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                  <p className="text-sm font-medium text-blue-800">
-                    Șantier: {availableProjects.find((p) => p.id === selectedProjectId)?.name || "-"}
-                  </p>
-                  <p className="mt-1 text-sm text-blue-800">Auto selectate: {selectedVehicleIds.length}</p>
-                  <p className="mt-1 text-sm text-blue-800">Muncitori selectați: {selectedWorkerIds.length}</p>
-                </div>
+              <div className="mt-5">
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Introdu parola de confirmare
+                </label>
+                <input
+                  type="password"
+                  value={deletePassword}
+                  onChange={(e) => {
+                    setDeletePassword(e.target.value);
+                    setDeletePasswordError("");
+                  }}
+                  placeholder="Parolă de ștergere"
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                    deletePasswordError ? "border-red-400 bg-red-50" : "border-gray-300 focus:border-gray-500"
+                  }`}
+                />
+                {deletePasswordError && (
+                  <p className="mt-2 text-xs font-medium text-red-600">{deletePasswordError}</p>
+                )}
+              </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={saving}
-                    className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                  >
-                    {saving ? "Se salvează..." : "Salvează modificările"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowEditModal(false)}
-                    className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                  >
-                    Renunță
-                  </button>
-                </div>
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleDeleteTeam}
+                  disabled={deleting || !deletePassword}
+                  className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {deleting ? "Se șterge..." : "Confirmă ștergerea"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowDeleteModal(false); setDeletePassword(""); setDeletePasswordError(""); }}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Anulează
+                </button>
               </div>
             </div>
           </div>
