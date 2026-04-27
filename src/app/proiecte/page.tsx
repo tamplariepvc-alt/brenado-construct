@@ -368,6 +368,12 @@ export default function ProiectePage() {
   const [lightboxPhotos, setLightboxPhotos] = useState<DailyPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  // Ștergere proiect (admin)
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [deleteProjectPassword, setDeleteProjectPassword] = useState("");
+  const [deleteProjectPasswordError, setDeleteProjectPasswordError] = useState("");
+  const [deletingProject, setDeletingProject] = useState(false);
+
   const isAdmin = profile?.role === "administrator";
 
   const openLightbox = (photos: DailyPhoto[], index: number) => {
@@ -379,6 +385,97 @@ export default function ProiectePage() {
     setLightboxPhotos([]);
     setLightboxIndex(0);
   }, []);
+
+  const openDeleteProject = (projectId: string) => {
+    setDeleteProjectId(projectId);
+    setDeleteProjectPassword("");
+    setDeleteProjectPasswordError("");
+  };
+
+  const handleDeleteProject = async () => {
+    if (!deleteProjectId) return;
+
+    if (deleteProjectPassword !== "brenado***") {
+      setDeleteProjectPasswordError("Parolă incorectă. Încearcă din nou.");
+      return;
+    }
+
+    setDeletingProject(true);
+    const pid = deleteProjectId;
+
+    // 1. Echipe + relații
+    const { data: teamsData } = await supabase.from("daily_teams").select("id").eq("project_id", pid);
+    const teamIds = (teamsData || []).map((t: any) => t.id);
+    if (teamIds.length > 0) {
+      await supabase.from("daily_team_workers").delete().in("daily_team_id", teamIds);
+      await supabase.from("daily_team_vehicles").delete().in("daily_team_id", teamIds);
+      await supabase.from("daily_teams").delete().in("id", teamIds);
+    }
+
+    // 2. Bonuri + items
+    const { data: receiptsData } = await supabase.from("fiscal_receipts").select("id").eq("project_id", pid);
+    const receiptIds = (receiptsData || []).map((r: any) => r.id);
+    if (receiptIds.length > 0) {
+      await supabase.from("fiscal_receipt_items").delete().in("receipt_id", receiptIds);
+    }
+    await supabase.from("fiscal_receipts").delete().eq("project_id", pid);
+
+    // 3. Facturi + items
+    const { data: invoicesData } = await supabase.from("project_invoices").select("id").eq("project_id", pid);
+    const invoiceIds = (invoicesData || []).map((i: any) => i.id);
+    if (invoiceIds.length > 0) {
+      await supabase.from("project_invoice_items").delete().in("invoice_id", invoiceIds);
+    }
+    await supabase.from("project_invoices").delete().eq("project_id", pid);
+
+    // 4. Nedeductibile
+    await supabase.from("project_nondeductible_expenses").delete().eq("project_id", pid);
+
+    // 5. Comenzi + items
+    const { data: ordersData } = await supabase.from("orders").select("id").eq("project_id", pid);
+    const orderIds = (ordersData || []).map((o: any) => o.id);
+    if (orderIds.length > 0) {
+      await supabase.from("order_items").delete().in("order_id", orderIds);
+    }
+    await supabase.from("orders").delete().eq("project_id", pid);
+
+    // 6. Pontaje + ore extra
+    await supabase.from("time_entries").delete().eq("project_id", pid);
+    await supabase.from("extra_work").delete().eq("project_id", pid);
+
+    // 7. Alimentări
+    await supabase.from("funding_requests").delete().eq("project_id", pid);
+    await supabase.from("project_fundings").delete().eq("project_id", pid);
+
+    // 8. Rapoarte zilnice (devize) + items
+    const { data: reportsData } = await supabase.from("daily_reports").select("id").eq("project_id", pid);
+    const reportIds = (reportsData || []).map((r: any) => r.id);
+    if (reportIds.length > 0) {
+      await supabase.from("daily_report_items").delete().in("daily_report_id", reportIds);
+    }
+    await supabase.from("daily_reports").delete().eq("project_id", pid);
+
+    // 9. Poze
+    await supabase.from("daily_photos").delete().eq("project_id", pid);
+
+    // 10. Legătura cu șefii de echipă
+    await supabase.from("project_team_leads").delete().eq("project_id", pid);
+
+    // 11. Proiectul
+    const { error } = await supabase.from("projects").delete().eq("id", pid);
+
+    if (error) {
+      alert(`Eroare la ștergerea proiectului: ${error.message}`);
+      setDeletingProject(false);
+      return;
+    }
+
+    setDeletingProject(false);
+    setDeleteProjectId(null);
+    setDeleteProjectPassword("");
+    setDeleteProjectPasswordError("");
+    await loadData();
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -1745,6 +1842,89 @@ export default function ProiectePage() {
         </div>
       )}
 
+      {/* MODAL CONFIRMARE ȘTERGERE PROIECT */}
+      {deleteProjectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <div className="mb-4 mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-red-600" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 9v4M12 17h.01" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              <h3 className="text-center text-lg font-bold text-gray-900">Ștergi acest proiect?</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Acțiunea este ireversibilă. Se vor șterge definitiv toate datele asociate acestui proiect.
+              </p>
+
+              {(() => {
+                const proj = projects.find((p) => p.id === deleteProjectId);
+                return proj ? (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                    <p className="text-sm font-bold text-red-800">{proj.name}</p>
+                    <p className="mt-1 text-xs text-red-600">{proj.beneficiary || "-"}</p>
+                    <div className="mt-2 space-y-0.5 text-xs text-red-500">
+                      <p>· Echipe, bonuri, facturi, nedeductibile</p>
+                      <p>· Comenzi, pontaje, ore extra, weekend</p>
+                      <p>· Alimentări de card și cont</p>
+                      <p>· Poze, devize, centru de cost</p>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+
+              <div className="mt-5">
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  Introdu parola de confirmare
+                </label>
+                <input
+                  type="password"
+                  value={deleteProjectPassword}
+                  onChange={(e) => {
+                    setDeleteProjectPassword(e.target.value);
+                    setDeleteProjectPasswordError("");
+                  }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleDeleteProject(); }}
+                  placeholder="Parolă de ștergere"
+                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                    deleteProjectPasswordError
+                      ? "border-red-400 bg-red-50"
+                      : "border-gray-300 focus:border-gray-500"
+                  }`}
+                />
+                {deleteProjectPasswordError && (
+                  <p className="mt-2 text-xs font-medium text-red-600">{deleteProjectPasswordError}</p>
+                )}
+              </div>
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleDeleteProject}
+                  disabled={deletingProject || !deleteProjectPassword}
+                  className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {deletingProject ? "Se șterge..." : "Confirmă ștergerea"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeleteProjectId(null);
+                    setDeleteProjectPassword("");
+                    setDeleteProjectPasswordError("");
+                  }}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
@@ -1851,9 +2031,23 @@ export default function ProiectePage() {
                           </div>
                         </div>
 
-                        <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
-                          {getStatusLabel(project.status)}
-                        </span>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
+                            {getStatusLabel(project.status)}
+                          </span>
+                          {isAdmin && (
+                            <button
+                              type="button"
+                              onClick={() => openDeleteProject(project.id)}
+                              className="flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-600 transition hover:bg-red-100"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3" stroke="currentColor" strokeWidth="2">
+                                <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                              Șterge
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="mt-4 grid grid-cols-2 gap-3">
