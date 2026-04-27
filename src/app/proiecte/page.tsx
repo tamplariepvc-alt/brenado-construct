@@ -403,78 +403,102 @@ export default function ProiectePage() {
     setDeletingProject(true);
     const pid = deleteProjectId;
 
-    // 1. Echipe + relații
-    const { data: teamsData } = await supabase.from("daily_teams").select("id").eq("project_id", pid);
-    const teamIds = (teamsData || []).map((t: any) => t.id);
-    if (teamIds.length > 0) {
-      await supabase.from("daily_team_workers").delete().in("daily_team_id", teamIds);
-      await supabase.from("daily_team_vehicles").delete().in("daily_team_id", teamIds);
-      await supabase.from("daily_teams").delete().in("id", teamIds);
-    }
+    try {
+      // 1. Echipe permanente + relații (daily_team_workers, daily_team_vehicles)
+      const { data: teamsData } = await supabase
+        .from("daily_teams").select("id").eq("project_id", pid);
+      const teamIds = (teamsData || []).map((t: any) => t.id);
+      if (teamIds.length > 0) {
+        await supabase.from("daily_team_workers").delete().in("daily_team_id", teamIds);
+        await supabase.from("daily_team_vehicles").delete().in("daily_team_id", teamIds);
+        await supabase.from("daily_teams").delete().in("id", teamIds);
+      }
 
-    // 2. Bonuri + items
-    const { data: receiptsData } = await supabase.from("fiscal_receipts").select("id").eq("project_id", pid);
-    const receiptIds = (receiptsData || []).map((r: any) => r.id);
-    if (receiptIds.length > 0) {
-      await supabase.from("fiscal_receipt_items").delete().in("receipt_id", receiptIds);
-    }
-    await supabase.from("fiscal_receipts").delete().eq("project_id", pid);
+      // 2. Bonuri fiscale + materiale bon
+      const { data: receiptsData } = await supabase
+        .from("fiscal_receipts").select("id").eq("project_id", pid);
+      const receiptIds = (receiptsData || []).map((r: any) => r.id);
+      if (receiptIds.length > 0) {
+        await supabase.from("fiscal_receipt_items").delete().in("receipt_id", receiptIds);
+      }
+      await supabase.from("fiscal_receipts").delete().eq("project_id", pid);
 
-    // 3. Facturi + items
-    const { data: invoicesData } = await supabase.from("project_invoices").select("id").eq("project_id", pid);
-    const invoiceIds = (invoicesData || []).map((i: any) => i.id);
-    if (invoiceIds.length > 0) {
-      await supabase.from("project_invoice_items").delete().in("invoice_id", invoiceIds);
-    }
-    await supabase.from("project_invoices").delete().eq("project_id", pid);
+      // 3. Facturi + materiale factură
+      const { data: invoicesData } = await supabase
+        .from("project_invoices").select("id").eq("project_id", pid);
+      const invoiceIds = (invoicesData || []).map((i: any) => i.id);
+      if (invoiceIds.length > 0) {
+        await supabase.from("project_invoice_items").delete().in("invoice_id", invoiceIds);
+      }
+      await supabase.from("project_invoices").delete().eq("project_id", pid);
 
-    // 4. Nedeductibile
-    await supabase.from("project_nondeductible_expenses").delete().eq("project_id", pid);
+      // 4. Cheltuieli nedeductibile
+      await supabase.from("project_nondeductible_expenses").delete().eq("project_id", pid);
 
-    // 5. Comenzi + items
-    const { data: ordersData } = await supabase.from("orders").select("id").eq("project_id", pid);
-    const orderIds = (ordersData || []).map((o: any) => o.id);
-    if (orderIds.length > 0) {
-      await supabase.from("order_items").delete().in("order_id", orderIds);
-    }
-    await supabase.from("orders").delete().eq("project_id", pid);
+      // 5. Comenzi + articole comandă
+      const { data: ordersData } = await supabase
+        .from("orders").select("id").eq("project_id", pid);
+      const orderIds = (ordersData || []).map((o: any) => o.id);
+      if (orderIds.length > 0) {
+        await supabase.from("order_items").delete().in("order_id", orderIds);
+      }
+      await supabase.from("orders").delete().eq("project_id", pid);
 
-    // 6. Pontaje + ore extra
-    await supabase.from("time_entries").delete().eq("project_id", pid);
-    await supabase.from("extra_work").delete().eq("project_id", pid);
+      // 6. Devize ofertă (estimates) + articole deviz
+      const { data: estimatesData } = await supabase
+        .from("estimates").select("id").eq("project_id", pid);
+      const estimateIds = (estimatesData || []).map((e: any) => e.id);
+      if (estimateIds.length > 0) {
+        await supabase.from("estimate_items").delete().in("estimate_id", estimateIds);
+      }
+      await supabase.from("estimates").delete().eq("project_id", pid);
 
-    // 7. Alimentări
-    await supabase.from("funding_requests").delete().eq("project_id", pid);
-    await supabase.from("project_fundings").delete().eq("project_id", pid);
+      // 7. Rapoarte zilnice tehnice (devize zilnice) + articole
+      const { data: reportsData } = await supabase
+        .from("daily_reports").select("id").eq("project_id", pid);
+      const reportIds = (reportsData || []).map((r: any) => r.id);
+      if (reportIds.length > 0) {
+        await supabase.from("daily_report_items").delete().in("daily_report_id", reportIds);
+      }
+      await supabase.from("daily_reports").delete().eq("project_id", pid);
 
-    // 8. Rapoarte zilnice (devize) + items
-    const { data: reportsData } = await supabase.from("daily_reports").select("id").eq("project_id", pid);
-    const reportIds = (reportsData || []).map((r: any) => r.id);
-    if (reportIds.length > 0) {
-      await supabase.from("daily_report_items").delete().in("daily_report_id", reportIds);
-    }
-    await supabase.from("daily_reports").delete().eq("project_id", pid);
+      // 8. Pontaje (time_entries) — istoricul complet
+      await supabase.from("time_entries").delete().eq("project_id", pid);
 
-    // 9. Poze
-    await supabase.from("daily_photos").delete().eq("project_id", pid);
+      // 9. Ore extra + weekend (extra_work) — centrul de cost manoperă
+      await supabase.from("extra_work").delete().eq("project_id", pid);
 
-    // 10. Legătura cu șefii de echipă
-    await supabase.from("project_team_leads").delete().eq("project_id", pid);
+      // 10. Poze șantier
+      await supabase.from("daily_photos").delete().eq("project_id", pid);
 
-    // 11. Proiectul
-    const { error } = await supabase.from("projects").delete().eq("id", pid);
+      // 11. Alimentări card/cont (istoricul complet) + solicitări
+      await supabase.from("funding_requests").delete().eq("project_id", pid);
+      await supabase.from("project_fundings").delete().eq("project_id", pid);
 
-    if (error) {
-      alert(`Eroare la ștergerea proiectului: ${error.message}`);
+      // 12. Relația muncitori-proiect
+      await supabase.from("project_workers").delete().eq("project_id", pid);
+
+      // 13. Relația șefi echipă-proiect
+      await supabase.from("project_team_leads").delete().eq("project_id", pid);
+
+      // 14. Proiectul în sine (centrul de cost dispare automat)
+      const { error: deleteProjectError } = await supabase
+        .from("projects").delete().eq("id", pid);
+
+      if (deleteProjectError) {
+        throw new Error(deleteProjectError.message);
+      }
+
       setDeletingProject(false);
-      return;
-    }
+      setDeleteProjectId(null);
+      setDeleteProjectPassword("");
+      setDeleteProjectPasswordError("");
+      await loadData();
 
-    setDeletingProject(false);
-    setDeleteProjectId(null);
-    setDeleteProjectPassword("");
-    setDeleteProjectPasswordError("");
-    await loadData();
+    } catch (err: any) {
+      alert(`Eroare la ștergerea proiectului: ${err?.message || "Eroare necunoscută"}`);
+      setDeletingProject(false);
+    }
   };
 
   const loadData = async () => {
