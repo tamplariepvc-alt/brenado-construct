@@ -18,6 +18,13 @@ type ReceiptItem = {
   line_total: string;
 };
 
+type ExistingReceipt = {
+  id: string;
+  document_number: string | null;
+  receipt_date: string | null;
+  supplier: string | null;
+};
+
 const createEmptyItem = (): ReceiptItem => ({
   item_name: "",
   quantity: "",
@@ -35,6 +42,9 @@ export default function IncarcaBFPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
 
   const [project, setProject] = useState<Project | null>(null);
+
+  // NEW: bonurile deja încărcate pe proiect (pentru detecție duplicat)
+  const [existingReceipts, setExistingReceipts] = useState<ExistingReceipt[]>([]);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -69,11 +79,42 @@ export default function IncarcaBFPage() {
       }
 
       setProject(data as Project);
+
+      // Încarcă bonurile existente pentru acest proiect (detecție duplicat)
+      const { data: receiptsData } = await supabase
+        .from("fiscal_receipts")
+        .select("id, document_number, receipt_date, supplier")
+        .eq("project_id", projectId);
+
+      setExistingReceipts((receiptsData as ExistingReceipt[]) || []);
+
       setLoading(false);
     };
 
     loadProject();
   }, [projectId, router]);
+
+  // NEW: detecție duplicat în timp real (număr document + dată)
+  const duplicateWarning = useMemo(() => {
+    if (!documentNumber.trim() || !receiptDate) return null;
+
+    const docNum = documentNumber.trim().toLowerCase();
+    const found = existingReceipts.find(
+      (r) =>
+        (r.document_number || "").trim().toLowerCase() === docNum &&
+        r.receipt_date === receiptDate
+    );
+
+    if (found) {
+      return `Există deja un bon cu numărul „${found.document_number}" din ${
+        found.receipt_date
+          ? new Date(found.receipt_date).toLocaleDateString("ro-RO")
+          : "-"
+      }${found.supplier ? ` (furnizor: ${found.supplier})` : ""} pentru acest proiect.`;
+    }
+
+    return null;
+  }, [documentNumber, receiptDate, existingReceipts]);
   
   const applyExtractedData = (data: any) => {
   setReceiptDate(data.document_date || "");
@@ -262,6 +303,12 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
       return;
     }
 
+    // Protecție anti-duplicat la salvare
+    if (duplicateWarning) {
+      alert(`Nu se poate salva: ${duplicateWarning}`);
+      return;
+    }
+
     const validItems = items.filter(
       (item) =>
         item.item_name.trim() ||
@@ -416,7 +463,11 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
                   type="date"
                   value={receiptDate}
                   onChange={(e) => setReceiptDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3"
+                  className={`w-full rounded-lg border px-4 py-3 transition ${
+                    duplicateWarning
+                      ? "border-red-400 bg-red-50 focus:border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
               </div>
 
@@ -428,7 +479,11 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
                   type="text"
                   value={documentNumber}
                   onChange={(e) => setDocumentNumber(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3"
+                  className={`w-full rounded-lg border px-4 py-3 transition ${
+                    duplicateWarning
+                      ? "border-red-400 bg-red-50 focus:border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
               </div>
 
@@ -443,6 +498,18 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3"
                 />
               </div>
+
+              {/* BANNER DUPLICAT */}
+              {duplicateWarning && (
+                <div className="md:col-span-2 flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white">!</span>
+                  <div>
+                    <p className="text-sm font-bold text-red-700">Document duplicat detectat</p>
+                    <p className="mt-0.5 text-xs text-red-600">{duplicateWarning}</p>
+                    <p className="mt-1 text-xs text-red-500">Modifică numărul documentului sau data pentru a putea salva.</p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -594,8 +661,8 @@ const handleImageChange = async (e: ChangeEvent<HTMLInputElement>) => {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || uploadingImage}
-              className="w-full rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              disabled={saving || uploadingImage || !!duplicateWarning}
+              className="w-full rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving || uploadingImage ? "Se salveaza..." : "Salveaza BF"}
             </button>

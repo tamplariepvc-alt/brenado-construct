@@ -732,6 +732,56 @@ export default function ProiectePage() {
     return formState.items.reduce((s, item) => s + Number(item.line_total || 0), 0);
   }, [formState.items]);
 
+  // NEW: detecție duplicat în timp real (număr document + dată) pentru bon/factură
+  const duplicateWarning = useMemo(() => {
+    if (!activeInlineProjectId || !activeInlineType) return null;
+    if (!formState.documentNumber.trim() || !formState.documentDate) return null;
+
+    const docNum = formState.documentNumber.trim().toLowerCase();
+    const docDate = formState.documentDate;
+
+    if (activeInlineType === "bon") {
+      const found = receipts.find(
+        (r) =>
+          r.project_id === activeInlineProjectId &&
+          (r.document_number || "").trim().toLowerCase() === docNum &&
+          r.receipt_date === docDate
+      );
+      if (found) {
+        return `Există deja un bon cu numărul „${found.document_number}" din ${
+          found.receipt_date
+            ? new Date(found.receipt_date).toLocaleDateString("ro-RO")
+            : "-"
+        }${found.supplier ? ` (furnizor: ${found.supplier})` : ""} pentru acest proiect.`;
+      }
+    }
+
+    if (activeInlineType === "factura") {
+      const found = invoices.find(
+        (r) =>
+          r.project_id === activeInlineProjectId &&
+          (r.document_number || "").trim().toLowerCase() === docNum &&
+          r.invoice_date === docDate
+      );
+      if (found) {
+        return `Există deja o factură cu numărul „${found.document_number}" din ${
+          found.invoice_date
+            ? new Date(found.invoice_date).toLocaleDateString("ro-RO")
+            : "-"
+        }${found.supplier ? ` (furnizor: ${found.supplier})` : ""} pentru acest proiect.`;
+      }
+    }
+
+    return null;
+  }, [
+    activeInlineProjectId,
+    activeInlineType,
+    formState.documentNumber,
+    formState.documentDate,
+    receipts,
+    invoices,
+  ]);
+
   const handleSaveInline = async () => {
     if (!activeInlineProjectId || !activeInlineType) return;
 
@@ -756,6 +806,12 @@ export default function ProiectePage() {
 
     if (!formState.documentNumber.trim()) {
       alert("Completează numărul documentului.");
+      return;
+    }
+
+    // Protecție anti-duplicat la salvare
+    if (duplicateWarning) {
+      alert(`Nu se poate salva: ${duplicateWarning}`);
       return;
     }
 
@@ -2650,7 +2706,7 @@ export default function ProiectePage() {
                       )}
                     </div>
 
-                    {/* FORMULAR BON / FACTURĂ — neatins */}
+                    {/* FORMULAR BON / FACTURĂ */}
                     {!isAdmin && activeInlineProjectId === project.id && projectTab === "financiar" && (
                       <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
                         <div className="mb-4">
@@ -2684,6 +2740,18 @@ export default function ProiectePage() {
                           </div>
                         )}
 
+                        {/* BANNER DUPLICAT */}
+                        {duplicateWarning && (
+                          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-red-300 bg-red-50 px-4 py-3">
+                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white">!</span>
+                            <div>
+                              <p className="text-sm font-bold text-red-700">Document duplicat detectat</p>
+                              <p className="mt-0.5 text-xs text-red-600">{duplicateWarning}</p>
+                              <p className="mt-1 text-xs text-red-500">Modifică numărul documentului sau data pentru a putea salva.</p>
+                            </div>
+                          </div>
+                        )}
+
                         <div className="rounded-2xl bg-white p-4 shadow-sm">
                           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div>
@@ -2692,7 +2760,11 @@ export default function ProiectePage() {
                                 type="date"
                                 value={formState.documentDate}
                                 onChange={(e) => updateFormField("documentDate", e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                                  duplicateWarning
+                                    ? "border-red-400 bg-red-50 focus:border-red-500"
+                                    : "border-gray-200 focus:border-gray-500"
+                                }`}
                               />
                             </div>
 
@@ -2702,7 +2774,11 @@ export default function ProiectePage() {
                                 type="text"
                                 value={formState.documentNumber}
                                 onChange={(e) => updateFormField("documentNumber", e.target.value)}
-                                className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500"
+                                className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                                  duplicateWarning
+                                    ? "border-red-400 bg-red-50 focus:border-red-500"
+                                    : "border-gray-200 focus:border-gray-500"
+                                }`}
                               />
                             </div>
 
@@ -2845,8 +2921,8 @@ export default function ProiectePage() {
                           <button
                             type="button"
                             onClick={handleSaveInline}
-                            disabled={savingInline || uploadingImage || isExtracting}
-                            className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                            disabled={savingInline || uploadingImage || isExtracting || !!duplicateWarning}
+                            className="w-full rounded-xl bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {savingInline ? "Se salvează..." : activeInlineType === "bon" ? "Salvează Bon" : "Salvează Factură"}
                           </button>

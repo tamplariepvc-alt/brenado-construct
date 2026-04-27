@@ -18,6 +18,13 @@ type InvoiceItem = {
   line_total: string;
 };
 
+type ExistingInvoice = {
+  id: string;
+  document_number: string | null;
+  invoice_date: string | null;
+  supplier: string | null;
+};
+
 const createEmptyItem = (): InvoiceItem => ({
   item_name: "",
   quantity: "",
@@ -37,6 +44,9 @@ export default function IncarcaFacturaPage() {
   const [extractionError, setExtractionError] = useState("");
 
   const [project, setProject] = useState<Project | null>(null);
+
+  // NEW: facturile deja încărcate pe proiect (pentru detecție duplicat)
+  const [existingInvoices, setExistingInvoices] = useState<ExistingInvoice[]>([]);
 
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
@@ -67,11 +77,42 @@ export default function IncarcaFacturaPage() {
       }
 
       setProject(data as Project);
+
+      // Încarcă facturile existente pentru acest proiect (detecție duplicat)
+      const { data: invoicesData } = await supabase
+        .from("project_invoices")
+        .select("id, document_number, invoice_date, supplier")
+        .eq("project_id", projectId);
+
+      setExistingInvoices((invoicesData as ExistingInvoice[]) || []);
+
       setLoading(false);
     };
 
     loadProject();
   }, [projectId, router]);
+
+  // NEW: detecție duplicat în timp real (număr document + dată)
+  const duplicateWarning = useMemo(() => {
+    if (!documentNumber.trim() || !invoiceDate) return null;
+
+    const docNum = documentNumber.trim().toLowerCase();
+    const found = existingInvoices.find(
+      (r) =>
+        (r.document_number || "").trim().toLowerCase() === docNum &&
+        r.invoice_date === invoiceDate
+    );
+
+    if (found) {
+      return `Există deja o factură cu numărul „${found.document_number}" din ${
+        found.invoice_date
+          ? new Date(found.invoice_date).toLocaleDateString("ro-RO")
+          : "-"
+      }${found.supplier ? ` (furnizor: ${found.supplier})` : ""} pentru acest proiect.`;
+    }
+
+    return null;
+  }, [documentNumber, invoiceDate, existingInvoices]);
 
   const applyExtractedData = (data: any) => {
     setInvoiceDate(data.document_date || "");
@@ -241,6 +282,12 @@ export default function IncarcaFacturaPage() {
       return;
     }
 
+    // Protecție anti-duplicat la salvare
+    if (duplicateWarning) {
+      alert(`Nu se poate salva: ${duplicateWarning}`);
+      return;
+    }
+
     const validItems = items.filter(
       (item) =>
         item.item_name.trim() ||
@@ -390,7 +437,11 @@ export default function IncarcaFacturaPage() {
                   type="date"
                   value={invoiceDate}
                   onChange={(e) => setInvoiceDate(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3"
+                  className={`w-full rounded-lg border px-4 py-3 transition ${
+                    duplicateWarning
+                      ? "border-red-400 bg-red-50 focus:border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
               </div>
 
@@ -402,7 +453,11 @@ export default function IncarcaFacturaPage() {
                   type="text"
                   value={documentNumber}
                   onChange={(e) => setDocumentNumber(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3"
+                  className={`w-full rounded-lg border px-4 py-3 transition ${
+                    duplicateWarning
+                      ? "border-red-400 bg-red-50 focus:border-red-500"
+                      : "border-gray-300"
+                  }`}
                 />
               </div>
 
@@ -417,6 +472,18 @@ export default function IncarcaFacturaPage() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3"
                 />
               </div>
+
+              {/* BANNER DUPLICAT */}
+              {duplicateWarning && (
+                <div className="md:col-span-2 flex items-start gap-3 rounded-xl border border-red-300 bg-red-50 px-4 py-3">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white">!</span>
+                  <div>
+                    <p className="text-sm font-bold text-red-700">Document duplicat detectat</p>
+                    <p className="mt-0.5 text-xs text-red-600">{duplicateWarning}</p>
+                    <p className="mt-1 text-xs text-red-500">Modifică numărul documentului sau data pentru a putea salva.</p>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -568,8 +635,8 @@ export default function IncarcaFacturaPage() {
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || uploadingImage || isExtracting}
-              className="w-full rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+              disabled={saving || uploadingImage || isExtracting || !!duplicateWarning}
+              className="w-full rounded-lg bg-green-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving || uploadingImage || isExtracting
                 ? "Se salveaza..."
