@@ -141,21 +141,7 @@ const createEmptyForm = (): InlineFormState => ({
   items: [createEmptyItem()],
 });
 
-const monthOptions = [
-  { value: "toate", label: "Toate lunile" },
-  { value: "1", label: "Ianuarie" },
-  { value: "2", label: "Februarie" },
-  { value: "3", label: "Martie" },
-  { value: "4", label: "Aprilie" },
-  { value: "5", label: "Mai" },
-  { value: "6", label: "Iunie" },
-  { value: "7", label: "Iulie" },
-  { value: "8", label: "August" },
-  { value: "9", label: "Septembrie" },
-  { value: "10", label: "Octombrie" },
-  { value: "11", label: "Noiembrie" },
-  { value: "12", label: "Decembrie" },
-];
+
 
 const UploadIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
@@ -311,8 +297,6 @@ export default function ProiectePage() {
   const [dailyPhotos, setDailyPhotos] = useState<DailyPhoto[]>([]);
 
   const [searchName, setSearchName] = useState("");
-  const [selectedYear, setSelectedYear] = useState("toate");
-  const [selectedMonth, setSelectedMonth] = useState("toate");
 
   const [projectTabs, setProjectTabs] = useState<Record<string, ProjectTab>>({});
   const [tehnicTabs, setTehnicTabs] = useState<Record<string, TehnicTab>>({});
@@ -374,6 +358,8 @@ export default function ProiectePage() {
   const [deleteProjectPasswordError, setDeleteProjectPasswordError] = useState("");
   const [deletingProject, setDeletingProject] = useState(false);
 
+  const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
+
   const isAdmin = profile?.role === "administrator";
 
   const openLightbox = (photos: DailyPhoto[], index: number) => {
@@ -390,6 +376,22 @@ export default function ProiectePage() {
     setDeleteProjectId(projectId);
     setDeleteProjectPassword("");
     setDeleteProjectPasswordError("");
+  };
+
+  const handleUpdateStatus = async (projectId: string, newStatus: string) => {
+    setSavingStatusId(projectId);
+    const { error } = await supabase
+      .from("projects")
+      .update({ status: newStatus })
+      .eq("id", projectId);
+    if (error) {
+      alert(`Eroare la actualizarea statusului: ${error.message}`);
+    } else {
+      setProjects((prev) =>
+        prev.map((p) => p.id === projectId ? { ...p, status: newStatus } : p)
+      );
+    }
+    setSavingStatusId(null);
   };
 
   const handleDeleteProject = async () => {
@@ -651,23 +653,12 @@ export default function ProiectePage() {
     setTehnicTabs((prev) => ({ ...prev, [id]: tab }));
   };
 
-  const availableYears = useMemo(() => {
-    const years = projects.map((p) => new Date(p.created_at).getFullYear().toString());
-    return ["toate", ...Array.from(new Set(years)).sort((a, b) => Number(b) - Number(a))];
-  }, [projects]);
-
   const filteredProjects = useMemo(() => {
-    return projects.filter((p) => {
-      const d = new Date(p.created_at);
-      const q = searchName.toLowerCase();
-
-      return (
-        (p.name.toLowerCase().includes(q) || (p.beneficiary || "").toLowerCase().includes(q)) &&
-        (selectedYear === "toate" || d.getFullYear().toString() === selectedYear) &&
-        (selectedMonth === "toate" || (d.getMonth() + 1).toString() === selectedMonth)
-      );
-    });
-  }, [projects, searchName, selectedYear, selectedMonth]);
+    const q = searchName.toLowerCase();
+    return projects.filter((p) =>
+      p.name.toLowerCase().includes(q) || (p.beneficiary || "").toLowerCase().includes(q)
+    );
+  }, [projects, searchName]);
 
   const fundingTotalsByProject = useMemo(() => {
     const map = new Map<string, number>();
@@ -1970,38 +1961,14 @@ export default function ProiectePage() {
             <p className="mt-2 text-sm text-gray-500">{profile?.full_name}</p>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="mt-5">
             <input
               type="text"
               placeholder="Caută după nume sau beneficiar"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
-              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
+              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
             />
-
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-            >
-              {availableYears.map((y) => (
-                <option key={y} value={y}>
-                  {y === "toate" ? "Toți anii" : y}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-            >
-              {monthOptions.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
           </div>
         </section>
 
@@ -2052,9 +2019,35 @@ export default function ProiectePage() {
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
-                          <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
-                            {getStatusLabel(project.status)}
-                          </span>
+                          {isAdmin ? (
+                            <div className="flex gap-1">
+                              {[
+                                { value: "in_asteptare", label: "Așteptare", active: "bg-yellow-100 text-yellow-700 border-yellow-300", inactive: "bg-white text-gray-400 border-gray-200" },
+                                { value: "in_lucru", label: "În lucru", active: "bg-[#0196ff]/10 text-[#0196ff] border-[#0196ff]/30", inactive: "bg-white text-gray-400 border-gray-200" },
+                                { value: "finalizat", label: "Finalizat", active: "bg-green-100 text-green-700 border-green-300", inactive: "bg-white text-gray-400 border-gray-200" },
+                              ].map((opt) => (
+                                <button
+                                  key={opt.value}
+                                  type="button"
+                                  disabled={savingStatusId === project.id}
+                                  onClick={() => {
+                                    if (project.status !== opt.value) {
+                                      handleUpdateStatus(project.id, opt.value);
+                                    }
+                                  }}
+                                  className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
+                                    project.status === opt.value ? opt.active : opt.inactive + " hover:border-gray-300"
+                                  } disabled:opacity-50`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
+                              {getStatusLabel(project.status)}
+                            </span>
+                          )}
                           {isAdmin && (
                             <button
                               type="button"
