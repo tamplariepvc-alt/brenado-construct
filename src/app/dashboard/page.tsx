@@ -147,7 +147,7 @@ export default function DashboardPage() {
       route: "/organizarea-echipelor",
     },
 {
-  label: "Creează\nDeviz",
+  label: "Devize",
   sublabel: "Ofertă / lucrare",
   route: "/devize",
 },

@@ -7,30 +7,10 @@ import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-type Profile = {
-  id: string;
-  full_name: string;
-  role: "administrator" | "sef_echipa" | "user";
-};
-
-type Project = {
-  id: string;
-  name: string;
-  beneficiary: string | null;
-  status: string | null;
-};
-
-type Service = {
-  id: string;
-  name: string;
-  um: string;
-  price_ron: number;
-};
-
-type DevizLine = {
-  service_id: string;
-  quantity: string;
-};
+type Profile = { id: string; full_name: string; role: string };
+type Project = { id: string; name: string; beneficiary: string | null; status: string | null };
+type Service = { id: string; name: string; um: string; price_ron: number };
+type DevizLine = { service_id: string; quantity: string };
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
 
@@ -39,7 +19,6 @@ export default function CreeazaDevizPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -48,112 +27,62 @@ export default function CreeazaDevizPage() {
   const [beneficiary, setBeneficiary] = useState("");
   const [siteName, setSiteName] = useState("");
   const [estimateDate, setEstimateDate] = useState(getTodayDate());
+  const [lines, setLines] = useState<DevizLine[]>([{ service_id: "", quantity: "" }]);
 
-  const [lines, setLines] = useState<DevizLine[]>([
-    { service_id: "", quantity: "" },
-  ]);
-
-  const [serviceSearchByLine, setServiceSearchByLine] = useState<
-    Record<number, string>
-  >({});
+  // Service picker
+  const [pickerLineIndex, setPickerLineIndex] = useState<number | null>(null);
+  const [serviceSearch, setServiceSearch] = useState("");
 
   useEffect(() => {
     const loadData = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
-
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", user.id)
-        .single();
-
-      if (!profileData) {
-        router.push("/login");
-        return;
-      }
-
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
+      const { data: profileData } = await supabase.from("profiles").select("id, full_name, role").eq("id", user.id).single();
+      if (!profileData) { router.push("/login"); return; }
       const [projectsRes, servicesRes] = await Promise.all([
-        supabase
-          .from("projects")
-          .select("id, name, beneficiary, status")
-          .neq("status", "finalizat")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("services")
-          .select("id, name, um, price_ron")
-          .eq("is_active", true)
-          .order("name"),
+        supabase.from("projects").select("id, name, beneficiary, status").neq("status", "finalizat").order("created_at", { ascending: false }),
+        supabase.from("services").select("id, name, um, price_ron").eq("is_active", true).order("name"),
       ]);
-
       setProfile(profileData as Profile);
       setProjects((projectsRes.data as Project[]) || []);
       setServices((servicesRes.data as Service[]) || []);
       setLoading(false);
     };
-
     loadData();
   }, [router]);
 
-  const serviceMap = useMemo(() => {
-    return new Map(services.map((service) => [service.id, service]));
-  }, [services]);
+  const serviceMap = useMemo(() => new Map(services.map((s) => [s.id, s])), [services]);
 
-  const total = useMemo(() => {
-    return lines.reduce((sum, line) => {
-      const service = serviceMap.get(line.service_id);
-      return sum + Number(line.quantity || 0) * Number(service?.price_ron || 0);
-    }, 0);
-  }, [lines, serviceMap]);
+  const filteredServices = useMemo(() => {
+    const q = serviceSearch.toLowerCase().trim();
+    if (!q) return services;
+    return services.filter((s) => s.name.toLowerCase().includes(q));
+  }, [services, serviceSearch]);
+
+  const total = useMemo(() =>
+    lines.reduce((sum, line) => {
+      const svc = serviceMap.get(line.service_id);
+      return sum + Number(line.quantity || 0) * Number(svc?.price_ron || 0);
+    }, 0),
+    [lines, serviceMap]
+  );
 
   const handleProjectChange = (projectId: string) => {
     setSelectedProjectId(projectId);
-
-    const project = projects.find((p) => p.id === projectId);
-
-    if (project) {
-      setBeneficiary(project.beneficiary || "");
-      setSiteName(project.name);
-    }
+    const p = projects.find((pr) => pr.id === projectId);
+    if (p) { setBeneficiary(p.beneficiary || ""); setSiteName(p.name); }
   };
 
-  const addLine = () => {
-    setLines((prev) => [...prev, { service_id: "", quantity: "" }]);
-  };
+  const addLine = () => setLines((prev) => [...prev, { service_id: "", quantity: "" }]);
+  const removeLine = (i: number) => setLines((prev) => prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i));
+  const updateLine = (i: number, field: keyof DevizLine, value: string) =>
+    setLines((prev) => prev.map((line, idx) => idx === i ? { ...line, [field]: value } : line));
 
-  const removeLine = (index: number) => {
-    setLines((prev) =>
-      prev.length === 1 ? prev : prev.filter((_, i) => i !== index)
-    );
-
-    setServiceSearchByLine((prev) => {
-      const next: Record<number, string> = {};
-
-      Object.entries(prev).forEach(([key, value]) => {
-        const numericKey = Number(key);
-
-        if (numericKey < index) next[numericKey] = value;
-        if (numericKey > index) next[numericKey - 1] = value;
-      });
-
-      return next;
-    });
-  };
-
-  const updateLine = (
-    index: number,
-    field: "service_id" | "quantity",
-    value: string
-  ) => {
-    setLines((prev) =>
-      prev.map((line, i) => (i === index ? { ...line, [field]: value } : line))
-    );
+  const openPicker = (i: number) => { setPickerLineIndex(i); setServiceSearch(""); };
+  const closePicker = () => { setPickerLineIndex(null); setServiceSearch(""); };
+  const selectService = (serviceId: string) => {
+    if (pickerLineIndex !== null) updateLine(pickerLineIndex, "service_id", serviceId);
+    closePicker();
   };
 
   const exportPdf = async (
@@ -163,187 +92,86 @@ export default function CreeazaDevizPage() {
     exportDate = estimateDate
   ) => {
     const doc = new jsPDF("p", "mm", "a4");
-
     try {
       const logo = new window.Image();
       logo.src = "/logo.png";
-
-      await new Promise((resolve) => {
-        logo.onload = resolve;
-        logo.onerror = resolve;
-      });
-
+      await new Promise((r) => { logo.onload = r; logo.onerror = r; });
       doc.addImage(logo, "PNG", 14, 10, 42, 13);
     } catch {}
-
-    doc.setDrawColor(21, 128, 61);
-    doc.setLineWidth(0.6);
-    doc.line(14, 28, 196, 28);
-
-    doc.setFontSize(17);
-    doc.setTextColor(20, 83, 45);
-    doc.text("Deviz lucrari", 14, 38);
-
-    doc.setFontSize(9);
-    doc.setTextColor(90);
+    doc.setDrawColor(21, 128, 61); doc.setLineWidth(0.6); doc.line(14, 28, 196, 28);
+    doc.setFontSize(17); doc.setTextColor(20, 83, 45); doc.text("Deviz lucrari", 14, 38);
+    doc.setFontSize(9); doc.setTextColor(90);
     doc.text(`Beneficiar: ${exportBeneficiary || "-"}`, 14, 45);
     doc.text(`Santier: ${exportSiteName || "-"}`, 14, 50);
     doc.text(`Data deviz: ${new Date(exportDate).toLocaleDateString("ro-RO")}`, 14, 55);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 60);
-
     let pdfTotal = 0;
-
-    const rows = exportLines
-      .filter((line) => line.service_id && Number(line.quantity || 0) > 0)
-      .map((line, index) => {
-        const service = serviceMap.get(line.service_id);
-        const quantity = Number(line.quantity || 0);
-        const price = Number(service?.price_ron || 0);
-        const lineTotal = quantity * price;
-
-        pdfTotal += lineTotal;
-
-        return [
-          String(index + 1),
-          service?.name || "-",
-          service?.um || "-",
-          String(quantity),
-          `${price.toFixed(2)} lei`,
-          `${lineTotal.toFixed(2)} lei`,
-        ];
-      });
-
+    const rows = exportLines.filter((l) => l.service_id && Number(l.quantity || 0) > 0).map((l, i) => {
+      const svc = serviceMap.get(l.service_id);
+      const qty = Number(l.quantity || 0); const price = Number(svc?.price_ron || 0); const lt = qty * price;
+      pdfTotal += lt;
+      return [String(i + 1), svc?.name || "-", svc?.um || "-", String(qty), `${price.toFixed(2)} lei`, `${lt.toFixed(2)} lei`];
+    });
     autoTable(doc, {
       startY: 68,
       head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
       body: rows,
       foot: [["", "", "", "", "TOTAL", `${pdfTotal.toFixed(2)} lei`]],
-      styles: {
-        fontSize: 9,
-        cellPadding: 3,
-        lineColor: [210, 210, 210],
-        lineWidth: 0.2,
-      },
-      headStyles: {
-        fillColor: [20, 83, 45],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-      },
-      footStyles: {
-        fillColor: [20, 83, 45],
-        textColor: [255, 255, 255],
-        fontStyle: "bold",
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252],
-      },
+      styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
+      headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: "bold" },
+      footStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
       theme: "grid",
     });
-
     const finalY = (doc as any).lastAutoTable.finalY || 68;
-
-    doc.setFontSize(10);
-    doc.setTextColor(0);
+    doc.setFontSize(10); doc.setTextColor(0);
     doc.text("Semnatura executant:", 14, finalY + 22);
-
     try {
-      const stampila = new window.Image();
-      stampila.src = "/stampila.png";
-
-      await new Promise((resolve) => {
-        stampila.onload = resolve;
-        stampila.onerror = resolve;
-      });
-
-      doc.addImage(stampila, "PNG", 11, finalY + 26, 35, 28);
-    } catch {
-      doc.setFontSize(8);
-      doc.setTextColor(150);
-      doc.text("Stampila indisponibila", 14, finalY + 30);
-    }
-
-    doc.setFontSize(8);
-    doc.setTextColor(120);
+      const st = new window.Image(); st.src = "/stampila.png";
+      await new Promise((r) => { st.onload = r; st.onerror = r; });
+      doc.addImage(st, "PNG", 11, finalY + 26, 35, 28);
+    } catch {}
+    doc.setFontSize(8); doc.setTextColor(120);
     doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
-
     doc.save(`deviz_${exportSiteName.replace(/\s+/g, "_")}_${exportDate}.pdf`);
   };
 
   const handleSave = async () => {
     if (!profile) return;
-
-    if (!beneficiary.trim()) {
-      alert("Completează beneficiarul.");
-      return;
-    }
-
-    if (!siteName.trim()) {
-      alert("Completează șantierul.");
-      return;
-    }
-
-    const validLines = lines.filter(
-      (line) => line.service_id && Number(line.quantity || 0) > 0
-    );
-
-    if (validLines.length === 0) {
-      alert("Adaugă cel puțin un articol cu cantitate.");
-      return;
-    }
-
+    if (!beneficiary.trim()) { alert("Completează beneficiarul."); return; }
+    if (!siteName.trim()) { alert("Completează șantierul."); return; }
+    const validLines = lines.filter((l) => l.service_id && Number(l.quantity || 0) > 0);
+    if (validLines.length === 0) { alert("Adaugă cel puțin un articol cu cantitate."); return; }
     setSaving(true);
-
-    const { data: estimateData, error: estimateError } = await supabase
-      .from("estimates")
-      .insert({
-        project_id: selectedProjectId || null,
-        beneficiary: beneficiary.trim(),
-        site_name: siteName.trim(),
-        created_by: profile.id,
-      })
-      .select("id")
-      .single();
-
-    if (estimateError || !estimateData) {
-      alert(`Eroare: ${estimateError?.message || "Nu s-a salvat devizul."}`);
-      setSaving(false);
-      return;
-    }
-
+    const { data: estimateData, error: estimateError } = await supabase.from("estimates").insert({
+      project_id: selectedProjectId || null,
+      beneficiary: beneficiary.trim(),
+      site_name: siteName.trim(),
+      created_by: profile.id,
+    }).select("id").single();
+    if (estimateError || !estimateData) { alert(`Eroare: ${estimateError?.message}`); setSaving(false); return; }
     const { error: itemsError } = await supabase.from("estimate_items").insert(
-      validLines.map((line) => {
-        const service = serviceMap.get(line.service_id);
-
-        return {
-          estimate_id: estimateData.id,
-          service_id: line.service_id,
-          quantity: Number(line.quantity),
-          unit_price: Number(service?.price_ron || 0),
-        };
+      validLines.map((l) => {
+        const svc = serviceMap.get(l.service_id);
+        return { estimate_id: estimateData.id, service_id: l.service_id, quantity: Number(l.quantity), unit_price: Number(svc?.price_ron || 0) };
       })
     );
-
-    if (itemsError) {
-      alert(`Eroare: ${itemsError.message}`);
-      setSaving(false);
-      return;
-    }
-
+    if (itemsError) { alert(`Eroare: ${itemsError.message}`); setSaving(false); return; }
     setSaving(false);
-
     await exportPdf(validLines, beneficiary, siteName, estimateDate);
-
     router.push("/devize");
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F0EEE9] px-4">
-        <div className="rounded-[22px] border border-[#E8E5DE] bg-white px-8 py-10 text-center shadow-sm">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
-          <p className="mt-4 text-sm font-semibold text-gray-700">
-            Se încarcă...
-          </p>
+      <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
+        <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain" />
+          </div>
+        </header>
+        <div className="flex flex-1 items-center justify-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-green-700" />
         </div>
       </div>
     );
@@ -351,282 +179,220 @@ export default function CreeazaDevizPage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
+
+      {/* ── Service picker bottom sheet ── */}
+      {pickerLineIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={closePicker}>
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:rounded-[24px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="h-1 w-10 rounded-full bg-gray-200" />
+            </div>
+
+            <div className="flex items-center justify-between px-5 pb-3 pt-2">
+              <p className="text-base font-bold text-gray-900">Alege serviciu</p>
+              <button type="button" onClick={closePicker}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500 hover:bg-gray-200">
+                ✕
+              </button>
+            </div>
+
+            <div className="px-4 pb-2">
+              <input
+                autoFocus
+                value={serviceSearch}
+                onChange={(e) => setServiceSearch(e.target.value)}
+                placeholder="Caută serviciu..."
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-400"
+              />
+            </div>
+
+            <div className="max-h-64 overflow-y-auto px-4 pb-6">
+              {filteredServices.length === 0 ? (
+                <p className="py-6 text-center text-sm text-gray-400">Niciun serviciu găsit.</p>
+              ) : (
+                <div className="space-y-1">
+                  {filteredServices.map((svc) => {
+                    const isSelected = pickerLineIndex !== null && lines[pickerLineIndex]?.service_id === svc.id;
+                    return (
+                      <button key={svc.id} type="button" onClick={() => selectService(svc.id)}
+                        className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${
+                          isSelected ? "bg-green-700 text-white" : "hover:bg-gray-50"
+                        }`}>
+                        <span className="text-sm font-medium leading-snug">{svc.name}</span>
+                        <span className={`shrink-0 text-xs ${isSelected ? "text-white/80" : "text-gray-400"}`}>
+                          {svc.um} · {svc.price_ron.toFixed(2)} lei
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <Image
-            src="/logo.png"
-            alt="Logo"
-            width={140}
-            height={44}
-            className="h-10 w-auto object-contain sm:h-11"
-          />
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => router.push("/devize")}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              Istoric devize
-            </button>
-
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
-              Dashboard
-            </button>
-          </div>
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
+          <button onClick={() => router.push("/devize")}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+            Înapoi
+          </button>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-3xl px-4 pb-10 pt-4 sm:px-6 lg:px-8 space-y-4">
+
+        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:p-6">
-          <p className="text-sm text-gray-500">Devize</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-            Creează deviz
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">
-            Completează datele lucrării, adaugă articolele și exportă PDF.
-          </p>
-
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Alege proiect activ, opțional
-              </label>
-              <select
-                value={selectedProjectId}
-                onChange={(e) => handleProjectChange(e.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-              >
-                <option value="">Deviz fără proiect asociat</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name} — {project.beneficiary || "-"}
-                  </option>
-                ))}
-              </select>
+          <div className="flex items-start gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-green-50">
+              <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-green-700">
+                <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+                <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
             </div>
-
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Beneficiar
-              </label>
-              <input
-                value={beneficiary}
-                onChange={(e) => setBeneficiary(e.target.value)}
-                placeholder="Nume beneficiar"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Șantier / lucrare
-              </label>
-              <input
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                placeholder="Ex: Montaj tâmplărie PVC"
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                Data devizului
-              </label>
-              <input
-                type="date"
-                value={estimateDate}
-                onChange={(e) => setEstimateDate(e.target.value)}
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-              />
+              <p className="text-sm text-gray-500">Devize lucrări</p>
+              <h1 className="mt-0.5 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">Deviz nou</h1>
             </div>
           </div>
         </section>
 
-        <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:p-6">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-                Articole deviz
-              </p>
-              <h2 className="mt-1 text-lg font-bold text-gray-900">
-                Servicii / lucrări
-              </h2>
-            </div>
+        {/* Date generale */}
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center gap-3">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Detalii</p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
 
-            <button
-              type="button"
-              onClick={addLine}
-              className="rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-700"
-            >
-              + Adaugă articol
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">Proiect (opțional)</label>
+              <select value={selectedProjectId} onChange={(e) => handleProjectChange(e.target.value)}
+                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:border-gray-400">
+                <option value="">Fără proiect asociat</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}{p.beneficiary ? ` — ${p.beneficiary}` : ""}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">Beneficiar</label>
+              <input value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)}
+                placeholder="Nume beneficiar"
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-400" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">Șantier / lucrare</label>
+              <input value={siteName} onChange={(e) => setSiteName(e.target.value)}
+                placeholder="Ex: Montaj tâmplărie PVC"
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-400" />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-gray-700">Data devizului</label>
+              <input type="date" value={estimateDate} onChange={(e) => setEstimateDate(e.target.value)}
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-400" />
+            </div>
+          </div>
+        </section>
+
+        {/* Articole */}
+        <section className="rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+          {/* Section header */}
+          <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Articole deviz</p>
+              <p className="mt-0.5 text-sm font-bold text-gray-900">{lines.length} {lines.length === 1 ? "articol" : "articole"}</p>
+            </div>
+            <button type="button" onClick={addLine}
+              className="rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800">
+              + Adaugă
             </button>
           </div>
 
-          <div className="space-y-3">
+          {/* Lista articole — fiecare e un rând simplu */}
+          <div className="divide-y divide-[#F0EEE9]">
             {lines.map((line, index) => {
-              const selectedService = serviceMap.get(line.service_id);
-              const searchValue = serviceSearchByLine[index] || "";
-              const filteredServices = services
-                .filter((service) =>
-                  service.name.toLowerCase().includes(searchValue.toLowerCase())
-                )
-                .slice(0, 30);
-
-              const lineTotal =
-                Number(line.quantity || 0) * Number(selectedService?.price_ron || 0);
+              const svc = serviceMap.get(line.service_id);
+              const lineTotal = Number(line.quantity || 0) * Number(svc?.price_ron || 0);
 
               return (
-                <div
-                  key={index}
-                  className="rounded-2xl border border-gray-200 bg-[#F8F7F3] p-3"
-                >
-                  <div className="flex items-start gap-2">
-                    <div className="flex-1 space-y-3">
-                      <div className="rounded-xl border border-gray-200 bg-white p-2">
-                        <input
-                          value={searchValue}
-                          onChange={(e) => {
-                            const value = e.target.value;
-
-                            setServiceSearchByLine((prev) => ({
-                              ...prev,
-                              [index]: value,
-                            }));
-
-                            updateLine(index, "service_id", "");
-                          }}
-                          placeholder="Caută serviciu..."
-                          className="mb-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-gray-500"
-                        />
-
-                        <div className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                          {filteredServices.map((service) => {
-                            const selected = service.id === line.service_id;
-
-                            return (
-                              <button
-                                key={service.id}
-                                type="button"
-                                onClick={() => {
-                                  updateLine(index, "service_id", service.id);
-
-                                  setServiceSearchByLine((prev) => ({
-                                    ...prev,
-                                    [index]: service.name,
-                                  }));
-                                }}
-                                className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition ${
-                                  selected
-                                    ? "bg-green-700 text-white"
-                                    : "bg-gray-50 text-gray-700 hover:bg-gray-100"
-                                }`}
-                              >
-                                <span className="font-medium">{service.name}</span>
-                                <span
-                                  className={
-                                    selected ? "text-white/80" : "text-gray-400"
-                                  }
-                                >
-                                  {service.um} · {service.price_ron.toFixed(2)} lei
-                                </span>
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        {filteredServices.length === 0 && (
-                          <p className="px-2 py-2 text-xs text-gray-400">
-                            Nu s-a găsit niciun serviciu.
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-gray-500">
-                            Cantitate
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={line.quantity}
-                            onChange={(e) =>
-                              updateLine(index, "quantity", e.target.value)
-                            }
-                            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-gray-500">
-                            UM
-                          </label>
-                          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700">
-                            {selectedService?.um || "-"}
-                          </div>
-                        </div>
-
-                        <div>
-                          <label className="mb-1 block text-xs font-semibold text-gray-500">
-                            Total linie
-                          </label>
-                          <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-green-700">
-                            {lineTotal.toFixed(2)} lei
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
+                <div key={index} className="px-4 py-4">
+                  {/* Rând 1: Selector serviciu + buton sterge */}
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500">
+                      {index + 1}
+                    </span>
+                    <button type="button" onClick={() => openPicker(index)}
+                      className={`flex flex-1 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                        svc ? "border-green-200 bg-green-50" : "border-gray-200 bg-[#F8F7F3]"
+                      }`}>
+                      <span className={`truncate font-medium ${svc ? "text-green-900" : "text-gray-400"}`}>
+                        {svc ? svc.name : "Alege serviciu..."}
+                      </span>
+                      {svc && (
+                        <span className="shrink-0 text-xs text-green-600">{svc.um}</span>
+                      )}
+                    </button>
                     {lines.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeLine(index)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100"
-                      >
+                      <button type="button" onClick={() => removeLine(index)}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-400 hover:bg-red-100">
                         ×
                       </button>
                     )}
                   </div>
+
+                  {/* Rând 2: Cantitate + Total — doar dacă s-a ales un serviciu */}
+                  {svc && (
+                    <div className="mt-2 flex items-center gap-3 pl-8">
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs text-gray-400">Cant.</label>
+                        <input
+                          type="number" min="0" step="0.01"
+                          value={line.quantity}
+                          onChange={(e) => updateLine(index, "quantity", e.target.value)}
+                          placeholder="0"
+                          className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-gray-400"
+                        />
+                        <span className="text-xs font-medium text-gray-500">{svc.um}</span>
+                      </div>
+                      {lineTotal > 0 && (
+                        <span className="ml-auto text-sm font-bold text-green-700">
+                          {lineTotal.toFixed(2)} lei
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
 
-          <div className="mt-5 rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-green-900">
-                Total deviz
-              </p>
-              <p className="text-xl font-extrabold text-green-700">
-                {total.toFixed(2)} lei
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => exportPdf()}
-              className="w-full rounded-xl border border-green-300 bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50"
-            >
-              Export PDF fără salvare
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-800 disabled:opacity-60"
-            >
-              {saving ? "Se salvează..." : "Salvează și exportă PDF"}
-            </button>
+          {/* Total */}
+          <div className="flex items-center justify-between border-t border-[#E8E5DE] px-5 py-4">
+            <p className="text-sm font-semibold text-gray-700">Total deviz</p>
+            <p className="text-xl font-extrabold text-green-700">{total.toFixed(2)} lei</p>
           </div>
         </section>
+
+        {/* Butoane */}
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <button type="button" onClick={() => exportPdf()}
+            className="w-full rounded-xl border border-green-300 bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50">
+            Export PDF fără salvare
+          </button>
+          <button type="button" onClick={handleSave} disabled={saving}
+            className="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-800 disabled:opacity-60">
+            {saving ? "Se salvează..." : "Salvează și exportă PDF"}
+          </button>
+        </div>
       </main>
     </div>
   );
