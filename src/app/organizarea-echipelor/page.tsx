@@ -452,12 +452,12 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(17);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Echipă – ${project?.name || "-"}`, 14, 38);
+    doc.text(`Echipa – ${project?.name || "-"}`, 14, 38);
 
     doc.setFontSize(9);
     doc.setTextColor(90);
     doc.text(`Beneficiar: ${project?.beneficiary || "-"}`, 14, 45);
-    doc.text(`Locație: ${project?.project_location || "-"}`, 14, 50);
+    doc.text(`Locatie: ${project?.project_location || "-"}`, 14, 50);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
 
     doc.setFontSize(12);
@@ -491,7 +491,7 @@ export default function OrganizareaEchipelorPage() {
       head: [["Nr.", "Nume complet"]],
       body: currentWorkers.length > 0
         ? currentWorkers.map((w, i) => [String(i + 1), w.full_name])
-        : [["", "Nu există muncitori în echipă."]],
+        : [["", "Nu exista muncitori în echipa."]],
       styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
       headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -500,7 +500,7 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(8);
     doc.setTextColor(120);
-    doc.text("Document generat automat din aplicația Brenado Construct.", 14, 287);
+    doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
 
     doc.save(`echipa_${(project?.name || "export").replace(/\s+/g, "_")}.pdf`);
   };
