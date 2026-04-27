@@ -287,7 +287,6 @@ export default function PontajSantierPage() {
         )
       `)
       .eq("project_id", projectId)
-      .eq("work_date", today)
       .eq("status", "activ")
       .is("end_time", null)
       .order("start_time", { ascending: true });

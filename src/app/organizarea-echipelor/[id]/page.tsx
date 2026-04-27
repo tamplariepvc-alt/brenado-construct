@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -69,7 +71,7 @@ export default function DetaliuEchipaPage() {
   const [team, setTeam] = useState<Team | null>(null);
   const [project, setProject] = useState<Project | null>(null);
 
-  const [allTeamsForDate, setAllTeamsForDate] = useState<Team[]>([]);
+  const [allTeams, setAllTeams] = useState<Team[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -88,10 +90,6 @@ export default function DetaliuEchipaPage() {
     if (!value) return null;
     const [year, month, day] = value.split("-").map(Number);
     return new Date(year, month - 1, day);
-  };
-
-  const formatDate = (date: string) => {
-    return new Date(`${date}T00:00:00`).toLocaleDateString("ro-RO");
   };
 
   const getVehicleComputedStatus = (vehicle: Vehicle) => {
@@ -125,22 +123,13 @@ export default function DetaliuEchipaPage() {
 
     if (teamError || !teamData) { router.push("/organizarea-echipelor"); return; }
 
-    const workDate = teamData.work_date;
-
+    // Toate echipele (fără filtrare pe dată — echipe permanente)
     const [allTeamsRes, projectsRes, vehiclesRes, workersRes, teamVehiclesRes, teamWorkersRes] =
       await Promise.all([
-        supabase.from("daily_teams").select("id, project_id, work_date, created_by, created_at").eq("work_date", workDate),
+        supabase.from("daily_teams").select("id, project_id, work_date, created_by, created_at"),
         supabase.from("projects").select("id, name, status, beneficiary, project_location").eq("status", "in_lucru").order("name", { ascending: true }),
         supabase.from("vehicles").select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until").order("registration_number", { ascending: true }),
-
-        // ── MODIFICARE: doar personal de executie ──────────────────────────────
-        supabase
-          .from("workers")
-          .select("id, full_name, is_active")
-          .eq("is_active", true)
-          .eq("worker_type", "executie")
-          .order("full_name", { ascending: true }),
-
+        supabase.from("workers").select("id, full_name, is_active").eq("is_active", true).eq("worker_type", "executie").order("full_name", { ascending: true }),
         supabase.from("daily_team_vehicles").select("id, daily_team_id, vehicle_id"),
         supabase.from("daily_team_workers").select("id, daily_team_id, worker_id"),
       ]);
@@ -154,7 +143,7 @@ export default function DetaliuEchipaPage() {
     setProfile(profileData as Profile);
     setTeam(teamData as Team);
     setProject(projectsList.find((item) => item.id === teamData.project_id) || null);
-    setAllTeamsForDate((allTeamsRes.data as Team[]) || []);
+    setAllTeams((allTeamsRes.data as Team[]) || []);
     setProjects(projectsList);
     setVehicles(vehiclesList);
     setWorkers(workersList);
@@ -171,8 +160,8 @@ export default function DetaliuEchipaPage() {
   useEffect(() => { loadData(); }, [teamId]);
 
   const usedProjectIds = useMemo(() =>
-    allTeamsForDate.filter((item) => item.id !== teamId).map((item) => item.project_id),
-    [allTeamsForDate, teamId]
+    allTeams.filter((item) => item.id !== teamId).map((item) => item.project_id),
+    [allTeams, teamId]
   );
 
   const usedVehicleIds = useMemo(() =>
@@ -242,78 +231,77 @@ export default function DetaliuEchipaPage() {
     await loadData();
   };
 
-  // ── Export PDF ────────────────────────────────────────────────────────────────
-  const handleExportPdf = () => {
+  const handleExportPdf = async () => {
     if (!team || !project) return;
 
-    const vehicleRowsHtml = currentVehicles.length > 0
-      ? currentVehicles.map((v, i) => `
-          <tr>
-            <td>${i + 1}</td>
-            <td>${v.registration_number}</td>
-            <td>${v.brand} ${v.model}</td>
-            <td>${v.rca_valid_until ? new Date(`${v.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-"}</td>
-            <td>${v.itp_valid_until ? new Date(`${v.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-"}</td>
-          </tr>
-        `).join("")
-      : `<tr><td colspan="5">Nu există auto atribuite.</td></tr>`;
+    const doc = new jsPDF("p", "mm", "a4");
 
-    const workerRowsHtml = currentWorkers.length > 0
-      ? currentWorkers.map((w, i) => `<tr><td>${i + 1}</td><td>${w.full_name}</td></tr>`).join("")
-      : `<tr><td colspan="2">Nu există muncitori în echipă.</td></tr>`;
+    try {
+      const logo = new window.Image();
+      logo.src = "/logo.png";
+      await new Promise((resolve) => { logo.onload = resolve; logo.onerror = resolve; });
+      doc.addImage(logo, "PNG", 14, 10, 42, 13);
+    } catch {}
 
-    const html = `
-      <html>
-        <head>
-          <title>Echipă – ${project.name}</title>
-          <style>
-            * { box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; padding: 28px; color: #111827; }
-            h1 { font-size: 22px; margin-bottom: 4px; }
-            .sub { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
-            .info-box { border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px 16px; }
-            .info-label { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; }
-            .info-value { font-size: 15px; font-weight: 700; color: #111827; }
-            h2 { font-size: 15px; font-weight: 700; margin: 20px 0 10px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-            th { background: #f3f4f6; text-align: left; padding: 9px 12px; font-size: 12px; border: 1px solid #e5e7eb; }
-            td { padding: 9px 12px; font-size: 13px; border: 1px solid #e5e7eb; vertical-align: top; }
-            tr:nth-child(even) td { background: #fafafa; }
-            .footer { margin-top: 28px; font-size: 11px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 10px; }
-          </style>
-        </head>
-        <body>
-          <h1>Echipă – ${project.name}</h1>
-          <div class="sub">Export generat la ${new Date().toLocaleString("ro-RO")}</div>
-          <div class="info-grid">
-            <div class="info-box"><div class="info-label">Dată planificată</div><div class="info-value">${formatDate(team.work_date)}</div></div>
-            <div class="info-box"><div class="info-label">Beneficiar</div><div class="info-value">${project.beneficiary || "-"}</div></div>
-            <div class="info-box"><div class="info-label">Locație</div><div class="info-value">${project.project_location || "-"}</div></div>
-          </div>
-          <h2>Auto atribuite (${currentVehicles.length})</h2>
-          <table>
-            <thead><tr><th>Nr.</th><th>Număr înmatriculare</th><th>Vehicul</th><th>RCA până la</th><th>ITP până la</th></tr></thead>
-            <tbody>${vehicleRowsHtml}</tbody>
-          </table>
-          <h2>Personal de execuție (${currentWorkers.length})</h2>
-          <table>
-            <thead><tr><th>Nr.</th><th>Nume complet</th></tr></thead>
-            <tbody>${workerRowsHtml}</tbody>
-          </table>
-          <div class="footer">
-            Șantier: ${project.name} &nbsp;·&nbsp; ${currentVehicles.length} auto &nbsp;·&nbsp; ${currentWorkers.length} muncitori
-          </div>
-        </body>
-      </html>
-    `;
+    doc.setDrawColor(21, 128, 61);
+    doc.setLineWidth(0.6);
+    doc.line(14, 28, 196, 28);
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) { alert("Nu s-a putut deschide fereastra pentru export PDF."); return; }
-    printWindow.document.open();
-    printWindow.document.write(html);
-    printWindow.document.close();
-    printWindow.onload = () => { printWindow.focus(); printWindow.print(); };
+    doc.setFontSize(17);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Echipă – ${project.name}`, 14, 38);
+
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    doc.text(`Beneficiar: ${project.beneficiary || "-"}`, 14, 45);
+    doc.text(`Locație: ${project.project_location || "-"}`, 14, 50);
+    doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
+
+    const vehicleRows = currentVehicles.map((v, i) => [
+      String(i + 1),
+      v.registration_number,
+      `${v.brand} ${v.model}`,
+      v.rca_valid_until ? new Date(`${v.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
+      v.itp_valid_until ? new Date(`${v.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
+    ]);
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Auto atribuite (${currentVehicles.length})`, 14, 65);
+
+    autoTable(doc, {
+      startY: 69,
+      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA până la", "ITP până la"]],
+      body: vehicleRows.length > 0 ? vehicleRows : [["", "Nu există auto atribuite.", "", "", ""]],
+      styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
+      headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "grid",
+    });
+
+    const afterVehicles = (doc as any).lastAutoTable.finalY + 8;
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Personal de execuție (${currentWorkers.length})`, 14, afterVehicles);
+
+    const workerRows = currentWorkers.map((w, i) => [String(i + 1), w.full_name]);
+
+    autoTable(doc, {
+      startY: afterVehicles + 4,
+      head: [["Nr.", "Nume complet"]],
+      body: workerRows.length > 0 ? workerRows : [["", "Nu există muncitori în echipă."]],
+      styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
+      headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "grid",
+    });
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text("Document generat automat din aplicația Brenado Construct.", 14, 287);
+
+    doc.save(`echipa_${project.name.replace(/\s+/g, "_")}.pdf`);
   };
 
   const currentTeamVehicleIds = team
@@ -346,9 +334,7 @@ export default function DetaliuEchipaPage() {
         </header>
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-              {renderTeamIcon()}
-            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">{renderTeamIcon()}</div>
             <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
             <div className="text-center">
               <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
@@ -366,9 +352,7 @@ export default function DetaliuEchipaPage() {
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-          </div>
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <div className="flex gap-2 sm:gap-3">
             <button
               onClick={() => router.push("/organizarea-echipelor")}
@@ -395,7 +379,6 @@ export default function DetaliuEchipaPage() {
       </header>
 
       <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
-
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -407,8 +390,7 @@ export default function DetaliuEchipaPage() {
                 {project?.name || "Echipă"}
               </h1>
               <p className="mt-2 text-sm text-gray-500">
-                Planificată pentru{" "}
-                <span className="font-semibold text-gray-700">{formatDate(team.work_date)}</span>
+                Echipă permanentă · valabilă zilnic
               </p>
             </div>
           </div>
@@ -555,13 +537,11 @@ export default function DetaliuEchipaPage() {
                 <div>
                   <p className="mb-3 text-sm font-semibold text-gray-700">
                     Alege echipa
-                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                      Personal de execuție
-                    </span>
+                    <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">Personal de execuție</span>
                   </p>
                   {availableWorkers.length === 0 ? (
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu există muncitori disponibili.
+                      Nu există muncitori disponibili. Toți sunt atribuiți altor echipe.
                     </div>
                   ) : (
                     <div className="space-y-2">

@@ -105,12 +105,7 @@ export default function PontajePage() {
     return { pauseStart, pauseEnd };
   };
 
-  const getOverlapMs = (
-    startMs: number,
-    endMs: number,
-    overlapStart: number,
-    overlapEnd: number
-  ) => {
+  const getOverlapMs = (startMs: number, endMs: number, overlapStart: number, overlapEnd: number) => {
     const start = Math.max(startMs, overlapStart);
     const end = Math.min(endMs, overlapEnd);
     return Math.max(0, end - start);
@@ -119,33 +114,17 @@ export default function PontajePage() {
   const getWorkedMsWithoutPause = (startTime: string, endTime?: string | null) => {
     const startMs = new Date(startTime).getTime();
     const endMs = endTime ? new Date(endTime).getTime() : now;
-
     if (endMs <= startMs) return 0;
-
     let total = endMs - startMs;
-
     const startDate = new Date(startMs);
     const endDate = new Date(endMs);
-
-    const cursor = new Date(
-      startDate.getFullYear(),
-      startDate.getMonth(),
-      startDate.getDate(),
-      0, 0, 0, 0
-    );
-    const last = new Date(
-      endDate.getFullYear(),
-      endDate.getMonth(),
-      endDate.getDate(),
-      0, 0, 0, 0
-    );
-
+    const cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate(), 0, 0, 0, 0);
+    const last = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate(), 0, 0, 0, 0);
     while (cursor.getTime() <= last.getTime()) {
       const { pauseStart, pauseEnd } = getPauseWindowForDate(cursor);
       total -= getOverlapMs(startMs, endMs, pauseStart, pauseEnd);
       cursor.setDate(cursor.getDate() + 1);
     }
-
     return Math.max(0, total);
   };
 
@@ -169,47 +148,27 @@ export default function PontajePage() {
     return now >= pauseStart && now < pauseEnd && startMs < pauseEnd;
   };
 
-  const setCardData = (
-    projectId: string,
-    updater: (prev: ProjectCardData) => ProjectCardData
-  ) => {
+  const setCardData = (projectId: string, updater: (prev: ProjectCardData) => ProjectCardData) => {
     setProjectCards((prev) => ({
       ...prev,
       [projectId]: updater(prev[projectId] || createInitialCardData()),
     }));
   };
 
-  const loadProjectCardData = async (
-    projectId: string,
-    currentUserRole?: string | null
-  ) => {
+  const loadProjectCardData = async (projectId: string, currentUserRole?: string | null) => {
     setCardData(projectId, (prev) => ({ ...prev, loading: true }));
 
     const { data: { user } } = await supabase.auth.getUser();
 
     let role = currentUserRole || null;
-
     if (!role && user) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      const { data: profileData } = await supabase.from("profiles").select("role").eq("id", user.id).single();
       role = profileData?.role || null;
     }
 
     const { data: activeData, error: activeError } = await supabase
       .from("time_entries")
-      .select(`
-        id,
-        worker_id,
-        start_time,
-        status,
-        workers:worker_id (
-          id,
-          full_name
-        )
-      `)
+      .select(`id, worker_id, start_time, status, workers:worker_id (id, full_name)`)
       .eq("project_id", projectId)
       .eq("work_date", todayDate)
       .eq("status", "activ")
@@ -220,20 +179,17 @@ export default function PontajePage() {
       .from("time_entries")
       .select("worker_id")
       .eq("project_id", projectId)
-      .eq(
-        "work_date",
-        (() => {
-          const yesterdayDate = new Date();
-          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-          return yesterdayDate.toISOString().split("T")[0];
-        })()
-      );
+      .eq("work_date", (() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return d.toISOString().split("T")[0];
+      })());
 
+    // ECHIPE PERMANENTE: caută daily_team fără filtrare pe dată
     const { data: dailyTeamData } = await supabase
       .from("daily_teams")
       .select("id, project_id, work_date")
       .eq("project_id", projectId)
-      .eq("work_date", todayDate)
       .maybeSingle();
 
     let plannedWorkerIdsLocal: string[] = [];
@@ -267,16 +223,15 @@ export default function PontajePage() {
       workerPool = (workersData as Worker[]) || [];
     }
 
-    const enrichedActiveEntries =
-      !activeError && activeData
-        ? (activeData as ActiveTimeEntry[]).map((entry) => ({
-            ...entry,
-            worker_name:
-              entry.workers?.[0]?.full_name ||
-              workerPool.find((worker) => worker.id === entry.worker_id)?.full_name ||
-              "-",
-          }))
-        : [];
+    const enrichedActiveEntries = !activeError && activeData
+      ? (activeData as ActiveTimeEntry[]).map((entry) => ({
+          ...entry,
+          worker_name:
+            entry.workers?.[0]?.full_name ||
+            workerPool.find((worker) => worker.id === entry.worker_id)?.full_name ||
+            "-",
+        }))
+      : [];
 
     const activeWorkerIdsLocal = enrichedActiveEntries.map((entry) => entry.worker_id);
 
@@ -292,10 +247,7 @@ export default function PontajePage() {
       ...prev,
       workers: workerPool,
       activeEntries: enrichedActiveEntries,
-      selectedWorkers:
-        prev.selectedWorkers.length > 0
-          ? prev.selectedWorkers
-          : autoSelectedWorkers,
+      selectedWorkers: prev.selectedWorkers.length > 0 ? prev.selectedWorkers : autoSelectedWorkers,
       loading: false,
       plannedTeamExists: Boolean(dailyTeamData),
       plannedWorkerIds: plannedWorkerIdsLocal,
@@ -308,11 +260,7 @@ export default function PontajePage() {
       setLoading(true);
 
       const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+      if (!user) { router.push("/login"); return; }
 
       const { data: profileData, error: profileError } = await supabase
         .from("profiles")
@@ -320,25 +268,19 @@ export default function PontajePage() {
         .eq("id", user.id)
         .single();
 
-      if (profileError || !profileData) {
-        router.push("/login");
-        return;
-      }
+      if (profileError || !profileData) { router.push("/login"); return; }
 
-      if (
-        profileData.role !== "administrator" &&
-        profileData.role !== "sef_echipa"
-      ) {
+      if (profileData.role !== "administrator" && profileData.role !== "sef_echipa") {
         router.push("/dashboard");
         return;
       }
 
       setProfile(profileData as Profile);
 
+      // ECHIPE PERMANENTE: fără filtrare pe work_date
       const { data: dailyTeamsData, error: dailyTeamsError } = await supabase
         .from("daily_teams")
         .select("id, project_id, work_date, created_at")
-        .eq("work_date", todayDate)
         .order("created_at", { ascending: true });
 
       if (dailyTeamsError || !dailyTeamsData || dailyTeamsData.length === 0) {
@@ -377,22 +319,12 @@ export default function PontajePage() {
           .select("project_id")
           .eq("user_id", user.id);
 
-        if (linkedError || !linkedProjects) {
-          setProjects([]);
-          setLoading(false);
-          return;
-        }
+        if (linkedError || !linkedProjects) { setProjects([]); setLoading(false); return; }
 
         const linkedProjectIds = linkedProjects.map((item) => item.project_id);
-        const visibleProjectIds = teamProjectIds.filter((projectId) =>
-          linkedProjectIds.includes(projectId)
-        );
+        const visibleProjectIds = teamProjectIds.filter((projectId) => linkedProjectIds.includes(projectId));
 
-        if (visibleProjectIds.length === 0) {
-          setProjects([]);
-          setLoading(false);
-          return;
-        }
+        if (visibleProjectIds.length === 0) { setProjects([]); setLoading(false); return; }
 
         const { data: projectsData, error: projectsError } = await supabase
           .from("projects")
@@ -408,16 +340,10 @@ export default function PontajePage() {
       setProjects(visibleProjects);
 
       const initialCards: Record<string, ProjectCardData> = {};
-      visibleProjects.forEach((project) => {
-        initialCards[project.id] = createInitialCardData();
-      });
+      visibleProjects.forEach((project) => { initialCards[project.id] = createInitialCardData(); });
       setProjectCards(initialCards);
 
-      await Promise.all(
-        visibleProjects.map((project) =>
-          loadProjectCardData(project.id, profileData.role)
-        )
-      );
+      await Promise.all(visibleProjects.map((project) => loadProjectCardData(project.id, profileData.role)));
 
       setLoading(false);
     };
@@ -437,30 +363,20 @@ export default function PontajePage() {
   const handleToggleSameTeamAsYesterday = (projectId: string, checked: boolean) => {
     setCardData(projectId, (prev) => {
       const activeWorkerIds = prev.activeEntries.map((entry) => entry.worker_id);
-      const availableWorkers = prev.workers.filter(
-        (worker) => !activeWorkerIds.includes(worker.id)
-      );
+      const availableWorkers = prev.workers.filter((worker) => !activeWorkerIds.includes(worker.id));
 
       if (checked) {
         const availableYesterdayWorkers = prev.yesterdayWorkerIds.filter((workerId) =>
           availableWorkers.some((worker) => worker.id === workerId)
         );
-        return {
-          ...prev,
-          sameTeamAsYesterday: true,
-          selectedWorkers: availableYesterdayWorkers,
-        };
+        return { ...prev, sameTeamAsYesterday: true, selectedWorkers: availableYesterdayWorkers };
       }
 
       const autoSelected = availableWorkers
         .filter((worker) => prev.plannedWorkerIds.includes(worker.id))
         .map((worker) => worker.id);
 
-      return {
-        ...prev,
-        sameTeamAsYesterday: false,
-        selectedWorkers: autoSelected,
-      };
+      return { ...prev, sameTeamAsYesterday: false, selectedWorkers: autoSelected };
     });
   };
 
@@ -469,16 +385,9 @@ export default function PontajePage() {
     if (!card) return;
 
     const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/login"); return; }
 
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    if (card.selectedWorkers.length === 0) {
-      alert("Selectează cel puțin un muncitor.");
-      return;
-    }
+    if (card.selectedWorkers.length === 0) { alert("Selectează cel puțin un muncitor."); return; }
 
     setCardData(projectId, (prev) => ({ ...prev, submitting: true }));
 
@@ -499,13 +408,7 @@ export default function PontajePage() {
       return;
     }
 
-    setCardData(projectId, (prev) => ({
-      ...prev,
-      submitting: false,
-      selectedWorkers: [],
-      sameTeamAsYesterday: false,
-    }));
-
+    setCardData(projectId, (prev) => ({ ...prev, submitting: false, selectedWorkers: [], sameTeamAsYesterday: false }));
     await loadProjectCardData(projectId, profile?.role || null);
   };
 
@@ -514,10 +417,7 @@ export default function PontajePage() {
 
     const { error } = await supabase
       .from("time_entries")
-      .update({
-        end_time: new Date().toISOString(),
-        status: "oprit",
-      })
+      .update({ end_time: new Date().toISOString(), status: "oprit" })
       .eq("id", entryId);
 
     if (error) {
@@ -534,9 +434,7 @@ export default function PontajePage() {
     const card = projectCards[projectId];
     if (!card || card.activeEntries.length === 0) return;
 
-    const confirmStop = window.confirm(
-      "Sigur vrei să oprești pontajul pentru toți muncitorii activi?"
-    );
+    const confirmStop = window.confirm("Sigur vrei să oprești pontajul pentru toți muncitorii activi?");
     if (!confirmStop) return;
 
     setCardData(projectId, (prev) => ({ ...prev, submitting: true }));
@@ -545,10 +443,7 @@ export default function PontajePage() {
 
     const { error } = await supabase
       .from("time_entries")
-      .update({
-        end_time: new Date().toISOString(),
-        status: "oprit",
-      })
+      .update({ end_time: new Date().toISOString(), status: "oprit" })
       .in("id", activeIds);
 
     if (error) {
@@ -578,55 +473,42 @@ export default function PontajePage() {
   const renderPontajIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
       <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M9 2v4M15 2v4M8 10h8M8 14h5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 
-if (loading) {
-  return (
-    <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
-      <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
-          <img src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-        </div>
-      </header>
-      <div className="flex flex-1 items-center justify-center px-4">
-        <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-          <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-            <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-blue-600">
-              <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
-              <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            </svg>
+  if (loading) {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
+        <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
+            <img src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
-          <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
-          <div className="text-center">
-            <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
-            <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
+        </header>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
+              <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-blue-600">
+                <rect x="5" y="4" width="14" height="16" rx="2" stroke="currentColor" strokeWidth="2" />
+                <path d="M9 2v4M15 2v4M8 10h8M8 14h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
+            <div className="text-center">
+              <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
+              <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
-          </div>
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <button
             onClick={() => router.push("/dashboard")}
             className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -637,7 +519,6 @@ if (loading) {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
-        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -645,25 +526,21 @@ if (loading) {
             </div>
             <div>
               <p className="text-sm text-gray-500">Pontaje zilnice</p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                Pontare
-              </h1>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Pontare</h1>
               <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
                 Pontează direct din cardul șantierului și gestionează echipa activă.
               </p>
               <p className="mt-2 text-sm font-medium text-gray-400">
-                {profile?.full_name} •{" "}
-                {new Date(todayDate).toLocaleDateString("ro-RO")}
+                {profile?.full_name} · {new Date(todayDate).toLocaleDateString("ro-RO")}
               </p>
             </div>
           </div>
         </section>
 
-        {/* Projects */}
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Șantiere disponibile azi
+              Șantiere cu echipe active
             </p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
@@ -671,7 +548,7 @@ if (loading) {
           {projects.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-500">
-                Nu există șantiere cu echipe organizate pentru azi.
+                Nu există șantiere cu echipe organizate. Administratorul poate crea echipe în secțiunea Organizarea echipelor.
               </p>
             </div>
           ) : (
@@ -679,46 +556,29 @@ if (loading) {
               {projects.map((project) => {
                 const card = projectCards[project.id] || createInitialCardData();
                 const activeWorkerIds = card.activeEntries.map((e) => e.worker_id);
-                const availableWorkers = card.workers.filter(
-                  (w) => !activeWorkerIds.includes(w.id)
-                );
-                const selectedWorkersList = availableWorkers.filter((w) =>
-                  card.selectedWorkers.includes(w.id)
-                );
+                const availableWorkers = card.workers.filter((w) => !activeWorkerIds.includes(w.id));
+                const selectedWorkersList = availableWorkers.filter((w) => card.selectedWorkers.includes(w.id));
                 const hasActive = card.activeEntries.length > 0;
 
                 return (
-                  <div
-                    key={project.id}
-                    className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm"
-                  >
-                    {/* Header */}
+                  <div key={project.id} className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 flex-1 items-start gap-3">
                         <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
                           {renderPontajIcon()}
                         </div>
                         <div className="min-w-0">
-                          <h2 className="text-lg font-semibold text-gray-900">
-                            {project.name}
-                          </h2>
-                          <p className="mt-1 text-sm text-gray-500">
-                            {project.beneficiary || "-"}
-                          </p>
-                          <p className="mt-1 text-sm text-gray-500">
-                            {project.project_location || "-"}
-                          </p>
+                          <h2 className="text-lg font-semibold text-gray-900">{project.name}</h2>
+                          <p className="mt-1 text-sm text-gray-500">{project.beneficiary || "-"}</p>
+                          <p className="mt-1 text-sm text-gray-500">{project.project_location || "-"}</p>
                         </div>
                       </div>
-                      <span
-                        className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}
-                      >
+                      <span className={`inline-flex shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(project.status)}`}>
                         {getStatusLabel(project.status)}
                       </span>
                     </div>
 
                     <div className="mt-5 space-y-4">
-                      {/* ── STARE: fără pontaje active → selector muncitori ── */}
                       {!hasActive && (
                         <>
                           {card.loading ? (
@@ -728,7 +588,7 @@ if (loading) {
                               {!card.plannedTeamExists && (
                                 <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
                                   <p className="text-sm font-medium text-yellow-800">
-                                    Nu există echipă organizată pentru azi pe acest șantier.
+                                    Nu există echipă organizată pentru acest șantier.
                                   </p>
                                   <p className="mt-1 text-xs text-yellow-700">
                                     Administratorul poate ponta manual, dacă este necesar.
@@ -739,7 +599,7 @@ if (loading) {
                               {card.plannedTeamExists && (
                                 <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3">
                                   <p className="text-sm font-medium text-green-800">
-                                    Echipa organizată pentru azi a fost încărcată automat.
+                                    Echipa organizată a fost încărcată automat.
                                   </p>
                                   <p className="mt-1 text-xs text-green-700">
                                     Dacă lipsește cineva, îl poți debifa înainte de pontare.
@@ -753,31 +613,20 @@ if (loading) {
                                     <input
                                       type="checkbox"
                                       checked={card.sameTeamAsYesterday}
-                                      onChange={(e) =>
-                                        handleToggleSameTeamAsYesterday(
-                                          project.id,
-                                          e.target.checked
-                                        )
-                                      }
+                                      onChange={(e) => handleToggleSameTeamAsYesterday(project.id, e.target.checked)}
                                       className="h-5 w-5"
                                     />
-                                    <span className="text-sm font-medium text-gray-800">
-                                      Aceeași echipă ca ieri
-                                    </span>
+                                    <span className="text-sm font-medium text-gray-800">Aceeași echipă ca ieri</span>
                                   </label>
                                 </div>
                               )}
 
                               {availableWorkers.length === 0 ? (
-                                <p className="text-sm text-gray-500">
-                                  Nu există muncitori disponibili pentru pontare.
-                                </p>
+                                <p className="text-sm text-gray-500">Nu există muncitori disponibili pentru pontare.</p>
                               ) : (
                                 <>
                                   <div>
-                                    <p className="mb-3 text-sm font-semibold text-gray-900">
-                                      Echipa pentru pontare
-                                    </p>
+                                    <p className="mb-3 text-sm font-semibold text-gray-900">Echipa pentru pontare</p>
                                     <div className="space-y-2">
                                       {availableWorkers.map((worker) => (
                                         <label
@@ -787,14 +636,10 @@ if (loading) {
                                           <input
                                             type="checkbox"
                                             checked={card.selectedWorkers.includes(worker.id)}
-                                            onChange={() =>
-                                              toggleWorker(project.id, worker.id)
-                                            }
+                                            onChange={() => toggleWorker(project.id, worker.id)}
                                             className="h-5 w-5"
                                           />
-                                          <span className="text-sm font-medium text-gray-800">
-                                            {worker.full_name}
-                                          </span>
+                                          <span className="text-sm font-medium text-gray-800">{worker.full_name}</span>
                                         </label>
                                       ))}
                                     </div>
@@ -819,28 +664,19 @@ if (loading) {
                         </>
                       )}
 
-                      {/* ── STARE: pontaje active → listă muncitori ── */}
                       {hasActive && (
                         <div>
                           <div className="mb-3 flex items-center justify-between gap-3">
-                            <h3 className="text-sm font-semibold text-gray-900">
-                              Muncitori pontați
-                            </h3>
+                            <h3 className="text-sm font-semibold text-gray-900">Muncitori pontați</h3>
                             <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
                               {card.activeEntries.length} activi
                             </span>
                           </div>
 
                           <div className="mb-2 flex items-center gap-2 px-1">
-                            <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                              Nume
-                            </span>
-                            <span className="w-20 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                              Timp
-                            </span>
-                            <span className="w-16 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                              Acțiune
-                            </span>
+                            <span className="flex-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">Nume</span>
+                            <span className="w-20 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">Timp</span>
+                            <span className="w-16 text-center text-[11px] font-semibold uppercase tracking-wider text-gray-400">Acțiune</span>
                           </div>
 
                           <div className="space-y-2">
@@ -850,29 +686,19 @@ if (loading) {
                                 <div
                                   key={entry.id}
                                   className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${
-                                    inPause
-                                      ? "border-orange-200 bg-orange-50"
-                                      : "border-green-200 bg-green-50"
+                                    inPause ? "border-orange-200 bg-orange-50" : "border-green-200 bg-green-50"
                                   }`}
                                 >
                                   <span className="flex-1 truncate text-sm font-semibold text-gray-900">
                                     {entry.worker_name || "-"}
                                   </span>
-                                  <span
-                                    className={`w-20 text-center text-sm font-bold tabular-nums ${
-                                      inPause ? "text-orange-600" : "text-green-700"
-                                    }`}
-                                  >
+                                  <span className={`w-20 text-center text-sm font-bold tabular-nums ${inPause ? "text-orange-600" : "text-green-700"}`}>
                                     {inPause ? "Pauză" : formatDuration(entry.start_time)}
                                   </span>
                                   <button
                                     type="button"
-                                    onClick={() =>
-                                      handleStopTimeEntry(project.id, entry.id)
-                                    }
-                                    disabled={
-                                      card.stoppingId === entry.id || card.submitting
-                                    }
+                                    onClick={() => handleStopTimeEntry(project.id, entry.id)}
+                                    disabled={card.stoppingId === entry.id || card.submitting}
                                     className="w-16 rounded-xl bg-red-600 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                                   >
                                     {card.stoppingId === entry.id ? "..." : "Stop"}
@@ -884,28 +710,15 @@ if (loading) {
                         </div>
                       )}
 
-                      {/* ── Buton principal ── */}
                       <button
                         type="button"
-                        onClick={() =>
-                          hasActive
-                            ? handleStopAllTimeEntries(project.id)
-                            : handleStartTimeEntries(project.id)
-                        }
-                        disabled={
-                          card.submitting ||
-                          card.loading ||
-                          (!hasActive && card.selectedWorkers.length === 0)
-                        }
+                        onClick={() => hasActive ? handleStopAllTimeEntries(project.id) : handleStartTimeEntries(project.id)}
+                        disabled={card.submitting || card.loading || (!hasActive && card.selectedWorkers.length === 0)}
                         className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 ${
                           hasActive ? "bg-red-600" : "bg-green-600"
                         }`}
                       >
-                        {card.submitting
-                          ? "Se procesează..."
-                          : hasActive
-                          ? "■ Oprește toți"
-                          : "Pontează"}
+                        {card.submitting ? "Se procesează..." : hasActive ? "■ Oprește toți" : "Pontează"}
                       </button>
                     </div>
                   </div>

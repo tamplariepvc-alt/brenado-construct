@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -57,22 +59,6 @@ type TeamWorkerRelation = {
   worker_id: string;
 };
 
-type ModalDateTeam = {
-  id: string;
-  project_id: string;
-  work_date: string;
-};
-
-type ModalDateTeamVehicleRelation = {
-  daily_team_id: string;
-  vehicle_id: string;
-};
-
-type ModalDateTeamWorkerRelation = {
-  daily_team_id: string;
-  worker_id: string;
-};
-
 const getTodayDate = () => {
   const d = new Date();
   return d.toISOString().split("T")[0];
@@ -105,15 +91,19 @@ export default function OrganizareaEchipelorPage() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>([]);
-  const [selectedWorkDate, setSelectedWorkDate] = useState(getTomorrowDate());
 
-  const [modalTeamsForDate, setModalTeamsForDate] = useState<ModalDateTeam[]>([]);
-  const [modalTeamVehiclesForDate, setModalTeamVehiclesForDate] = useState<ModalDateTeamVehicleRelation[]>([]);
-  const [modalTeamWorkersForDate, setModalTeamWorkersForDate] = useState<ModalDateTeamWorkerRelation[]>([]);
+  // Modal ștergere echipă
+  const [deleteConfirmTeamId, setDeleteConfirmTeamId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const todayDate = useMemo(() => getTodayDate(), []);
-  const tomorrowDate = useMemo(() => getTomorrowDate(), []);
-  const [selectedViewDate, setSelectedViewDate] = useState(getTomorrowDate());
+  // Modal transfer personal
+  const [transferModal, setTransferModal] = useState<{
+    workerId: string;
+    workerName: string;
+    fromTeamId: string;
+  } | null>(null);
+  const [transferTargetTeamId, setTransferTargetTeamId] = useState("");
+  const [transferring, setTransferring] = useState(false);
 
   const isAdmin = profile?.role === "administrator";
 
@@ -121,7 +111,6 @@ export default function OrganizareaEchipelorPage() {
     setSelectedProjectId("");
     setSelectedVehicleIds([]);
     setSelectedWorkerIds([]);
-    setSelectedWorkDate(getTomorrowDate());
     setEditingTeamId(null);
   };
 
@@ -149,32 +138,6 @@ export default function OrganizareaEchipelorPage() {
     return vehicle.status;
   };
 
-  const loadModalAvailabilityForDate = async (workDate: string) => {
-    const { data: teamsData } = await supabase
-      .from("daily_teams")
-      .select("id, project_id, work_date")
-      .eq("work_date", workDate);
-
-    const parsedTeams = (teamsData as ModalDateTeam[]) || [];
-    setModalTeamsForDate(parsedTeams);
-
-    const teamIds = parsedTeams.map((team) => team.id);
-
-    if (teamIds.length === 0) {
-      setModalTeamVehiclesForDate([]);
-      setModalTeamWorkersForDate([]);
-      return;
-    }
-
-    const [{ data: vehiclesData }, { data: workersData }] = await Promise.all([
-      supabase.from("daily_team_vehicles").select("daily_team_id, vehicle_id").in("daily_team_id", teamIds),
-      supabase.from("daily_team_workers").select("daily_team_id, worker_id").in("daily_team_id", teamIds),
-    ]);
-
-    setModalTeamVehiclesForDate((vehiclesData as ModalDateTeamVehicleRelation[]) || []);
-    setModalTeamWorkersForDate((workersData as ModalDateTeamWorkerRelation[]) || []);
-  };
-
   const loadData = async () => {
     setLoading(true);
 
@@ -189,12 +152,12 @@ export default function OrganizareaEchipelorPage() {
 
     if (profileError || !profileData) { router.push("/login"); return; }
 
+    // Echipe permanente — fără filtrare pe dată
     const [teamsRes, projectsRes, vehiclesRes, workersRes, teamVehiclesRes, teamWorkersRes] =
       await Promise.all([
         supabase
           .from("daily_teams")
           .select("id, project_id, work_date, created_by, created_at")
-          .eq("work_date", selectedViewDate)
           .order("created_at", { ascending: true }),
 
         supabase
@@ -208,7 +171,6 @@ export default function OrganizareaEchipelorPage() {
           .select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until")
           .order("registration_number", { ascending: true }),
 
-        // ── MODIFICARE: doar personal de executie ──────────────────────────────
         supabase
           .from("workers")
           .select("id, full_name, is_active")
@@ -230,31 +192,34 @@ export default function OrganizareaEchipelorPage() {
     setLoading(false);
   };
 
-  useEffect(() => { loadData(); }, [selectedViewDate]);
+  useEffect(() => { loadData(); }, []);
 
-  useEffect(() => {
-    if (!showCreateModal || !selectedWorkDate) return;
-    loadModalAvailabilityForDate(selectedWorkDate);
-  }, [showCreateModal, selectedWorkDate]);
-
-  const modalDateTeamIds = useMemo(() =>
-    modalTeamsForDate.filter((team) => team.id !== editingTeamId).map((team) => team.id),
-    [modalTeamsForDate, editingTeamId]
-  );
-
+  // Proiecte deja atribuite (exclus cel editat)
   const usedProjectIds = useMemo(() =>
-    modalTeamsForDate.filter((team) => team.id !== editingTeamId).map((team) => team.project_id),
-    [modalTeamsForDate, editingTeamId]
+    teams.filter((t) => t.id !== editingTeamId).map((t) => t.project_id),
+    [teams, editingTeamId]
   );
 
-  const usedVehicleIds = useMemo(() =>
-    modalTeamVehiclesForDate.filter((item) => modalDateTeamIds.includes(item.daily_team_id)).map((item) => item.vehicle_id),
-    [modalTeamVehiclesForDate, modalDateTeamIds]
-  );
-
+  // Muncitori deja în alte echipe (exclus echipa editată)
   const usedWorkerIds = useMemo(() =>
-    modalTeamWorkersForDate.filter((item) => modalDateTeamIds.includes(item.daily_team_id)).map((item) => item.worker_id),
-    [modalTeamWorkersForDate, modalDateTeamIds]
+    teamWorkers
+      .filter((item) => {
+        const team = teams.find((t) => t.id === item.daily_team_id);
+        return team && team.id !== editingTeamId;
+      })
+      .map((item) => item.worker_id),
+    [teamWorkers, teams, editingTeamId]
+  );
+
+  // Mașini deja în alte echipe (exclus echipa editată)
+  const usedVehicleIds = useMemo(() =>
+    teamVehicles
+      .filter((item) => {
+        const team = teams.find((t) => t.id === item.daily_team_id);
+        return team && team.id !== editingTeamId;
+      })
+      .map((item) => item.vehicle_id),
+    [teamVehicles, teams, editingTeamId]
   );
 
   const availableProjects = useMemo(() =>
@@ -299,14 +264,12 @@ export default function OrganizareaEchipelorPage() {
 
   const openCreateModal = () => {
     resetForm();
-    setSelectedWorkDate(getTomorrowDate());
     setShowCreateModal(true);
   };
 
   const openEditModal = (team: Team) => {
     setEditingTeamId(team.id);
     setSelectedProjectId(team.project_id);
-    setSelectedWorkDate(team.work_date);
     setSelectedVehicleIds(teamVehicles.filter((item) => item.daily_team_id === team.id).map((item) => item.vehicle_id));
     setSelectedWorkerIds(teamWorkers.filter((item) => item.daily_team_id === team.id).map((item) => item.worker_id));
     setShowCreateModal(true);
@@ -316,7 +279,6 @@ export default function OrganizareaEchipelorPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
 
-    if (!selectedWorkDate) { alert("Selectează data echipei."); return; }
     if (!selectedProjectId) { alert("Selectează șantierul."); return; }
     if (selectedVehicleIds.length === 0) { alert("Selectează cel puțin un autoturism."); return; }
     if (selectedWorkerIds.length === 0) { alert("Selectează cel puțin un muncitor."); return; }
@@ -326,7 +288,7 @@ export default function OrganizareaEchipelorPage() {
     if (!editingTeamId) {
       const { data: teamInsert, error: teamError } = await supabase
         .from("daily_teams")
-        .insert({ project_id: selectedProjectId, work_date: selectedWorkDate, created_by: user.id })
+        .insert({ project_id: selectedProjectId, work_date: getTodayDate(), created_by: user.id })
         .select("id")
         .single();
 
@@ -351,38 +313,177 @@ export default function OrganizareaEchipelorPage() {
     } else {
       const { error: updateTeamError } = await supabase
         .from("daily_teams")
-        .update({ project_id: selectedProjectId, work_date: selectedWorkDate })
+        .update({ project_id: selectedProjectId })
         .eq("id", editingTeamId);
 
       if (updateTeamError) { alert(`Eroare la actualizarea echipei: ${updateTeamError.message}`); setSaving(false); return; }
 
       const { error: deleteWorkersError } = await supabase.from("daily_team_workers").delete().eq("daily_team_id", editingTeamId);
-      if (deleteWorkersError) { alert(`Eroare la actualizarea muncitorilor: ${deleteWorkersError.message}`); setSaving(false); return; }
+      if (deleteWorkersError) { alert(`Eroare: ${deleteWorkersError.message}`); setSaving(false); return; }
 
       const { error: deleteVehiclesError } = await supabase.from("daily_team_vehicles").delete().eq("daily_team_id", editingTeamId);
-      if (deleteVehiclesError) { alert(`Eroare la actualizarea mașinilor: ${deleteVehiclesError.message}`); setSaving(false); return; }
+      if (deleteVehiclesError) { alert(`Eroare: ${deleteVehiclesError.message}`); setSaving(false); return; }
 
       const { error: insertWorkersError } = await supabase
         .from("daily_team_workers")
         .insert(selectedWorkerIds.map((workerId) => ({ daily_team_id: editingTeamId, worker_id: workerId })));
 
-      if (insertWorkersError) { alert(`Eroare la salvarea muncitorilor: ${insertWorkersError.message}`); setSaving(false); return; }
+      if (insertWorkersError) { alert(`Eroare: ${insertWorkersError.message}`); setSaving(false); return; }
 
       const { error: insertVehiclesError } = await supabase
         .from("daily_team_vehicles")
         .insert(selectedVehicleIds.map((vehicleId) => ({ daily_team_id: editingTeamId, vehicle_id: vehicleId })));
 
-      if (insertVehiclesError) { alert(`Eroare la salvarea mașinilor: ${insertVehiclesError.message}`); setSaving(false); return; }
+      if (insertVehiclesError) { alert(`Eroare: ${insertVehiclesError.message}`); setSaving(false); return; }
     }
 
     setSaving(false);
     closeCreateModal();
+    await loadData();
+  };
 
-    if (selectedViewDate !== selectedWorkDate) {
-      setSelectedViewDate(selectedWorkDate);
-    } else {
-      await loadData();
+  // Ștergere echipă
+  const handleDeleteTeam = async () => {
+    if (!deleteConfirmTeamId) return;
+    setDeleting(true);
+
+    await supabase.from("daily_team_workers").delete().eq("daily_team_id", deleteConfirmTeamId);
+    await supabase.from("daily_team_vehicles").delete().eq("daily_team_id", deleteConfirmTeamId);
+    const { error } = await supabase.from("daily_teams").delete().eq("id", deleteConfirmTeamId);
+
+    if (error) {
+      alert(`Eroare la ștergerea echipei: ${error.message}`);
+      setDeleting(false);
+      return;
     }
+
+    setDeleting(false);
+    setDeleteConfirmTeamId(null);
+    await loadData();
+  };
+
+  // Transfer personal
+  const openTransferModal = (workerId: string, workerName: string, fromTeamId: string) => {
+    setTransferModal({ workerId, workerName, fromTeamId });
+    setTransferTargetTeamId("");
+  };
+
+  const handleTransferWorker = async () => {
+    if (!transferModal || !transferTargetTeamId) {
+      alert("Selectează echipa destinație.");
+      return;
+    }
+
+    setTransferring(true);
+
+    // Scoate din echipa curentă
+    const { error: removeError } = await supabase
+      .from("daily_team_workers")
+      .delete()
+      .eq("daily_team_id", transferModal.fromTeamId)
+      .eq("worker_id", transferModal.workerId);
+
+    if (removeError) {
+      alert(`Eroare la transfer: ${removeError.message}`);
+      setTransferring(false);
+      return;
+    }
+
+    // Adaugă în echipa destinație
+    const { error: addError } = await supabase
+      .from("daily_team_workers")
+      .insert({ daily_team_id: transferTargetTeamId, worker_id: transferModal.workerId });
+
+    if (addError) {
+      alert(`Eroare la adăugarea în echipa nouă: ${addError.message}`);
+      setTransferring(false);
+      return;
+    }
+
+    setTransferring(false);
+    setTransferModal(null);
+    setTransferTargetTeamId("");
+    await loadData();
+  };
+
+  // Export PDF pentru o echipă
+  const handleExportPdf = async (team: Team) => {
+    const project = getProjectById(team.project_id);
+    const teamVehicleIds = getTeamVehicleIds(team.id);
+    const teamWorkerIds = getTeamWorkerIds(team.id);
+    const currentVehicles = vehicles.filter((v) => teamVehicleIds.includes(v.id));
+    const currentWorkers = workers.filter((w) => teamWorkerIds.includes(w.id));
+
+    const doc = new jsPDF("p", "mm", "a4");
+
+    // Header cu logo
+    try {
+      const logo = new window.Image();
+      logo.src = "/logo.png";
+      await new Promise((resolve) => { logo.onload = resolve; logo.onerror = resolve; });
+      doc.addImage(logo, "PNG", 14, 10, 42, 13);
+    } catch {}
+
+    doc.setDrawColor(21, 128, 61);
+    doc.setLineWidth(0.6);
+    doc.line(14, 28, 196, 28);
+
+    doc.setFontSize(17);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Echipă – ${project?.name || "-"}`, 14, 38);
+
+    doc.setFontSize(9);
+    doc.setTextColor(90);
+    doc.text(`Beneficiar: ${project?.beneficiary || "-"}`, 14, 45);
+    doc.text(`Locație: ${project?.project_location || "-"}`, 14, 50);
+    doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
+
+    // Tabel auto
+    const vehicleRows = currentVehicles.map((v, i) => [
+      String(i + 1),
+      v.registration_number,
+      `${v.brand} ${v.model}`,
+      v.rca_valid_until ? new Date(`${v.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
+      v.itp_valid_until ? new Date(`${v.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
+    ]);
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Auto atribuite (${currentVehicles.length})`, 14, 65);
+
+    autoTable(doc, {
+      startY: 69,
+      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA până la", "ITP până la"]],
+      body: vehicleRows.length > 0 ? vehicleRows : [["", "Nu există auto atribuite.", "", "", ""]],
+      styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
+      headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "grid",
+    });
+
+    const afterVehicles = (doc as any).lastAutoTable.finalY + 8;
+
+    doc.setFontSize(12);
+    doc.setTextColor(30, 64, 175);
+    doc.text(`Personal de execuție (${currentWorkers.length})`, 14, afterVehicles);
+
+    const workerRows = currentWorkers.map((w, i) => [String(i + 1), w.full_name]);
+
+    autoTable(doc, {
+      startY: afterVehicles + 4,
+      head: [["Nr.", "Nume complet"]],
+      body: workerRows.length > 0 ? workerRows : [["", "Nu există muncitori în echipă."]],
+      styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
+      headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      theme: "grid",
+    });
+
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text("Document generat automat din aplicația Brenado Construct.", 14, 287);
+
+    doc.save(`echipa_${(project?.name || "export").replace(/\s+/g, "_")}.pdf`);
   };
 
   const getProjectById = (projectId: string) =>
@@ -423,9 +524,7 @@ export default function OrganizareaEchipelorPage() {
         </header>
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">
-              {renderTeamIcon()}
-            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">{renderTeamIcon()}</div>
             <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
             <div className="text-center">
               <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
@@ -437,14 +536,17 @@ export default function OrganizareaEchipelorPage() {
     );
   }
 
+  // Echipe disponibile pentru transfer (exclus echipa curentă)
+  const transferTargetTeams = transferModal
+    ? teams.filter((t) => t.id !== transferModal.fromTeamId)
+    : [];
+
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
+          <div className="flex gap-2 sm:gap-3">
             <button
               onClick={() => router.push("/dashboard")}
               className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
@@ -474,13 +576,8 @@ export default function OrganizareaEchipelorPage() {
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
                 Organizarea echipelor
               </h1>
-              <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
-                {selectedViewDate === todayDate
-                  ? "Echipe planificate pentru azi."
-                  : "Echipe planificate pentru ziua următoare."}
-              </p>
-              <p className="mt-2 text-sm font-medium text-gray-400">
-                {formatDate(selectedViewDate)}
+              <p className="mt-2 text-sm text-gray-500">
+                Echipele sunt permanente și valabile zilnic până la ștergerea lor.
               </p>
             </div>
           </div>
@@ -499,54 +596,32 @@ export default function OrganizareaEchipelorPage() {
               <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-orange-300">Auto</p>
             </div>
           </div>
-
-          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <button
-              onClick={() => setSelectedViewDate(todayDate)}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                selectedViewDate === todayDate ? "bg-black text-white" : "border border-gray-300 bg-white text-gray-700"
-              }`}
-            >
-              Vezi echipele de azi
-            </button>
-            <button
-              onClick={() => setSelectedViewDate(tomorrowDate)}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                selectedViewDate === tomorrowDate ? "bg-black text-white" : "border border-gray-300 bg-white text-gray-700"
-              }`}
-            >
-              Vezi echipele de mâine
-            </button>
-          </div>
         </section>
 
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Echipe planificate
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Echipe active</p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
 
           {teams.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
-              <p className="text-sm text-gray-500">
-                {selectedViewDate === todayDate
-                  ? "Nu există echipe postate pentru azi."
-                  : "Nu există echipe postate pentru ziua următoare."}
-              </p>
+              <p className="text-sm text-gray-500">Nu există echipe create. Administratorul poate crea o echipă.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {teams.map((team, index) => {
                 const project = getProjectById(team.project_id);
-                const workerCount = getTeamWorkerIds(team.id).length;
+                const workerIds = getTeamWorkerIds(team.id);
+                const workerCount = workerIds.length;
+                const teamWorkersDetails = workers.filter((w) => workerIds.includes(w.id));
 
                 return (
                   <div
                     key={team.id}
                     className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                   >
+                    {/* Click pe card → detaliu */}
                     <button
                       type="button"
                       onClick={() => router.push(`/organizarea-echipelor/${team.id}`)}
@@ -562,10 +637,6 @@ export default function OrganizareaEchipelorPage() {
 
                       <div className="space-y-2 text-sm">
                         <div className="flex items-start justify-between gap-3">
-                          <span className="text-gray-500">Data</span>
-                          <span className="text-right font-medium text-gray-900">{formatDate(team.work_date)}</span>
-                        </div>
-                        <div className="flex items-start justify-between gap-3">
                           <span className="text-gray-500">Auto atribuite</span>
                           <span className="text-right font-medium text-gray-900">{getVehiclesPreview(team.id)}</span>
                         </div>
@@ -580,14 +651,81 @@ export default function OrganizareaEchipelorPage() {
                       </div>
                     </button>
 
+                    {/* Butoane admin */}
                     {isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(team)}
-                        className="mt-4 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                      >
-                        Editează
-                      </button>
+                      <div className="mt-4 space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => openEditModal(team)}
+                          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                        >
+                          Editează echipa
+                        </button>
+
+                        {/* Export PDF + Șterge pe același rând */}
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (workerCount === 0) return;
+                              // Deschide modal transfer cu toți muncitorii — primul disponibil
+                              // Butonul "Transferă personal" deschide un modal cu lista muncitorilor echipei
+                            }}
+                            className="hidden"
+                          />
+                          {/* Transferă personal — buton lung */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // Deschidem direct modalul de selecție muncitor pt transfer
+                              // Dacă sunt mai mulți, arătăm lista în modal
+                              if (teamWorkersDetails.length === 0) {
+                                alert("Nu există muncitori în această echipă.");
+                                return;
+                              }
+                              // Deschidem direct cu primul muncitor dacă e unul singur,
+                              // altfel arătăm un sub-modal de selecție
+                              if (teamWorkersDetails.length === 1) {
+                                openTransferModal(
+                                  teamWorkersDetails[0].id,
+                                  teamWorkersDetails[0].full_name,
+                                  team.id
+                                );
+                              } else {
+                                // Setăm fromTeamId și arătăm lista în modal de transfer
+                                setTransferModal({
+                                  workerId: "",
+                                  workerName: "",
+                                  fromTeamId: team.id,
+                                });
+                                setTransferTargetTeamId("");
+                              }
+                            }}
+                            className="flex-1 rounded-xl bg-indigo-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                          >
+                            Transferă personal
+                          </button>
+
+                          {/* Export PDF */}
+                          <button
+                            type="button"
+                            onClick={() => handleExportPdf(team)}
+                            className="rounded-xl border border-gray-300 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                            title="Export PDF"
+                          >
+                            PDF
+                          </button>
+
+                          {/* Șterge — buton scurt roșu */}
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmTeamId(team.id)}
+                            className="rounded-xl bg-red-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
+                          >
+                            Șterge
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
@@ -597,6 +735,7 @@ export default function OrganizareaEchipelorPage() {
         </section>
       </main>
 
+      {/* MODAL CREARE / EDITARE ECHIPĂ */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-6 md:pt-10">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
@@ -606,7 +745,9 @@ export default function OrganizareaEchipelorPage() {
                   {editingTeamId ? "Editează echipa" : "Creează echipa"}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  Echipa se va salva pentru data de {formatDate(selectedWorkDate)}.
+                  {editingTeamId
+                    ? "Modifică șantierul, mașinile și muncitorii."
+                    : "Echipa va fi valabilă permanent până la ștergere."}
                 </p>
               </div>
               <button
@@ -620,16 +761,6 @@ export default function OrganizareaEchipelorPage() {
 
             <div className="max-h-[76vh] overflow-y-auto px-5 py-4">
               <div className="space-y-6">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Data echipei</label>
-                  <input
-                    type="date"
-                    value={selectedWorkDate}
-                    onChange={(e) => setSelectedWorkDate(e.target.value)}
-                    className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
-                  />
-                </div>
-
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">Selectare șantier</label>
                   <select
@@ -648,7 +779,7 @@ export default function OrganizareaEchipelorPage() {
                   <p className="mb-3 text-sm font-medium text-gray-700">Selectare autoturism</p>
                   {availableVehicles.length === 0 ? (
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu există mașini disponibile pentru data selectată.
+                      Nu există mașini disponibile.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -682,7 +813,7 @@ export default function OrganizareaEchipelorPage() {
                   </p>
                   {availableWorkers.length === 0 ? (
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
-                      Nu există muncitori disponibili pentru data selectată.
+                      Nu există muncitori disponibili. Toți sunt atribuiți altor echipe.
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -706,9 +837,6 @@ export default function OrganizareaEchipelorPage() {
 
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
                   <p className="text-sm font-medium text-blue-800">
-                    Data selectată: {formatDate(selectedWorkDate)}
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-blue-800">
                     Șantier selectat: {availableProjects.find((p) => p.id === selectedProjectId)?.name || "-"}
                   </p>
                   <p className="mt-1 text-sm text-blue-800">Auto selectate: {selectedVehicleIds.length}</p>
@@ -722,7 +850,7 @@ export default function OrganizareaEchipelorPage() {
                     disabled={saving}
                     className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
                   >
-                    {saving ? "Se salvează..." : editingTeamId ? "Salvează modificările" : "Postează echipa"}
+                    {saving ? "Se salvează..." : editingTeamId ? "Salvează modificările" : "Creează echipa"}
                   </button>
                   <button
                     type="button"
@@ -733,6 +861,195 @@ export default function OrganizareaEchipelorPage() {
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMARE ȘTERGERE */}
+      {deleteConfirmTeamId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              {/* Iconiță avertizare */}
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 mx-auto">
+                <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-red-600" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 9v4M12 17h.01" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              <h3 className="text-center text-lg font-bold text-gray-900">Ștergi această echipă?</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Această acțiune este ireversibilă. Echipa și toate relațiile sale (muncitori, mașini) vor fi șterse definitiv.
+              </p>
+
+              {/* Info echipă care se șterge */}
+              {(() => {
+                const team = teams.find((t) => t.id === deleteConfirmTeamId);
+                const project = team ? getProjectById(team.project_id) : null;
+                const workerCount = deleteConfirmTeamId ? getTeamWorkerIds(deleteConfirmTeamId).length : 0;
+                return team ? (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                    <p className="text-sm font-semibold text-red-800">{project?.name || "-"}</p>
+                    <p className="mt-1 text-xs text-red-600">{workerCount} muncitori · {getVehiclesPreview(deleteConfirmTeamId)} auto</p>
+                  </div>
+                ) : null;
+              })()}
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleDeleteTeam}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {deleting ? "Se șterge..." : "Da, șterge echipa"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmTeamId(null)}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TRANSFER PERSONAL */}
+      {transferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Transferă personal</h3>
+                <p className="mt-0.5 text-sm text-gray-500">
+                  Mută un muncitor în altă echipă
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setTransferModal(null); setTransferTargetTeamId(""); }}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-600 transition hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Dacă nu e selectat muncitor (echipă cu mai mulți), arată lista */}
+              {!transferModal.workerId && (() => {
+                const teamWorkersForModal = workers.filter((w) =>
+                  teamWorkers.some((tw) => tw.daily_team_id === transferModal.fromTeamId && tw.worker_id === w.id)
+                );
+                return (
+                  <div>
+                    <p className="mb-3 text-sm font-semibold text-gray-700">Selectează muncitorul de transferat</p>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {teamWorkersForModal.map((worker) => (
+                        <button
+                          key={worker.id}
+                          type="button"
+                          onClick={() => setTransferModal((prev) => prev ? { ...prev, workerId: worker.id, workerName: worker.full_name } : prev)}
+                          className="w-full flex items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 text-left transition hover:border-indigo-300 hover:bg-indigo-50"
+                        >
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                            {worker.full_name.charAt(0)}
+                          </div>
+                          <span className="text-sm font-medium text-gray-800">{worker.full_name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Muncitor selectat → alege echipa destinație */}
+              {transferModal.workerId && (
+                <>
+                  <div className="flex items-center gap-3 rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-200 text-sm font-bold text-indigo-800">
+                      {transferModal.workerName.charAt(0)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-indigo-900">{transferModal.workerName}</p>
+                      <p className="text-xs text-indigo-600">
+                        Din: {getProjectById(teams.find((t) => t.id === transferModal.fromTeamId)?.project_id || "")?.name || "-"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-gray-700">Echipa destinație</label>
+                    {transferTargetTeams.length === 0 ? (
+                      <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
+                        Nu există alte echipe disponibile.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {transferTargetTeams.map((team) => {
+                          const proj = getProjectById(team.project_id);
+                          const wCount = getTeamWorkerIds(team.id).length;
+                          return (
+                            <button
+                              key={team.id}
+                              type="button"
+                              onClick={() => setTransferTargetTeamId(team.id)}
+                              className={`w-full flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition ${
+                                transferTargetTeamId === team.id
+                                  ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300"
+                                  : "border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50"
+                              }`}
+                            >
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{proj?.name || "-"}</p>
+                                <p className="text-xs text-gray-500">{proj?.project_location || "-"} · {wCount} muncitori</p>
+                              </div>
+                              {transferTargetTeamId === team.id && (
+                                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-indigo-600">
+                                  <svg viewBox="0 0 24 24" fill="none" className="h-3 w-3 text-white" stroke="currentColor" strokeWidth="3">
+                                    <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+                                  </svg>
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {transferTargetTeamId && (
+                    <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
+                      <p className="text-sm font-medium text-green-800">
+                        <span className="font-bold">{transferModal.workerName}</span> va fi mutat în echipa{" "}
+                        <span className="font-bold">{getProjectById(teams.find((t) => t.id === transferTargetTeamId)?.project_id || "")?.name || "-"}</span>.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={handleTransferWorker}
+                      disabled={transferring || !transferTargetTeamId}
+                      className="flex-1 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                    >
+                      {transferring ? "Se transferă..." : "Confirmă transferul"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setTransferModal(null); setTransferTargetTeamId(""); }}
+                      className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                    >
+                      Anulează
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
