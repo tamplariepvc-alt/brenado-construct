@@ -27,9 +27,50 @@ type Project = {
 };
 
 type ProjectFunding = { project_id: string; amount_ron: number | null };
-type FiscalReceipt = { project_id: string; total_with_vat: number | null };
-type ProjectInvoice = { project_id: string; total_with_vat: number | null };
-type NondeductibleExpense = { project_id: string; cost_ron: number | null };
+
+type FiscalReceipt = {
+  id: string;
+  project_id: string;
+  supplier: string | null;
+  document_number: string | null;
+  receipt_date: string | null;
+  total_with_vat: number | null;
+  total_without_vat: number | null;
+  notes: string | null;
+  receipt_image_url: string | null;
+  uploaded_by: string | null;
+  created_at: string | null;
+};
+
+type ProjectInvoice = {
+  id: string;
+  project_id: string;
+  supplier: string | null;
+  document_number: string | null;
+  invoice_date: string | null;
+  total_with_vat: number | null;
+  total_without_vat: number | null;
+  notes: string | null;
+  invoice_image_url: string | null;
+  uploaded_by: string | null;
+  created_at: string | null;
+};
+
+type NondeductibleExpense = {
+  id: string;
+  project_id: string;
+  service_name: string | null;
+  expense_date: string | null;
+  cost_ron: number | null;
+  notes: string | null;
+  added_by: string | null;
+  created_at: string | null;
+};
+
+type FinancialDoc =
+  | { kind: "bon"; data: FiscalReceipt }
+  | { kind: "factura"; data: ProjectInvoice }
+  | { kind: "nedeductibila"; data: NondeductibleExpense };
 
 type Service = {
   id: string;
@@ -298,6 +339,14 @@ export default function ProiectePage() {
   const [photoProjectId, setPhotoProjectId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // NEW: filtrare pe data + expand pentru poze, devize, financiar
+  const [photoDateFilter, setPhotoDateFilter] = useState<Record<string, string>>({});
+  const [devizDateFilter, setDevizDateFilter] = useState<Record<string, string>>({});
+  const [finDateFilter, setFinDateFilter] = useState<Record<string, string>>({});
+  const [photoExpand, setPhotoExpand] = useState<Record<string, boolean>>({});
+  const [devizExpand, setDevizExpand] = useState<Record<string, boolean>>({});
+  const [finExpand, setFinExpand] = useState<Record<string, boolean>>({});
+
   // NEW: modal pentru poze pe zi
   const [photosModal, setPhotosModal] = useState<{
     projectId: string;
@@ -312,6 +361,9 @@ export default function ProiectePage() {
     date: string;
     reportId: string;
   } | null>(null);
+
+  // NEW: modal pentru document financiar (admin)
+  const [financialDocModal, setFinancialDocModal] = useState<FinancialDoc | null>(null);
 
   const [lightboxPhotos, setLightboxPhotos] = useState<DailyPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -426,9 +478,21 @@ export default function ProiectePage() {
       photosRes,
     ] = await Promise.all([
       fundingsQuery,
-      supabase.from("fiscal_receipts").select("project_id, total_with_vat").in("project_id", projectIds),
-      supabase.from("project_invoices").select("project_id, total_with_vat").in("project_id", projectIds),
-      supabase.from("project_nondeductible_expenses").select("project_id, cost_ron").in("project_id", projectIds),
+      supabase
+        .from("fiscal_receipts")
+        .select("id, project_id, supplier, document_number, receipt_date, total_with_vat, total_without_vat, notes, receipt_image_url, uploaded_by, created_at")
+        .in("project_id", projectIds)
+        .order("receipt_date", { ascending: false }),
+      supabase
+        .from("project_invoices")
+        .select("id, project_id, supplier, document_number, invoice_date, total_with_vat, total_without_vat, notes, invoice_image_url, uploaded_by, created_at")
+        .in("project_id", projectIds)
+        .order("invoice_date", { ascending: false }),
+      supabase
+        .from("project_nondeductible_expenses")
+        .select("id, project_id, service_name, expense_date, cost_ron, notes, added_by, created_at")
+        .in("project_id", projectIds)
+        .order("expense_date", { ascending: false }),
       supabase.from("services").select("id, name, um, price_ron").eq("is_active", true).order("name"),
       supabase
         .from("daily_reports")
@@ -1123,6 +1187,71 @@ export default function ProiectePage() {
     return map;
   }, [dailyReports, dailyReportItems, services]);
 
+  // Istoric financiar combinat per proiect (admin) — sortat descrescător după dată
+  const financialDocsByProject = useMemo(() => {
+    const map = new Map<string, FinancialDoc[]>();
+
+    receipts.forEach((r) => {
+      const arr = map.get(r.project_id) || [];
+      arr.push({ kind: "bon", data: r });
+      map.set(r.project_id, arr);
+    });
+
+    invoices.forEach((r) => {
+      const arr = map.get(r.project_id) || [];
+      arr.push({ kind: "factura", data: r });
+      map.set(r.project_id, arr);
+    });
+
+    nondeductibles.forEach((r) => {
+      const arr = map.get(r.project_id) || [];
+      arr.push({ kind: "nedeductibila", data: r });
+      map.set(r.project_id, arr);
+    });
+
+    // Sortare descrescătoare după data documentului
+    map.forEach((arr) => {
+      arr.sort((a, b) => {
+        const dateA =
+          a.kind === "bon"
+            ? a.data.receipt_date
+            : a.kind === "factura"
+            ? a.data.invoice_date
+            : a.data.expense_date;
+        const dateB =
+          b.kind === "bon"
+            ? b.data.receipt_date
+            : b.kind === "factura"
+            ? b.data.invoice_date
+            : b.data.expense_date;
+        return (dateB || "").localeCompare(dateA || "");
+      });
+    });
+
+    return map;
+  }, [receipts, invoices, nondeductibles]);
+
+  // Helper: extrage data unui document financiar
+  const getFinDocDate = (doc: FinancialDoc): string => {
+    if (doc.kind === "bon") return doc.data.receipt_date || "";
+    if (doc.kind === "factura") return doc.data.invoice_date || "";
+    return doc.data.expense_date || "";
+  };
+
+  // Helper: extrage suma unui document financiar
+  const getFinDocAmount = (doc: FinancialDoc): number => {
+    if (doc.kind === "bon") return Number(doc.data.total_with_vat || 0);
+    if (doc.kind === "factura") return Number(doc.data.total_with_vat || 0);
+    return Number(doc.data.cost_ron || 0);
+  };
+
+  // Helper: extrage label-ul de identificare (numar document sau service_name)
+  const getFinDocLabel = (doc: FinancialDoc): string => {
+    if (doc.kind === "bon") return doc.data.document_number || "fără număr";
+    if (doc.kind === "factura") return doc.data.document_number || "fără număr";
+    return doc.data.service_name || "fără serviciu";
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
@@ -1196,10 +1325,10 @@ export default function ProiectePage() {
           onClick={() => setPhotosModal(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-[22px] bg-white shadow-2xl"
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
               <div>
                 <p className="text-base font-bold text-gray-900">
                   Poze {new Date(photosModal.date).toLocaleDateString("ro-RO")}
@@ -1217,7 +1346,7 @@ export default function ProiectePage() {
               </button>
             </div>
 
-            <div className="max-h-[calc(90vh-72px)] overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-4">
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {photosModal.photos.map((photo, idx) => (
                   <button
@@ -1246,10 +1375,10 @@ export default function ProiectePage() {
           onClick={() => setDevizModal(null)}
         >
           <div
-            className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-[22px] bg-white shadow-2xl"
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
               <div>
                 <p className="text-base font-bold text-gray-900">
                   Deviz {new Date(devizModal.date).toLocaleDateString("ro-RO")}
@@ -1265,7 +1394,7 @@ export default function ProiectePage() {
               </button>
             </div>
 
-            <div className="max-h-[calc(90vh-160px)] overflow-y-auto px-5 py-4">
+            <div className="flex-1 overflow-y-auto px-5 py-4">
               {devizModalItems.length === 0 ? (
                 <p className="text-sm text-gray-400">Nu există servicii în acest deviz.</p>
               ) : (
@@ -1297,7 +1426,7 @@ export default function ProiectePage() {
               )}
             </div>
 
-            <div className="border-t border-gray-100 bg-[#FCFBF8] px-5 py-4">
+            <div className="shrink-0 border-t border-gray-100 bg-[#FCFBF8] px-5 py-4">
               {isAdmin && (
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-700">Total deviz</p>
@@ -1339,6 +1468,219 @@ export default function ProiectePage() {
                   Închide
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DETALII DOCUMENT FINANCIAR (admin) */}
+      {financialDocModal && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-3"
+          onClick={() => setFinancialDocModal(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-[22px] bg-white shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
+              <div className="flex items-center gap-3">
+                <span
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
+                    financialDocModal.kind === "bon"
+                      ? "bg-blue-100 text-blue-700"
+                      : financialDocModal.kind === "factura"
+                      ? "bg-purple-100 text-purple-700"
+                      : "bg-orange-100 text-orange-700"
+                  }`}
+                >
+                  {financialDocModal.kind === "bon"
+                    ? "Bon fiscal"
+                    : financialDocModal.kind === "factura"
+                    ? "Factură"
+                    : "Nedeductibilă"}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFinancialDocModal(null)}
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-lg text-gray-600 transition hover:bg-gray-200"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              {financialDocModal.kind === "bon" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Data</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {financialDocModal.data.receipt_date
+                          ? new Date(financialDocModal.data.receipt_date).toLocaleDateString("ro-RO")
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Număr document</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">{financialDocModal.data.document_number || "-"}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Furnizor</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{financialDocModal.data.supplier || "-"}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Total fără TVA</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {Number(financialDocModal.data.total_without_vat || 0).toFixed(2)} lei
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Total cu TVA</p>
+                      <p className="mt-1 text-sm font-bold text-blue-700">
+                        {Number(financialDocModal.data.total_with_vat || 0).toFixed(2)} lei
+                      </p>
+                    </div>
+                  </div>
+
+                  {financialDocModal.data.notes && (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Observații</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{financialDocModal.data.notes}</p>
+                    </div>
+                  )}
+
+                  {financialDocModal.data.receipt_image_url && (
+                    <div>
+                      <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-gray-400">Document atașat</p>
+                      <a
+                        href={financialDocModal.data.receipt_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block overflow-hidden rounded-2xl border border-gray-200"
+                      >
+                        <img
+                          src={financialDocModal.data.receipt_image_url}
+                          alt="Bon fiscal"
+                          className="max-h-[460px] w-full object-contain"
+                        />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {financialDocModal.kind === "factura" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Data</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {financialDocModal.data.invoice_date
+                          ? new Date(financialDocModal.data.invoice_date).toLocaleDateString("ro-RO")
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Număr document</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">{financialDocModal.data.document_number || "-"}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Furnizor</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{financialDocModal.data.supplier || "-"}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Total fără TVA</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {Number(financialDocModal.data.total_without_vat || 0).toFixed(2)} lei
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Total cu TVA</p>
+                      <p className="mt-1 text-sm font-bold text-purple-700">
+                        {Number(financialDocModal.data.total_with_vat || 0).toFixed(2)} lei
+                      </p>
+                    </div>
+                  </div>
+
+                  {financialDocModal.data.notes && (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Observații</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{financialDocModal.data.notes}</p>
+                    </div>
+                  )}
+
+                  {financialDocModal.data.invoice_image_url && (
+                    <div>
+                      <p className="mb-2 text-[11px] uppercase tracking-[0.12em] text-gray-400">Document atașat</p>
+                      <a
+                        href={financialDocModal.data.invoice_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block overflow-hidden rounded-2xl border border-gray-200"
+                      >
+                        <img
+                          src={financialDocModal.data.invoice_image_url}
+                          alt="Factură"
+                          className="max-h-[460px] w-full object-contain"
+                        />
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {financialDocModal.kind === "nedeductibila" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Data</p>
+                      <p className="mt-1 text-sm font-semibold text-gray-900">
+                        {financialDocModal.data.expense_date
+                          ? new Date(financialDocModal.data.expense_date).toLocaleDateString("ro-RO")
+                          : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Cost</p>
+                      <p className="mt-1 text-sm font-bold text-orange-700">
+                        {Number(financialDocModal.data.cost_ron || 0).toFixed(2)} lei
+                      </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Serviciu</p>
+                    <p className="mt-1 text-sm font-semibold text-gray-900">{financialDocModal.data.service_name || "-"}</p>
+                  </div>
+
+                  {financialDocModal.data.notes && (
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">Observații</p>
+                      <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{financialDocModal.data.notes}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-gray-100 bg-[#FCFBF8] px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setFinancialDocModal(null)}
+                className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              >
+                Închide
+              </button>
             </div>
           </div>
         </div>
@@ -1526,9 +1868,193 @@ export default function ProiectePage() {
                               </button>
                             </>
                           ) : (
-                            <div className="rounded-2xl bg-[#F8F7F3] px-4 py-4 text-center">
-                              <p className="text-sm text-gray-400">Documentele financiare sunt gestionate de șeful de echipă.</p>
-                            </div>
+                            (() => {
+                              const allFinDocs = financialDocsByProject.get(project.id) || [];
+                              const filterDate = finDateFilter[project.id] || "";
+                              const isExpanded = finExpand[project.id] || false;
+
+                              const visibleDocs = filterDate
+                                ? allFinDocs.filter((d) => getFinDocDate(d) === filterDate)
+                                : allFinDocs;
+
+                              const docsToRender =
+                                !filterDate && !isExpanded ? visibleDocs.slice(0, 3) : visibleDocs;
+                              const hiddenCount = !filterDate && !isExpanded
+                                ? Math.max(visibleDocs.length - 3, 0)
+                                : 0;
+
+                              if (allFinDocs.length === 0) {
+                                return (
+                                  <div className="rounded-2xl bg-[#F8F7F3] px-4 py-4 text-center">
+                                    <p className="text-sm text-gray-400">
+                                      Șeful de echipă nu a încărcat încă documente financiare pentru acest proiect.
+                                    </p>
+                                  </div>
+                                );
+                              }
+
+                              return (
+                                <div className="space-y-3">
+                                  <div className="rounded-2xl border border-gray-200 bg-[#F8F7F3] p-3">
+                                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-600">
+                                      Caută după dată
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="date"
+                                        value={filterDate}
+                                        onChange={(e) =>
+                                          setFinDateFilter((prev) => ({
+                                            ...prev,
+                                            [project.id]: e.target.value,
+                                          }))
+                                        }
+                                        className="flex-1 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-gray-500"
+                                      />
+                                      {filterDate && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setFinDateFilter((prev) => ({
+                                              ...prev,
+                                              [project.id]: "",
+                                            }))
+                                          }
+                                          className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                        >
+                                          Reset
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <div className="mb-1 flex items-center gap-3 px-1">
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                                        {filterDate
+                                          ? `Rezultate (${visibleDocs.length})`
+                                          : `Istoric documente (${allFinDocs.length})`}
+                                      </p>
+                                      <div className="h-px flex-1 bg-[#E8E5DE]" />
+                                    </div>
+
+                                    {visibleDocs.length === 0 ? (
+                                      <p className="text-sm text-gray-400">
+                                        Nu există documente pentru data selectată.
+                                      </p>
+                                    ) : (
+                                      <>
+                                        {docsToRender.map((doc) => {
+                                          const date = getFinDocDate(doc);
+                                          const amount = getFinDocAmount(doc);
+                                          const label = getFinDocLabel(doc);
+
+                                          const badgeClasses =
+                                            doc.kind === "bon"
+                                              ? "bg-blue-100 text-blue-700"
+                                              : doc.kind === "factura"
+                                              ? "bg-purple-100 text-purple-700"
+                                              : "bg-orange-100 text-orange-700";
+
+                                          const borderClasses =
+                                            doc.kind === "bon"
+                                              ? "border-blue-100 hover:bg-blue-50/60"
+                                              : doc.kind === "factura"
+                                              ? "border-purple-100 hover:bg-purple-50/60"
+                                              : "border-orange-100 hover:bg-orange-50/60";
+
+                                          const bgClasses =
+                                            doc.kind === "bon"
+                                              ? "bg-blue-50/30"
+                                              : doc.kind === "factura"
+                                              ? "bg-purple-50/30"
+                                              : "bg-orange-50/30";
+
+                                          const labelText =
+                                            doc.kind === "bon"
+                                              ? "Bon"
+                                              : doc.kind === "factura"
+                                              ? "Factură"
+                                              : "Nedeductibilă";
+
+                                          const detailText =
+                                            doc.kind === "nedeductibila" ? label : `Nr. ${label}`;
+
+                                          return (
+                                            <button
+                                              key={`${doc.kind}-${doc.data.id}`}
+                                              type="button"
+                                              onClick={() => setFinancialDocModal(doc)}
+                                              className={`flex w-full items-center justify-between gap-3 rounded-2xl border ${borderClasses} ${bgClasses} px-3 py-2.5 text-left transition`}
+                                            >
+                                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                <span
+                                                  className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider ${badgeClasses}`}
+                                                >
+                                                  {labelText}
+                                                </span>
+
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="truncate text-sm font-semibold text-gray-900">
+                                                    {detailText}
+                                                  </p>
+                                                  <p className="text-xs text-gray-500">
+                                                    {date
+                                                      ? new Date(date).toLocaleDateString("ro-RO", {
+                                                          day: "numeric",
+                                                          month: "short",
+                                                          year: "numeric",
+                                                        })
+                                                      : "fără dată"}
+                                                  </p>
+                                                </div>
+                                              </div>
+
+                                              <div className="flex shrink-0 items-center gap-1.5">
+                                                <p className="text-sm font-bold text-gray-900">
+                                                  {amount.toFixed(2)} lei
+                                                </p>
+                                                <span className="text-gray-400">›</span>
+                                              </div>
+                                            </button>
+                                          );
+                                        })}
+
+                                        {hiddenCount > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setFinExpand((prev) => ({
+                                                ...prev,
+                                                [project.id]: true,
+                                              }))
+                                            }
+                                            className="w-full rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                          >
+                                            Arată mai mult ({hiddenCount} {hiddenCount === 1 ? "document" : "documente"})
+                                          </button>
+                                        )}
+
+                                        {!filterDate && isExpanded && allFinDocs.length > 3 && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setFinExpand((prev) => ({
+                                                ...prev,
+                                                [project.id]: false,
+                                              }))
+                                            }
+                                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+                                          >
+                                            Arată mai puțin
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()
                           )}
                         </div>
                       )}
@@ -1563,86 +2089,174 @@ export default function ProiectePage() {
                             </button>
                           </div>
 
-                          {/* TAB POZE — listă pe zile, click → modal */}
-                          {tehnicTab === "poze" && (
-                            <div className="mt-4 space-y-3">
-                              {!isAdmin && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setPhotoProjectId(project.id);
-                                    setTimeout(() => photoInputRef.current?.click(), 50);
-                                  }}
-                                  disabled={uploadingPhoto && photoProjectId === project.id}
-                                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
-                                >
-                                  <UploadIcon />
-                                  {uploadingPhoto && photoProjectId === project.id
-                                    ? "Se încarcă..."
-                                    : `Adaugă poze (${getTodayDate()})`}
-                                </button>
-                              )}
+                          {/* TAB POZE — listă pe zile cu filter date + ultimele 3 + expand */}
+                          {tehnicTab === "poze" && (() => {
+                            const filterDate = photoDateFilter[project.id] || "";
+                            const isExpanded = photoExpand[project.id] || false;
 
-                              {photoDates.length > 0 ? (
-                                <div className="space-y-2">
-                                  <div className="mb-1 flex items-center gap-3 px-1">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-                                      Zile cu poze ({photoDates.length})
-                                    </p>
-                                    <div className="h-px flex-1 bg-[#E8E5DE]" />
-                                  </div>
+                            const visibleDates = filterDate
+                              ? photoDates.filter((d) => d === filterDate)
+                              : photoDates;
 
-                                  {photoDates.map((date) => {
-                                    const photos = projectPhotos!.get(date) || [];
-                                    return (
-                                      <button
-                                        key={date}
-                                        type="button"
-                                        onClick={() =>
-                                          setPhotosModal({
-                                            projectId: project.id,
-                                            date,
-                                            photos,
-                                          })
+                            const datesToRender =
+                              !filterDate && !isExpanded ? visibleDates.slice(0, 3) : visibleDates;
+                            const hiddenCount = !filterDate && !isExpanded
+                              ? Math.max(visibleDates.length - 3, 0)
+                              : 0;
+
+                            return (
+                              <div className="mt-4 space-y-3">
+                                {!isAdmin && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setPhotoProjectId(project.id);
+                                      setTimeout(() => photoInputRef.current?.click(), 50);
+                                    }}
+                                    disabled={uploadingPhoto && photoProjectId === project.id}
+                                    className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700 transition hover:bg-amber-100 disabled:opacity-60"
+                                  >
+                                    <UploadIcon />
+                                    {uploadingPhoto && photoProjectId === project.id
+                                      ? "Se încarcă..."
+                                      : `Adaugă poze (${getTodayDate()})`}
+                                  </button>
+                                )}
+
+                                {photoDates.length > 0 && (
+                                  <div className="rounded-2xl border border-amber-100 bg-amber-50/40 p-3">
+                                    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                                      Caută după dată
+                                    </label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="date"
+                                        value={filterDate}
+                                        onChange={(e) =>
+                                          setPhotoDateFilter((prev) => ({
+                                            ...prev,
+                                            [project.id]: e.target.value,
+                                          }))
                                         }
-                                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-left transition hover:bg-amber-50"
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
-                                            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-amber-600" stroke="currentColor" strokeWidth="2">
-                                              <rect x="3" y="5" width="18" height="14" rx="2" />
-                                              <circle cx="9" cy="11" r="2" />
-                                              <path d="M3 17l5-5 4 4 3-3 6 6" strokeLinecap="round" strokeLinejoin="round" />
-                                            </svg>
-                                          </div>
-                                          <div>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                              {new Date(date).toLocaleDateString("ro-RO", {
-                                                weekday: "short",
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                              })}
-                                            </p>
-                                            <p className="text-xs text-gray-500">
-                                              {photos.length} {photos.length === 1 ? "poză" : "poze"}
-                                            </p>
-                                          </div>
-                                        </div>
-                                        <span className="text-amber-600">›</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-gray-400">
-                                  {isAdmin
-                                    ? "Nu există poze pentru acest proiect."
-                                    : "Nu ai încărcat încă poze pentru acest proiect."}
-                                </p>
-                              )}
-                            </div>
-                          )}
+                                        className="flex-1 rounded-xl border border-amber-200 bg-white px-3 py-2 text-sm outline-none focus:border-amber-500"
+                                      />
+                                      {filterDate && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setPhotoDateFilter((prev) => ({
+                                              ...prev,
+                                              [project.id]: "",
+                                            }))
+                                          }
+                                          className="rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50"
+                                        >
+                                          Reset
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+
+                                {photoDates.length > 0 ? (
+                                  <div className="space-y-2">
+                                    <div className="mb-1 flex items-center gap-3 px-1">
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                                        {filterDate
+                                          ? `Rezultate (${visibleDates.length})`
+                                          : `Zile cu poze (${photoDates.length})`}
+                                      </p>
+                                      <div className="h-px flex-1 bg-[#E8E5DE]" />
+                                    </div>
+
+                                    {visibleDates.length === 0 ? (
+                                      <p className="text-sm text-gray-400">Nu există poze pentru data selectată.</p>
+                                    ) : (
+                                      <>
+                                        {datesToRender.map((date) => {
+                                          const photos = projectPhotos!.get(date) || [];
+                                          return (
+                                            <button
+                                              key={date}
+                                              type="button"
+                                              onClick={() =>
+                                                setPhotosModal({
+                                                  projectId: project.id,
+                                                  date,
+                                                  photos,
+                                                })
+                                              }
+                                              className="flex w-full items-center justify-between gap-3 rounded-2xl border border-amber-100 bg-amber-50/50 px-4 py-3 text-left transition hover:bg-amber-50"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100">
+                                                  <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-amber-600" stroke="currentColor" strokeWidth="2">
+                                                    <rect x="3" y="5" width="18" height="14" rx="2" />
+                                                    <circle cx="9" cy="11" r="2" />
+                                                    <path d="M3 17l5-5 4 4 3-3 6 6" strokeLinecap="round" strokeLinejoin="round" />
+                                                  </svg>
+                                                </div>
+                                                <div>
+                                                  <p className="text-sm font-semibold text-gray-900">
+                                                    {new Date(date).toLocaleDateString("ro-RO", {
+                                                      weekday: "short",
+                                                      day: "numeric",
+                                                      month: "short",
+                                                      year: "numeric",
+                                                    })}
+                                                  </p>
+                                                  <p className="text-xs text-gray-500">
+                                                    {photos.length} {photos.length === 1 ? "poză" : "poze"}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                              <span className="text-amber-600">›</span>
+                                            </button>
+                                          );
+                                        })}
+
+                                        {hiddenCount > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setPhotoExpand((prev) => ({
+                                                ...prev,
+                                                [project.id]: true,
+                                              }))
+                                            }
+                                            className="w-full rounded-2xl border border-dashed border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-700 transition hover:bg-amber-50"
+                                          >
+                                            Arată mai mult ({hiddenCount} {hiddenCount === 1 ? "zi" : "zile"})
+                                          </button>
+                                        )}
+
+                                        {!filterDate && isExpanded && photoDates.length > 3 && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setPhotoExpand((prev) => ({
+                                                ...prev,
+                                                [project.id]: false,
+                                              }))
+                                            }
+                                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+                                          >
+                                            Arată mai puțin
+                                          </button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-400">
+                                    {isAdmin
+                                      ? "Nu există poze pentru acest proiect."
+                                      : "Nu ai încărcat încă poze pentru acest proiect."}
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {/* TAB DEVIZ — total cumulat (admin) + listă pe zile, click → modal */}
                           {tehnicTab === "deviz" && (
@@ -1669,71 +2283,163 @@ export default function ProiectePage() {
                                 </div>
                               )}
 
-                              {projectReports.length > 0 ? (
-                                <div className="space-y-2">
-                                  <div className="mb-1 flex items-center gap-3 px-1">
-                                    <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-                                      Zile cu deviz ({projectReports.length})
+                              {(() => {
+                                const filterDate = devizDateFilter[project.id] || "";
+                                const isExpanded = devizExpand[project.id] || false;
+
+                                const visibleReports = filterDate
+                                  ? projectReports.filter((r) => r.report_date === filterDate)
+                                  : projectReports;
+
+                                const reportsToRender =
+                                  !filterDate && !isExpanded ? visibleReports.slice(0, 3) : visibleReports;
+                                const hiddenCount = !filterDate && !isExpanded
+                                  ? Math.max(visibleReports.length - 3, 0)
+                                  : 0;
+
+                                if (projectReports.length === 0) {
+                                  return isAdmin ? (
+                                    <p className="text-sm text-gray-400">
+                                      Șeful de echipă nu a adăugat încă devize pentru acest proiect.
                                     </p>
-                                    <div className="h-px flex-1 bg-[#E8E5DE]" />
-                                  </div>
+                                  ) : null;
+                                }
 
-                                  {projectReports.map((report) => {
-                                    const itemsCount = dailyReportItems.filter(
-                                      (i) => i.daily_report_id === report.id
-                                    ).length;
-                                    const dayTotal = reportTotalById.get(report.id) || 0;
+                                return (
+                                  <>
+                                    <div className="rounded-2xl border border-teal-100 bg-teal-50/40 p-3">
+                                      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-teal-700">
+                                        Caută după dată
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <input
+                                          type="date"
+                                          value={filterDate}
+                                          onChange={(e) =>
+                                            setDevizDateFilter((prev) => ({
+                                              ...prev,
+                                              [project.id]: e.target.value,
+                                            }))
+                                          }
+                                          className="flex-1 rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm outline-none focus:border-teal-500"
+                                        />
+                                        {filterDate && (
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              setDevizDateFilter((prev) => ({
+                                                ...prev,
+                                                [project.id]: "",
+                                              }))
+                                            }
+                                            className="rounded-xl border border-teal-200 bg-white px-3 py-2 text-xs font-semibold text-teal-700 hover:bg-teal-50"
+                                          >
+                                            Reset
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
 
-                                    return (
-                                      <button
-                                        key={report.id}
-                                        type="button"
-                                        onClick={() =>
-                                          setDevizModal({
-                                            projectId: project.id,
-                                            projectName: project.name,
-                                            date: report.report_date,
-                                            reportId: report.id,
-                                          })
-                                        }
-                                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-teal-50/40 px-4 py-3 text-left transition hover:bg-teal-50"
-                                      >
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100">
-                                            <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-teal-600" stroke="currentColor" strokeWidth="2">
-                                              <rect x="4" y="3" width="16" height="18" rx="2" />
-                                              <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
-                                            </svg>
-                                          </div>
-                                          <div>
-                                            <p className="text-sm font-semibold text-gray-900">
-                                              {new Date(report.report_date).toLocaleDateString("ro-RO", {
-                                                weekday: "short",
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                              })}
-                                            </p>
-                                            <p className="text-xs text-gray-500">{itemsCount} servicii</p>
-                                          </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          {isAdmin && (
-                                            <p className="text-sm font-bold text-teal-700">{dayTotal.toFixed(2)} lei</p>
+                                    <div className="space-y-2">
+                                      <div className="mb-1 flex items-center gap-3 px-1">
+                                        <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                                          {filterDate
+                                            ? `Rezultate (${visibleReports.length})`
+                                            : `Zile cu deviz (${projectReports.length})`}
+                                        </p>
+                                        <div className="h-px flex-1 bg-[#E8E5DE]" />
+                                      </div>
+
+                                      {visibleReports.length === 0 ? (
+                                        <p className="text-sm text-gray-400">
+                                          Nu există deviz pentru data selectată.
+                                        </p>
+                                      ) : (
+                                        <>
+                                          {reportsToRender.map((report) => {
+                                            const itemsCount = dailyReportItems.filter(
+                                              (i) => i.daily_report_id === report.id
+                                            ).length;
+                                            const dayTotal = reportTotalById.get(report.id) || 0;
+
+                                            return (
+                                              <button
+                                                key={report.id}
+                                                type="button"
+                                                onClick={() =>
+                                                  setDevizModal({
+                                                    projectId: project.id,
+                                                    projectName: project.name,
+                                                    date: report.report_date,
+                                                    reportId: report.id,
+                                                  })
+                                                }
+                                                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-100 bg-teal-50/40 px-4 py-3 text-left transition hover:bg-teal-50"
+                                              >
+                                                <div className="flex items-center gap-3">
+                                                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100">
+                                                    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-teal-600" stroke="currentColor" strokeWidth="2">
+                                                      <rect x="4" y="3" width="16" height="18" rx="2" />
+                                                      <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+                                                    </svg>
+                                                  </div>
+                                                  <div>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                      {new Date(report.report_date).toLocaleDateString("ro-RO", {
+                                                        weekday: "short",
+                                                        day: "numeric",
+                                                        month: "short",
+                                                        year: "numeric",
+                                                      })}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">{itemsCount} servicii</p>
+                                                  </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                  {isAdmin && (
+                                                    <p className="text-sm font-bold text-teal-700">{dayTotal.toFixed(2)} lei</p>
+                                                  )}
+                                                  <span className="text-teal-600">›</span>
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+
+                                          {hiddenCount > 0 && (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setDevizExpand((prev) => ({
+                                                  ...prev,
+                                                  [project.id]: true,
+                                                }))
+                                              }
+                                              className="w-full rounded-2xl border border-dashed border-teal-300 bg-white px-4 py-2.5 text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+                                            >
+                                              Arată mai mult ({hiddenCount} {hiddenCount === 1 ? "deviz" : "devize"})
+                                            </button>
                                           )}
-                                          <span className="text-teal-600">›</span>
-                                        </div>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                isAdmin && (
-                                  <p className="text-sm text-gray-400">
-                                    Șeful de echipă nu a adăugat încă devize pentru acest proiect.
-                                  </p>
-                                )
-                              )}
+
+                                          {!filterDate && isExpanded && projectReports.length > 3 && (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setDevizExpand((prev) => ({
+                                                  ...prev,
+                                                  [project.id]: false,
+                                                }))
+                                              }
+                                              className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+                                            >
+                                              Arată mai puțin
+                                            </button>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </>
+                                );
+                              })()}
 
                               {/* Form creare deviz — doar șef echipă */}
                               {!isAdmin && isDevizOpen && (
