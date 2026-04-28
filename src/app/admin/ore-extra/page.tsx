@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import BottomNav from "@/components/BottomNav";
 
 type ExtraWorkRow = {
   id: string;
@@ -678,6 +679,12 @@ export default function OreExtraWeekendPage() {
           )}
         </section>
       </main>
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import BottomNav from "@/components/BottomNav";
 
 type FundingBaseRow = {
   id: string;
@@ -531,5 +532,11 @@ export default function AlimentariPage() {
         )}
       </main>
     </div>
+	return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
   );
 }

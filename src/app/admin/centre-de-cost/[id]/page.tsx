@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { getRomanianLegalHolidays } from "@/lib/romanian-working-days";
+import BottomNav from "@/components/BottomNav";
 
 type ProjectDetails = {
   id: string;
@@ -982,6 +983,12 @@ if (loading) {
           </div>
         </section>
       </main>
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

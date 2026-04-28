@@ -1,5 +1,5 @@
 "use client";
-
+import BottomNav from "@/components/BottomNav";
 import Image from "next/image";
 import {
   ChangeEvent,
@@ -3215,6 +3215,12 @@ export default function ProiectePage() {
           )}
         </section>
       </main>
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

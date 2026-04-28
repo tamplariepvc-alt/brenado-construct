@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import BottomNav from "@/components/BottomNav";
 
 export default function SetariPage() {
   const router = useRouter();
@@ -141,6 +142,12 @@ export default function SetariPage() {
           </div>
         </section>
       </main>
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

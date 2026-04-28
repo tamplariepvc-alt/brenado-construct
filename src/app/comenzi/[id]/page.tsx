@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { exportOrderPdf } from "@/lib/pdf/export-order-pdf";
+import BottomNav from "@/components/BottomNav";
 
 type Role = "administrator" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
@@ -461,6 +462,12 @@ export default function ComandaDetaliuPage() {
           </div>
         </section>
       </main>
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

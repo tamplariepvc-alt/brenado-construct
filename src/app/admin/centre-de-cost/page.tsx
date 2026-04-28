@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { getRomanianLegalHolidays } from "@/lib/romanian-working-days";
+import BottomNav from "@/components/BottomNav";
 
 type CostCenter = {
   id: string;
@@ -766,6 +767,12 @@ if (loading) {
           )}
         </section>
       </main>
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

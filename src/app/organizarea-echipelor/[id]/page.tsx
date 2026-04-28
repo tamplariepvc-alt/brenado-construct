@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import BottomNav from "@/components/BottomNav";
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -501,6 +502,12 @@ export default function DetaliuEchipaPage() {
           </div>
         </div>
       )}
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }

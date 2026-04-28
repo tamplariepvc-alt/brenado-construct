@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import BottomNav from "@/components/BottomNav";
 
 type FundingDetails = {
   id: string;
@@ -435,6 +436,12 @@ export default function DetaliuAlimentarePage() {
           </div>
         </div>
       )}
+	  return (
+  <div className="min-h-screen bg-[#F0EEE9]">
+    {/* ... restul paginii ... */}
+    <BottomNav />
+  </div>
+);
     </div>
   );
 }
