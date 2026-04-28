@@ -78,14 +78,14 @@ export default function AdminPage() {
       sublabel: "Filtrează, achită și exportă rapoarte",
       route: "/admin/ore-extra",
       highlight: "blue",
-      // toti
+      roles: ["administrator", "cont_tehnic"],
     },
     {
       label: "Alimentare Carduri / Conturi",
       sublabel: "Alimentează proiectele și vezi istoricul",
       route: "/admin/alimentari",
       highlight: "green",
-      // toti
+      roles: ["administrator", "cont_tehnic"],
     },
     {
       label: "Istoric Pontaje",
