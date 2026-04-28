@@ -5,36 +5,22 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
-type Role = "administrator" | "sef_echipa" | "user";
+type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
 type Project = { id: string; name: string };
 type Article = {
-  id: string;
-  article_number: string | null;
-  article_code: string | null;
-  name: string;
-  unit: string | null;
-  unit_price: number;
-  vat_percent: number;
+  id: string; article_number: string | null; article_code: string | null;
+  name: string; unit: string | null; unit_price: number; vat_percent: number;
 };
 type OrderItemForm = {
-  id?: string;
-  localId: string;
-  article_id: string;
-  article_number: string;
-  article_code: string;
-  article_name: string;
-  unit: string;
-  unit_price: number;
-  vat_percent: number;
-  quantity: string;
+  id?: string; localId: string; article_id: string; article_number: string;
+  article_code: string; article_name: string; unit: string;
+  unit_price: number; vat_percent: number; quantity: string;
 };
 type ToastType = "error" | "success" | "warning";
 type Toast = { type: ToastType; message: string } | null;
 
-function generateLocalId() {
-  return Math.random().toString(36).slice(2);
-}
+function generateLocalId() { return Math.random().toString(36).slice(2); }
 
 async function fetchAllArticles() {
   const pageSize = 1000;
@@ -75,7 +61,6 @@ export default function EditareComandaPage() {
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<OrderItemForm[]>([]);
 
-  // Picker deviz-style
   const [pickerItemIndex, setPickerItemIndex] = useState<number | null>(null);
   const [pickerSearch, setPickerSearch] = useState("");
 
@@ -117,7 +102,10 @@ export default function EditareComandaPage() {
       const { data: profileData, error: profileError } = await supabase
         .from("profiles").select("id, full_name, role").eq("id", user.id).single();
       if (profileError || !profileData) { router.push("/login"); return; }
-      if (profileData.role !== "administrator" && profileData.role !== "sef_echipa") {
+
+      // Permite: administrator, cont_tehnic, project_manager, sef_echipa
+      const allowedEditRoles = ["administrator", "cont_tehnic", "project_manager", "sef_echipa"];
+      if (!allowedEditRoles.includes(profileData.role)) {
         router.push("/dashboard"); return;
       }
       setProfile(profileData as Profile);
@@ -132,7 +120,8 @@ export default function EditareComandaPage() {
         router.push("/comenzi"); return;
       }
 
-      if (profileData.role === "administrator") {
+      // admin/cont_tehnic/project_manager vad toate proiectele
+      if (["administrator", "cont_tehnic", "project_manager"].includes(profileData.role)) {
         const { data: projectsData } = await supabase
           .from("projects").select("id, name").order("created_at", { ascending: false });
         if (projectsData) setProjects(projectsData);
@@ -161,15 +150,10 @@ export default function EditareComandaPage() {
 
       if (itemsData && itemsData.length > 0) {
         setItems(itemsData.map((item) => ({
-          id: item.id,
-          localId: generateLocalId(),
-          article_id: item.article_id,
-          article_number: item.article_number || "",
-          article_code: item.article_code || "",
-          article_name: item.article_name,
-          unit: item.unit || "",
-          unit_price: Number(item.unit_price || 0),
-          vat_percent: Number(item.vat_percent || 21),
+          id: item.id, localId: generateLocalId(), article_id: item.article_id,
+          article_number: item.article_number || "", article_code: item.article_code || "",
+          article_name: item.article_name, unit: item.unit || "",
+          unit_price: Number(item.unit_price || 0), vat_percent: Number(item.vat_percent || 21),
           quantity: String(Number(item.quantity || 1)),
         })));
       } else {
@@ -203,12 +187,9 @@ export default function EditareComandaPage() {
       const next = [...prev];
       next[pickerItemIndex] = {
         ...next[pickerItemIndex],
-        article_id: article.id,
-        article_number: article.article_number || "",
-        article_code: article.article_code || "",
-        article_name: article.name,
-        unit: article.unit || "",
-        unit_price: Number(article.unit_price || 0),
+        article_id: article.id, article_number: article.article_number || "",
+        article_code: article.article_code || "", article_name: article.name,
+        unit: article.unit || "", unit_price: Number(article.unit_price || 0),
         vat_percent: Number(article.vat_percent || 21),
       };
       return next;
@@ -236,16 +217,10 @@ export default function EditareComandaPage() {
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
 
-    if (!selectedProjectId) {
-      showToast("error", "Selectează un șantier.");
-      isSubmittingRef.current = false; return;
-    }
+    if (!selectedProjectId) { showToast("error", "Selectează un șantier."); isSubmittingRef.current = false; return; }
 
     const validItems = items.filter((item) => item.article_id);
-    if (validItems.length === 0) {
-      showToast("error", "Adaugă cel puțin un articol în comandă.");
-      isSubmittingRef.current = false; return;
-    }
+    if (validItems.length === 0) { showToast("error", "Adaugă cel puțin un articol în comandă."); isSubmittingRef.current = false; return; }
 
     const itemsWithoutQty = validItems.filter((item) => !item.quantity || Number(item.quantity) < 1);
     if (itemsWithoutQty.length > 0) {
@@ -254,69 +229,40 @@ export default function EditareComandaPage() {
     }
 
     const { error: orderError } = await supabase.from("orders").update({
-      project_id: selectedProjectId,
-      order_date: orderDate,
-      status,
-      subtotal: Number(subtotal.toFixed(2)),
-      vat_total: Number(vatTotal.toFixed(2)),
-      total_with_vat: Number(totalWithVat.toFixed(2)),
-      notes,
+      project_id: selectedProjectId, order_date: orderDate, status,
+      subtotal: Number(subtotal.toFixed(2)), vat_total: Number(vatTotal.toFixed(2)),
+      total_with_vat: Number(totalWithVat.toFixed(2)), notes,
     }).eq("id", orderId);
 
-    if (orderError) {
-      showToast("error", "A apărut o eroare la actualizarea comenzii.");
-      isSubmittingRef.current = false; return;
-    }
+    if (orderError) { showToast("error", "A apărut o eroare la actualizarea comenzii."); isSubmittingRef.current = false; return; }
 
     const { error: deleteItemsError } = await supabase.from("order_items").delete().eq("order_id", orderId);
-    if (deleteItemsError) {
-      showToast("warning", "Comanda a fost actualizată, dar liniile vechi nu au putut fi șterse.");
-      isSubmittingRef.current = false; return;
-    }
+    if (deleteItemsError) { showToast("warning", "Comanda a fost actualizată, dar liniile vechi nu au putut fi șterse."); isSubmittingRef.current = false; return; }
 
     const orderItemsRows = validItems.map((item) => {
       const qty = Number(item.quantity) || 1;
       const lineTotal = item.unit_price * qty;
       const lineTotalWithVat = lineTotal + lineTotal * (item.vat_percent / 100);
       return {
-        order_id: orderId,
-        article_id: item.article_id,
-        article_number: item.article_number,
-        article_code: item.article_code,
-        article_name: item.article_name,
-        unit: item.unit,
-        unit_price: Number(item.unit_price.toFixed(2)),
-        quantity: Number(qty.toFixed(2)),
-        line_total: Number(lineTotal.toFixed(2)),
-        vat_percent: Number(item.vat_percent.toFixed(2)),
+        order_id: orderId, article_id: item.article_id,
+        article_number: item.article_number, article_code: item.article_code,
+        article_name: item.article_name, unit: item.unit,
+        unit_price: Number(item.unit_price.toFixed(2)), quantity: Number(qty.toFixed(2)),
+        line_total: Number(lineTotal.toFixed(2)), vat_percent: Number(item.vat_percent.toFixed(2)),
         line_total_with_vat: Number(lineTotalWithVat.toFixed(2)),
       };
     });
 
     const { error: itemsError } = await supabase.from("order_items").insert(orderItemsRows);
-    if (itemsError) {
-      showToast("warning", "Comanda a fost actualizată, dar articolele nu au putut fi salvate.");
-      isSubmittingRef.current = false; return;
-    }
+    if (itemsError) { showToast("warning", "Comanda a fost actualizată, dar articolele nu au putut fi salvate."); isSubmittingRef.current = false; return; }
 
     showToast("success", status === "draft" ? "Draftul a fost actualizat." : "Comanda a fost trimisă cu succes.", 2000);
     isSubmittingRef.current = false;
     setTimeout(() => router.push("/comenzi"), 1500);
   };
 
-  const handleSaveDraft = async () => {
-    if (savingDraft || sendingOrder) return;
-    setSavingDraft(true);
-    await saveOrder("draft");
-    setSavingDraft(false);
-  };
-
-  const handleSendOrder = async () => {
-    if (savingDraft || sendingOrder) return;
-    setSendingOrder(true);
-    await saveOrder("asteapta_confirmare");
-    setSendingOrder(false);
-  };
+  const handleSaveDraft = async () => { if (savingDraft || sendingOrder) return; setSavingDraft(true); await saveOrder("draft"); setSavingDraft(false); };
+  const handleSendOrder = async () => { if (savingDraft || sendingOrder) return; setSendingOrder(true); await saveOrder("asteapta_confirmare"); setSendingOrder(false); };
 
   const renderOrderIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
@@ -350,31 +296,22 @@ export default function EditareComandaPage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {/* PICKER bottom sheet */}
       {pickerItemIndex !== null && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={closePicker}>
-          <div
-            className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[80vh] sm:rounded-[24px]"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[80vh] sm:rounded-[24px]"
+            onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center pt-3 pb-1 sm:hidden">
               <div className="h-1 w-10 rounded-full bg-gray-200" />
             </div>
             <div className="flex items-center justify-between px-5 pb-3 pt-2">
               <p className="text-base font-bold text-gray-900">Alege articol</p>
               <button type="button" onClick={closePicker}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500 hover:bg-gray-200">
-                ✕
-              </button>
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500 hover:bg-gray-200">✕</button>
             </div>
             <div className="px-4 pb-2">
-              <input
-                autoFocus
-                value={pickerSearch}
-                onChange={(e) => setPickerSearch(e.target.value)}
+              <input autoFocus value={pickerSearch} onChange={(e) => setPickerSearch(e.target.value)}
                 placeholder="Caută după cod sau denumire..."
-                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#0196ff]"
-              />
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#0196ff]" />
             </div>
             <div className="flex-1 overflow-y-auto px-4 pb-6">
               {filteredArticles.length === 0 ? (
@@ -385,16 +322,10 @@ export default function EditareComandaPage() {
                     const isSelected = pickerItemIndex !== null && items[pickerItemIndex]?.article_id === article.id;
                     return (
                       <button key={article.id} type="button" onClick={() => selectArticle(article)}
-                        className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${
-                          isSelected ? "bg-[#0196ff] text-white" : "hover:bg-gray-50"
-                        }`}>
+                        className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${isSelected ? "bg-[#0196ff] text-white" : "hover:bg-gray-50"}`}>
                         <div className="min-w-0 flex-1">
-                          <span className={`block text-sm font-medium leading-snug break-words ${isSelected ? "text-white" : "text-gray-900"}`}>
-                            {article.name}
-                          </span>
-                          <span className={`text-xs ${isSelected ? "text-white/70" : "text-gray-400"}`}>
-                            {article.article_code || "-"}
-                          </span>
+                          <span className={`block text-sm font-medium leading-snug break-words ${isSelected ? "text-white" : "text-gray-900"}`}>{article.name}</span>
+                          <span className={`text-xs ${isSelected ? "text-white/70" : "text-gray-400"}`}>{article.article_code || "-"}</span>
                         </div>
                         <span className={`shrink-0 text-xs ${isSelected ? "text-white/80" : "text-gray-400"}`}>
                           {article.unit} · {Number(article.unit_price).toFixed(2)} lei
@@ -409,7 +340,6 @@ export default function EditareComandaPage() {
         </div>
       )}
 
-      {/* TOAST */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4">
           <div className={`flex items-start gap-3 rounded-[18px] border px-4 py-3.5 shadow-lg ${toastColors[toast.type]}`}>
@@ -433,9 +363,7 @@ export default function EditareComandaPage() {
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
-              {renderOrderIcon()}
-            </div>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">{renderOrderIcon()}</div>
             <div>
               <p className="text-sm text-gray-500">Editare comandă</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Editează comandă draft</h1>
@@ -445,7 +373,6 @@ export default function EditareComandaPage() {
         </section>
 
         <div className="mt-6 space-y-6">
-          {/* Informații */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Informații comandă</h2>
@@ -475,7 +402,6 @@ export default function EditareComandaPage() {
             </div>
           </section>
 
-          {/* Articole — deviz style */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
               <div>
@@ -495,51 +421,34 @@ export default function EditareComandaPage() {
                 const qty = Number(item.quantity) || 0;
                 const lineTotal = item.unit_price * qty;
                 const hasArticle = Boolean(item.article_id);
-
                 return (
                   <div key={item.localId} className="px-4 py-4">
                     <div className="flex items-center gap-2">
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500">
-                        {index + 1}
-                      </span>
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500">{index + 1}</span>
                       <button type="button" onClick={() => openPicker(index)}
-                        className={`flex flex-1 items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
-                          hasArticle ? "border-[#0196ff]/30 bg-[#0196ff]/5" : "border-gray-200 bg-[#F8F7F3]"
-                        }`}>
+                        className={`flex flex-1 items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${hasArticle ? "border-[#0196ff]/30 bg-[#0196ff]/5" : "border-gray-200 bg-[#F8F7F3]"}`}>
                         <span className={`break-words min-w-0 flex-1 text-xs font-medium leading-snug ${hasArticle ? "text-[#0057b3]" : "text-gray-400"}`}>
                           {hasArticle ? item.article_name : "Alege articol..."}
                         </span>
-                        {hasArticle && (
-                          <span className="shrink-0 text-xs text-[#0196ff] ml-1">{item.unit}</span>
-                        )}
+                        {hasArticle && <span className="shrink-0 text-xs text-[#0196ff] ml-1">{item.unit}</span>}
                       </button>
                       {items.length > 1 && (
                         <button type="button" onClick={() => removeLine(item.localId)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-400 hover:bg-red-100">
-                          ×
-                        </button>
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-400 hover:bg-red-100">×</button>
                       )}
                     </div>
-
                     {hasArticle && (
                       <div className="mt-2 flex items-center gap-3 pl-8">
                         <div className="flex items-center gap-2">
                           <label className="text-xs text-gray-400">Cant.</label>
-                          <input
-                            type="number" min="1" step="1"
-                            value={item.quantity}
+                          <input type="number" min="1" step="1" value={item.quantity}
                             onChange={(e) => updateItemQuantity(item.localId, e.target.value)}
-                            onBlur={() => {
-                              if (!item.quantity || Number(item.quantity) < 1) updateItemQuantity(item.localId, "1");
-                            }}
+                            onBlur={() => { if (!item.quantity || Number(item.quantity) < 1) updateItemQuantity(item.localId, "1"); }}
                             placeholder="0"
-                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-[#0196ff]"
-                          />
+                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-[#0196ff]" />
                           <span className="text-xs font-medium text-gray-500">{item.unit}</span>
                         </div>
-                        {lineTotal > 0 && (
-                          <span className="ml-auto text-sm font-bold text-[#0196ff]">{lineTotal.toFixed(2)} lei</span>
-                        )}
+                        {lineTotal > 0 && <span className="ml-auto text-sm font-bold text-[#0196ff]">{lineTotal.toFixed(2)} lei</span>}
                       </div>
                     )}
                   </div>
@@ -553,11 +462,9 @@ export default function EditareComandaPage() {
             </div>
           </section>
 
-          {/* Total */}
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Total comandă</h2>
-              <p className="text-sm text-gray-500">Verifică valorile actualizate înainte de salvare.</p>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4">

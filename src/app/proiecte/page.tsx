@@ -367,7 +367,7 @@ export default function ProiectePage() {
   const isProjectManager = profile?.role === "project_manager";
   const canManageProjects = isAdmin || isProjectManager;
   const canAddPhotos = profile?.role === "sef_echipa" || isProjectManager;
-  const canCreateDeviz = profile?.role === "sef_echipa";
+  const canCreateDeviz = profile?.role === "sef_echipa" || profile?.role === "project_manager";
 
   const openLightbox = (photos: DailyPhoto[], index: number) => {
     setLightboxPhotos(photos);
@@ -1466,7 +1466,7 @@ export default function ProiectePage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat") && (
+      {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat" || profile?.role === "project_manager") && (
         <>
           <input
             ref={bonInputRef}
@@ -2186,7 +2186,7 @@ export default function ProiectePage() {
 
                       {projectTab === "financiar" && (
                         <div className="mt-4 flex flex-col gap-3">
-                          {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat") ? (
+                          {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat" || profile?.role === "project_manager") ? (
                             <>
                               <button
                                 type="button"
@@ -2979,7 +2979,7 @@ export default function ProiectePage() {
                     </div>
 
                     {/* FORMULAR BON / FACTURĂ */}
-                    {profile?.role === "sef_echipa" && activeInlineProjectId === project.id && projectTab === "financiar" && (
+                    {(profile?.role === "sef_echipa" || profile?.role === "project_manager") && activeInlineProjectId === project.id && projectTab === "financiar" && (
                       <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
                         <div className="mb-4">
                           <p className="text-base font-semibold text-gray-900">

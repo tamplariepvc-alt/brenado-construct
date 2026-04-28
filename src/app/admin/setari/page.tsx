@@ -9,17 +9,24 @@ import BottomNav from "@/components/BottomNav";
 export default function SetariPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-      if (!profile || profile.role !== "administrator") { router.push("/dashboard"); return; }
+
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager"];
+      if (!profile || !allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
+
+      setUserRole(profile.role);
       setLoading(false);
     };
     check();
   }, [router]);
+
+  const backPath = userRole === "project_manager" ? "/modul-admin" : "/admin";
 
   const sections = [
     {
@@ -85,9 +92,9 @@ export default function SetariPage() {
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-          <button onClick={() => router.push("/admin")}
+          <button onClick={() => router.push(backPath)}
             className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-            Înapoi la admin
+            Înapoi
           </button>
         </div>
       </header>
@@ -101,9 +108,7 @@ export default function SetariPage() {
             <div>
               <p className="text-sm text-gray-500">Administrare</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Alte setări</h1>
-              <p className="mt-2 max-w-2xl text-sm text-gray-500">
-                Selectează modulul pe care vrei să îl configurezi.
-              </p>
+              <p className="mt-2 max-w-2xl text-sm text-gray-500">Selectează modulul pe care vrei să îl configurezi.</p>
             </div>
           </div>
         </section>
@@ -113,15 +118,10 @@ export default function SetariPage() {
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Module disponibile</p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
-
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {sections.map((section) => (
-              <button
-                key={section.key}
-                type="button"
-                onClick={() => router.push(section.href)}
-                className="group relative overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
+              <button key={section.key} type="button" onClick={() => router.push(section.href)}
+                className="group relative overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
                 <div className={`flex h-14 w-14 items-center justify-center rounded-3xl ${section.bg}`}>
                   {section.icon}
                 </div>
@@ -134,15 +134,13 @@ export default function SetariPage() {
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-gray-500">{section.description}</p>
                 </div>
-                <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EEE9] text-base text-gray-400 transition group-hover:bg-gray-200">
-                  ›
-                </div>
+                <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EEE9] text-base text-gray-400 transition group-hover:bg-gray-200">›</div>
               </button>
             ))}
           </div>
         </section>
       </main>
- <BottomNav />
+      <BottomNav />
     </div>
   );
 }
