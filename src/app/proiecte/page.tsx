@@ -319,6 +319,8 @@ export default function ProiectePage() {
   const [devizReportId, setDevizReportId] = useState<string | null>(null);
   const [serviceSearchByLine, setServiceSearchByLine] = useState<Record<number, string>>({});
   const [showDevizValidation, setShowDevizValidation] = useState(false);
+  const [servicePickerLine, setServicePickerLine] = useState<number | null>(null);
+  const [servicePickerSearch, setServicePickerSearch] = useState("");
 
   const [photoProjectId, setPhotoProjectId] = useState<string | null>(null);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -2914,115 +2916,61 @@ export default function ProiectePage() {
                                     />
                                   </div>
 
-                                  {/* CARDURI ARTICOLE — VERSIUNE COMPACTĂ MOBIL */}
+                                  {/* CARDURI ARTICOLE — PICKER MODAL */}
                                   <div className="space-y-2">
                                     {devizItems.map((line, index) => {
                                       const selectedSvc = services.find((s) => s.id === line.service_id);
-                                      const searchValue = serviceSearchByLine[index] || "";
-                                      const filteredServices = services
-                                        .filter((svc) => svc.name.toLowerCase().includes(searchValue.toLowerCase()))
-                                        .slice(0, 30);
-
                                       const lineValid = isDevizLineValid(line);
                                       const showError = showDevizValidation && !lineValid;
                                       const missingService = !line.service_id;
                                       const missingQty = !(Number(line.quantity || 0) > 0);
 
                                       return (
-                                        <div
-                                          key={index}
-                                          className={`rounded-xl border bg-white p-2.5 transition ${
-                                            showError ? "border-red-300 ring-1 ring-red-200" : "border-teal-200"
-                                          }`}
-                                        >
+                                        <div key={index}
+                                          className={`rounded-xl border bg-white p-2.5 transition ${showError ? "border-red-300 ring-1 ring-red-200" : "border-teal-200"}`}>
                                           <div className="mb-1.5 flex items-center justify-between gap-2">
-                                            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-                                              #{index + 1}
-                                              {selectedSvc && (
-                                                <span className="ml-2 text-gray-500 normal-case">{selectedSvc.name}</span>
-                                              )}
-                                            </p>
-
+                                            <p className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">#{index + 1}</p>
                                             {devizItems.length > 1 && (
-                                              <button
-                                                type="button"
-                                                onClick={() => removeDevizLine(index)}
-                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-sm text-red-600 hover:bg-red-100"
-                                              >
+                                              <button type="button" onClick={() => removeDevizLine(index)}
+                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-sm text-red-600 hover:bg-red-100">
                                                 ×
                                               </button>
                                             )}
                                           </div>
 
-                                          <input
-                                            type="text"
-                                            value={searchValue}
-                                            onChange={(e) => {
-                                              const value = e.target.value;
-                                              setServiceSearchByLine((prev) => ({
-                                                ...prev,
-                                                [index]: value,
-                                              }));
-                                              updateDevizLine(index, "service_id", "");
-                                            }}
-                                            placeholder="Caută serviciu..."
-                                            className={`mb-1.5 w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-teal-500 ${
-                                              showError && missingService ? "border-red-300" : "border-gray-200"
-                                            }`}
-                                          />
+                                          {/* Buton selector serviciu — deschide picker */}
+                                          <button type="button"
+                                            onClick={() => { setServicePickerLine(index); setServicePickerSearch(""); }}
+                                            className={`mb-1.5 flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-sm transition ${
+                                              showError && missingService ? "border-red-300 bg-red-50" : selectedSvc ? "border-teal-300 bg-teal-50/50" : "border-gray-200 bg-[#F8F7F3]"
+                                            }`}>
+                                            <span className={`min-w-0 flex-1 truncate ${selectedSvc ? "font-medium text-teal-800" : "text-gray-400"}`}>
+                                              {selectedSvc ? selectedSvc.name : "Alege serviciu..."}
+                                            </span>
+                                            {selectedSvc
+                                              ? <span className="shrink-0 rounded-md bg-teal-100 px-1.5 py-0.5 text-xs font-semibold text-teal-700">{selectedSvc.um}</span>
+                                              : <span className="shrink-0 text-gray-400 text-xs">›</span>
+                                            }
+                                          </button>
 
-                                          {searchValue && !line.service_id && (
-                                            <div className="mb-1.5 max-h-36 space-y-1 overflow-y-auto rounded-lg border border-gray-100 bg-gray-50 p-1">
-                                              {filteredServices.length === 0 ? (
-                                                <p className="px-2 py-1.5 text-xs text-gray-400">Nu s-a găsit niciun serviciu.</p>
-                                              ) : (
-                                                filteredServices.map((svc) => (
-                                                  <button
-                                                    key={svc.id}
-                                                    type="button"
-                                                    onClick={() => {
-                                                      updateDevizLine(index, "service_id", svc.id);
-                                                      setServiceSearchByLine((prev) => ({
-                                                        ...prev,
-                                                        [index]: svc.name,
-                                                      }));
-                                                    }}
-                                                    className="flex w-full items-center justify-between rounded-md bg-white px-2.5 py-1.5 text-left text-xs text-gray-700 transition hover:bg-teal-50"
-                                                  >
-                                                    <span className="font-medium">{svc.name}</span>
-                                                    <span className="text-gray-400">{svc.um}</span>
-                                                  </button>
-                                                ))
-                                              )}
-                                            </div>
-                                          )}
-
+                                          {/* Cantitate */}
                                           <div className="flex items-center gap-2">
-                                            <input
-                                              type="number"
-                                              inputMode="decimal"
-                                              min="0"
-                                              step="0.01"
+                                            <input type="number" inputMode="decimal" min="0" step="0.01"
                                               value={line.quantity}
                                               onChange={(e) => updateDevizLine(index, "quantity", e.target.value)}
-                                              placeholder="Cantitate"
+                                              placeholder="Cantitate *"
                                               className={`w-full rounded-lg border px-2.5 py-2 text-sm outline-none focus:border-teal-500 ${
-                                                showError && missingQty ? "border-red-300" : "border-gray-200"
-                                              }`}
-                                            />
+                                                showError && missingQty ? "border-red-300 bg-red-50" : "border-gray-200"
+                                              }`} />
                                             {selectedSvc && (
-                                              <span className="shrink-0 rounded-md bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700">
-                                                {selectedSvc.um}
-                                              </span>
+                                              <span className="shrink-0 rounded-md bg-teal-100 px-2 py-1 text-xs font-semibold text-teal-700">{selectedSvc.um}</span>
                                             )}
                                           </div>
 
                                           {showError && (
                                             <p className="mt-1.5 text-[11px] font-medium text-red-600">
-                                              {missingService && missingQty
-                                                ? "Selectează un serviciu și introdu cantitatea."
-                                                : missingService
-                                                ? "Selectează un serviciu."
+                                              {missingService && missingQty ? "Selectează serviciu și introdu cantitatea."
+                                                : missingService ? "Selectează un serviciu."
                                                 : "Introdu o cantitate mai mare ca 0."}
                                             </p>
                                           )}
@@ -3332,6 +3280,71 @@ export default function ProiectePage() {
           )}
         </section>
       </main>
+
+      {/* PICKER SERVICIU — MODAL BOTTOM SHEET */}
+      {servicePickerLine !== null && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center"
+          onClick={() => { setServicePickerLine(null); setServicePickerSearch(""); }}>
+          <div className="flex h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[75vh] sm:rounded-[24px]"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="h-1 w-10 rounded-full bg-gray-200" />
+            </div>
+            <div className="flex items-center justify-between px-5 pb-3 pt-2">
+              <p className="text-base font-bold text-gray-900">Alege serviciu</p>
+              <button type="button"
+                onClick={() => { setServicePickerLine(null); setServicePickerSearch(""); }}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500 hover:bg-gray-200">
+                ✕
+              </button>
+            </div>
+            <div className="px-4 pb-2">
+              <input autoFocus value={servicePickerSearch}
+                onChange={(e) => setServicePickerSearch(e.target.value)}
+                placeholder="Caută serviciu..."
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-teal-500" />
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-6">
+              {(() => {
+                const filtered = services
+                  .filter((s) => !servicePickerSearch.trim() || s.name.toLowerCase().includes(servicePickerSearch.toLowerCase()))
+                  .slice(0, 50);
+                if (filtered.length === 0) return (
+                  <p className="py-6 text-center text-sm text-gray-400">Niciun serviciu găsit.</p>
+                );
+                return (
+                  <div className="space-y-1">
+                    {filtered.map((svc) => {
+                      const isSelected = servicePickerLine !== null && devizItems[servicePickerLine]?.service_id === svc.id;
+                      return (
+                        <button key={svc.id} type="button"
+                          onClick={() => {
+                            if (servicePickerLine !== null) {
+                              updateDevizLine(servicePickerLine, "service_id", svc.id);
+                            }
+                            setServicePickerLine(null);
+                            setServicePickerSearch("");
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${
+                            isSelected ? "bg-teal-600 text-white" : "hover:bg-teal-50"
+                          }`}>
+                          <span className={`min-w-0 flex-1 truncate text-sm font-medium leading-snug ${isSelected ? "text-white" : "text-gray-900"}`}>
+                            {svc.name}
+                          </span>
+                          <span className={`shrink-0 text-xs ${isSelected ? "text-white/80" : "text-gray-400"}`}>
+                            {svc.um} · {Number(svc.price_ron).toFixed(2)} lei
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+      <BottomNav />
     </div>
   );
 }
