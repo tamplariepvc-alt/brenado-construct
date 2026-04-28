@@ -50,8 +50,8 @@ export default function AdminConcediuPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("conturi");
   const [toast, setToast] = useState<Toast>(null);
+  const [userRole, setUserRole] = useState<string>("");
 
-  // Date
   const [profileUsers, setProfileUsers] = useState<ProfileUser[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [leaveRecords, setLeaveRecords] = useState<WorkerLeave[]>([]);
@@ -62,7 +62,6 @@ export default function AdminConcediuPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Editing state — cheie = user_id sau worker_id
   const [editing, setEditing] = useState<Record<string, { days_total: string; days_taken: string }>>({});
 
   const showToast = (type: "success" | "error", message: string) => {
@@ -97,7 +96,6 @@ export default function AdminConcediuPage() {
     setWorkers(workersData);
     setLeaveRecords(leave);
 
-    // Fetch nume pentru requests
     const userIds = [...new Set(requests.map((r) => r.user_id))];
     if (userIds.length > 0) {
       const { data: pData } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
@@ -107,7 +105,6 @@ export default function AdminConcediuPage() {
       setLeaveRequests([]);
     }
 
-    // Init editing pentru profiles (cauta dupa user_id)
     const initEditing: Record<string, { days_total: string; days_taken: string }> = {};
 
     profiles.forEach((p) => {
@@ -118,7 +115,6 @@ export default function AdminConcediuPage() {
       };
     });
 
-    // Init editing pentru workers (cauta dupa worker_id, doar cei fara user_id in leave)
     workersData.forEach((w) => {
       const rec = leave.find((l) => l.worker_id === w.id && !l.user_id);
       initEditing[`worker_${w.id}`] = {
@@ -135,7 +131,12 @@ export default function AdminConcediuPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-      if (!profile || profile.role !== "administrator") { router.push("/dashboard"); return; }
+
+      // Permite: administrator, cont_tehnic, project_manager
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager"];
+      if (!profile || !allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
+
+      setUserRole(profile.role);
       await loadData();
       setLoading(false);
     };
@@ -146,7 +147,6 @@ export default function AdminConcediuPage() {
     if (!loading) loadData();
   }, [leaveYear]);
 
-  // ─── Salvare concediu pentru USER (profiles) ──────────────────────────────
   const handleSaveUserLeave = async (userId: string) => {
     const key = `user_${userId}`;
     const val = editing[key];
@@ -177,7 +177,6 @@ export default function AdminConcediuPage() {
     showToast("success", "Concediu actualizat.");
   };
 
-  // ─── Salvare concediu pentru WORKER (fara cont) ───────────────────────────
   const handleSaveWorkerLeave = async (workerId: string) => {
     const key = `worker_${workerId}`;
     const val = editing[key];
@@ -208,7 +207,6 @@ export default function AdminConcediuPage() {
     showToast("success", "Concediu actualizat.");
   };
 
-  // ─── Aprobare cerere ──────────────────────────────────────────────────────
   const handleApproveRequest = async (requestId: string, userId: string, daysCount: number) => {
     setProcessingId(requestId);
     const { data: { user } } = await supabase.auth.getUser();
@@ -221,7 +219,6 @@ export default function AdminConcediuPage() {
 
     if (approveError) { showToast("error", `Eroare: ${approveError.message}`); setProcessingId(null); return; }
 
-    // Upsert worker_leave dupa user_id
     const existing = leaveRecords.find((l) => l.user_id === userId && l.year === leaveYear);
     if (existing) {
       await supabase.from("worker_leave").update({
@@ -341,6 +338,9 @@ export default function AdminConcediuPage() {
     </svg>
   );
 
+  // Back destination: project_manager vine din /modul-admin
+  const backPath = userRole === "project_manager" ? "/modul-admin" : "/admin";
+
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
@@ -365,7 +365,6 @@ export default function AdminConcediuPage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {/* TOAST */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4">
           <div className={`flex items-start gap-3 rounded-[18px] border px-4 py-3.5 shadow-lg ${
@@ -384,15 +383,14 @@ export default function AdminConcediuPage() {
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-          <button onClick={() => router.push("/admin")}
+          <button onClick={() => router.push(backPath)}
             className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-            Înapoi la admin
+            Înapoi
           </button>
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
-        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-green-50 sm:h-14 sm:w-14">
@@ -401,13 +399,10 @@ export default function AdminConcediuPage() {
             <div className="min-w-0 flex-1">
               <p className="text-sm text-gray-500">Administrare · Personal</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Zile concediu</h1>
-              <p className="mt-2 text-sm text-gray-500">
-                Gestionează zilele de concediu pentru utilizatori și personal.
-              </p>
+              <p className="mt-2 text-sm text-gray-500">Gestionează zilele de concediu pentru utilizatori și personal.</p>
             </div>
           </div>
 
-          {/* An + Căutare */}
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-2.5">
               <label className="text-sm font-semibold text-gray-600">An:</label>
@@ -421,7 +416,6 @@ export default function AdminConcediuPage() {
               className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-gray-500" />
           </div>
 
-          {/* Sumar */}
           <div className="mt-4 grid grid-cols-3 gap-3">
             <div className="rounded-2xl bg-[#F8F7F3] px-4 py-3 text-center">
               <p className="text-xl font-extrabold text-gray-900">{profileUsers.length + workers.length}</p>
@@ -441,7 +435,6 @@ export default function AdminConcediuPage() {
             </div>
           </div>
 
-          {/* Tabs */}
           <div className="mt-5 flex gap-2 overflow-x-auto pb-1">
             {([
               { key: "conturi", label: "Conturi aplicație", count: profileUsers.length },
@@ -465,7 +458,6 @@ export default function AdminConcediuPage() {
           </div>
         </section>
 
-        {/* ── TAB CONTURI ── */}
         {activeTab === "conturi" && (
           <section className="mt-6">
             <div className="mb-3 flex items-center gap-3 px-1">
@@ -494,7 +486,6 @@ export default function AdminConcediuPage() {
           </section>
         )}
 
-        {/* ── TAB PERSONAL ── */}
         {activeTab === "personal" && (
           <section className="mt-6">
             <div className="mb-3 flex items-center gap-3 px-1">
@@ -523,7 +514,6 @@ export default function AdminConcediuPage() {
           </section>
         )}
 
-        {/* ── TAB SOLICITĂRI ── */}
         {activeTab === "solicitari" && (
           <section className="mt-6 space-y-3">
             <div className="mb-3 flex items-center gap-3 px-1">
@@ -582,7 +572,7 @@ export default function AdminConcediuPage() {
           </section>
         )}
       </main>
- <BottomNav />
+      <BottomNav />
     </div>
   );
 }
