@@ -205,7 +205,9 @@ export default function EditAutoPage() {
     <div>
       <label className="mb-2 block text-sm font-semibold text-gray-700">{label}</label>
       <div className="relative">
-        <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={value} onChange={(e) => onChange(e.target.value)}
+        <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*"
+          defaultValue={value}
+          onBlur={(e) => onChange(e.target.value)}
           placeholder="Ex: 450.00"
           className="w-full rounded-2xl border border-gray-200 px-4 py-3 pr-14 text-sm outline-none transition focus:border-gray-500" />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">RON</span>

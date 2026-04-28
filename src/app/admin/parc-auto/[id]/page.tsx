@@ -609,7 +609,7 @@ export default function DetaliuAutoPage() {
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">Cost RCA (RON)</label>
                       <div className="relative">
-                        <input type="number" min="0" step="0.01" value={rcaCost} onChange={(e) => setRcaCost(e.target.value)}
+                        <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" defaultValue={rcaCost} onBlur={(e) => setRcaCost(e.target.value)}
                           placeholder="Ex: 450.00"
                           className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none focus:border-black" />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">RON</span>
@@ -618,7 +618,7 @@ export default function DetaliuAutoPage() {
                     <div>
                       <label className="mb-2 block text-sm font-medium text-gray-700">Cost ITP (RON)</label>
                       <div className="relative">
-                        <input type="number" min="0" step="0.01" value={itpCost} onChange={(e) => setItpCost(e.target.value)}
+                        <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" defaultValue={itpCost} onBlur={(e) => setItpCost(e.target.value)}
                           placeholder="Ex: 250.00"
                           className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none focus:border-black" />
                         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">RON</span>
@@ -642,7 +642,7 @@ export default function DetaliuAutoPage() {
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700">Cost Rovignetă (RON)</label>
                           <div className="relative">
-                            <input type="number" min="0" step="0.01" value={rovinietaCost} onChange={(e) => setRovinietaCost(e.target.value)}
+                            <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" defaultValue={rovinietaCost} onBlur={(e) => setRovinietaCost(e.target.value)}
                               placeholder="Ex: 28.00"
                               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none focus:border-black" />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">RON</span>
@@ -668,7 +668,7 @@ export default function DetaliuAutoPage() {
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700">Cost CASCO (RON)</label>
                           <div className="relative">
-                            <input type="number" min="0" step="0.01" value={cascoCost} onChange={(e) => setCascoCost(e.target.value)}
+                            <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" defaultValue={cascoCost} onBlur={(e) => setCascoCost(e.target.value)}
                               placeholder="Ex: 1200.00"
                               className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none focus:border-black" />
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400">RON</span>
@@ -691,7 +691,7 @@ export default function DetaliuAutoPage() {
                       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
                         <div>
                           <label className="mb-2 block text-sm font-medium text-gray-700">Rată lunară</label>
-                          <input type="number" min="0" step="0.01" value={monthlyRate} onChange={(e) => setMonthlyRate(e.target.value)}
+                          <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={monthlyRate} onChange={(e) => setMonthlyRate(e.target.value)}
                             className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black" />
                         </div>
                         <div>
@@ -720,7 +720,7 @@ export default function DetaliuAutoPage() {
                       </div>
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">Cost reparație TVA inclus</label>
-                        <input type="number" min="0" step="0.01" value={repairCost} onChange={(e) => setRepairCost(e.target.value)}
+                        <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={repairCost} onChange={(e) => setRepairCost(e.target.value)}
                           placeholder="Ex: 850"
                           className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black" />
                       </div>
