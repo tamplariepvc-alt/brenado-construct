@@ -14,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import BottomNav from "@/components/BottomNav";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
@@ -2026,7 +2025,7 @@ export default function ProiectePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
             <p className="text-sm text-gray-500">{canManageProjects ? "Administrare proiecte" : "Proiectele mele"}</p>
@@ -2187,7 +2186,8 @@ export default function ProiectePage() {
 
                       {projectTab === "financiar" && (
                         <div className="mt-4 flex flex-col gap-3">
-                          {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat" || profile?.role === "project_manager") ? (
+                          {profile?.role === "sef_echipa" ? (
+                            // SEF ECHIPA: doar butoane upload
                             <>
                               <button
                                 type="button"
@@ -2196,7 +2196,6 @@ export default function ProiectePage() {
                               >
                                 <UploadIcon /> Încarcă Bon
                               </button>
-
                               <button
                                 type="button"
                                 onClick={() => openCameraFor(project.id, "factura")}
@@ -2204,7 +2203,6 @@ export default function ProiectePage() {
                               >
                                 <UploadIcon /> Încarcă Factură
                               </button>
-
                               <button
                                 type="button"
                                 onClick={() => router.push(`/proiecte/${project.id}/adauga-nedeductibile`)}
@@ -2213,6 +2211,116 @@ export default function ProiectePage() {
                                 <UploadIcon /> Adaugă Nedeductibilă
                               </button>
                             </>
+                          ) : (profile?.role === "admin_limitat" || profile?.role === "project_manager") ? (
+                            // ADMIN_LIMITAT / PROJECT_MANAGER: upload + istoric
+                            (() => {
+                              const allFinDocs = financialDocsByProject.get(project.id) || [];
+                              const isExpanded = finExpand[project.id] || false;
+                              const docsToRender = isExpanded ? allFinDocs : allFinDocs.slice(0, 3);
+                              const hiddenCount = isExpanded ? 0 : Math.max(allFinDocs.length - 3, 0);
+                              return (
+                                <div className="space-y-3">
+                                  {/* Sectiunea Incarca */}
+                                  <div>
+                                    <div className="mb-2 flex items-center gap-2 px-1">
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Încarcă documente</p>
+                                      <div className="h-px flex-1 bg-[#E8E5DE]" />
+                                    </div>
+                                    <div className="space-y-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => openCameraFor(project.id, "bon")}
+                                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#eef6ff] px-4 py-3 text-sm font-semibold text-[#1976d2] transition hover:bg-[#e3f0ff]"
+                                      >
+                                        <UploadIcon /> Încarcă Bon
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openCameraFor(project.id, "factura")}
+                                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-purple-50 px-4 py-3 text-sm font-semibold text-purple-700 transition hover:bg-purple-100"
+                                      >
+                                        <UploadIcon /> Încarcă Factură
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => router.push(`/proiecte/${project.id}/adauga-nedeductibile`)}
+                                        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-700 transition hover:bg-orange-100"
+                                      >
+                                        <UploadIcon /> Adaugă Nedeductibilă
+                                      </button>
+                                    </div>
+                                  </div>
+                                  {/* Sectiunea Istoric */}
+                                  <div>
+                                    <div className="mb-2 flex items-center gap-2 px-1">
+                                      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                                        Istoric ({allFinDocs.length})
+                                      </p>
+                                      <div className="h-px flex-1 bg-[#E8E5DE]" />
+                                    </div>
+                                    {allFinDocs.length === 0 ? (
+                                      <div className="rounded-2xl bg-[#F8F7F3] px-4 py-3 text-center">
+                                        <p className="text-sm text-gray-400">Nu există documente încărcate încă.</p>
+                                      </div>
+                                    ) : (
+                                      <div className="space-y-2">
+                                        {docsToRender.map((doc) => {
+                                          const date = getFinDocDate(doc);
+                                          const amount = getFinDocAmount(doc);
+                                          const label = getFinDocLabel(doc);
+                                          const badgeClasses = doc.kind === "bon" ? "bg-blue-100 text-blue-700" : doc.kind === "factura" ? "bg-purple-100 text-purple-700" : "bg-orange-100 text-orange-700";
+                                          const borderClasses = doc.kind === "bon" ? "border-blue-100 hover:bg-blue-50/60" : doc.kind === "factura" ? "border-purple-100 hover:bg-purple-50/60" : "border-orange-100 hover:bg-orange-50/60";
+                                          const bgClasses = doc.kind === "bon" ? "bg-blue-50/30" : doc.kind === "factura" ? "bg-purple-50/30" : "bg-orange-50/30";
+                                          const detailText = doc.kind === "nedeductibila" ? label : `Nr. ${label}`;
+                                          return (
+                                            <button
+                                              key={`${doc.kind}-${doc.data.id}`}
+                                              type="button"
+                                              onClick={() => setFinancialDocModal(doc)}
+                                              className={`flex w-full items-center justify-between gap-3 rounded-2xl border ${borderClasses} ${bgClasses} px-3 py-2.5 text-left transition`}
+                                            >
+                                              <div className="flex min-w-0 flex-1 items-center gap-3">
+                                                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold ${badgeClasses}`}>
+                                                  {doc.kind === "bon" ? "B" : doc.kind === "factura" ? "F" : "N"}
+                                                </span>
+                                                <div className="min-w-0 flex-1">
+                                                  <p className="truncate text-sm font-semibold text-gray-900">{detailText}</p>
+                                                  <p className="text-xs text-gray-500">
+                                                    {date ? new Date(date).toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" }) : "fără dată"}
+                                                  </p>
+                                                </div>
+                                              </div>
+                                              <div className="flex shrink-0 items-center gap-1.5">
+                                                <p className="text-sm font-bold text-gray-900">{amount.toFixed(2)} lei</p>
+                                                <span className="text-gray-400">›</span>
+                                              </div>
+                                            </button>
+                                          );
+                                        })}
+                                        {hiddenCount > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setFinExpand((prev) => ({ ...prev, [project.id]: true }))}
+                                            className="w-full rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                                          >
+                                            Arată mai mult ({hiddenCount} {hiddenCount === 1 ? "document" : "documente"})
+                                          </button>
+                                        )}
+                                        {isExpanded && allFinDocs.length > 3 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setFinExpand((prev) => ({ ...prev, [project.id]: false }))}
+                                            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50"
+                                          >
+                                            Arată mai puțin
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()
                           ) : (
                             (() => {
                               const allFinDocs = financialDocsByProject.get(project.id) || [];
@@ -2980,7 +3088,7 @@ export default function ProiectePage() {
                     </div>
 
                     {/* FORMULAR BON / FACTURĂ */}
-                    {(profile?.role === "sef_echipa" || profile?.role === "project_manager") && activeInlineProjectId === project.id && projectTab === "financiar" && (
+                    {(profile?.role === "sef_echipa" || profile?.role === "project_manager" || profile?.role === "admin_limitat") && activeInlineProjectId === project.id && projectTab === "financiar" && (
                       <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
                         <div className="mb-4">
                           <p className="text-base font-semibold text-gray-900">
@@ -3224,7 +3332,6 @@ export default function ProiectePage() {
           )}
         </section>
       </main>
-	   <BottomNav />
     </div>
   );
 }
