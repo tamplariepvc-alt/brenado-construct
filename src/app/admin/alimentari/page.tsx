@@ -52,10 +52,11 @@ export default function AlimentariPage() {
 
     // Roluri permise: admin + cont_tehnic + project_manager
     // admin_limitat nu are acces
-    const allowedRoles = ["administrator", "cont_tehnic", "project_manager"];
+    const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "admin_limitat"];
     if (!allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
 
     // project_manager = read-only (fara alimentare si aprobare)
+    // admin_limitat = acces complet
     setIsReadOnly(profile.role === "project_manager");
 
     const { data: fundingData } = await supabase
@@ -220,7 +221,7 @@ export default function AlimentariPage() {
           <div className="flex gap-3">
             <button onClick={() => router.push("/admin")}
               className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-              Înapoi la admin
+              Înapoi
             </button>
             {/* Buton alimentare — ascuns pentru project_manager (read-only) */}
             {!isReadOnly && (
