@@ -52,22 +52,6 @@ export default function SetariPage() {
       badge: "Comenzi",
       badgeClasses: "bg-orange-100 text-orange-700",
     },
-    {
-      key: "concediu",
-      href: "/admin/setari/concediu",
-      icon: (
-        <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-green-700">
-          <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2" />
-          <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-          <path d="M8 15h2M14 15h2M8 19h2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-        </svg>
-      ),
-      bg: "bg-green-50",
-      title: "Zile concediu",
-      description: "Setează zilele anuale de concediu și zilele luate pentru fiecare angajat activ. Urmărește soldul de zile rămase pe an.",
-      badge: "Personal",
-      badgeClasses: "bg-green-100 text-green-700",
-    },
   ];
 
   const renderSettingsIcon = () => (
@@ -129,7 +113,7 @@ export default function SetariPage() {
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {sections.map((section) => (
               <button
                 key={section.key}
@@ -140,7 +124,6 @@ export default function SetariPage() {
                 <div className={`flex h-14 w-14 items-center justify-center rounded-3xl ${section.bg}`}>
                   {section.icon}
                 </div>
-
                 <div className="mt-4">
                   <div className="flex items-center gap-2">
                     <h2 className="text-lg font-extrabold text-gray-900">{section.title}</h2>
@@ -150,7 +133,6 @@ export default function SetariPage() {
                   </div>
                   <p className="mt-2 text-sm leading-relaxed text-gray-500">{section.description}</p>
                 </div>
-
                 <div className="absolute bottom-4 right-4 flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EEE9] text-base text-gray-400 transition group-hover:bg-gray-200">
                   ›
                 </div>

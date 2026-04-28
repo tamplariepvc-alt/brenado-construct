@@ -70,11 +70,16 @@ export default function AdminPage() {
       route: "/admin/istoric-pontaje",
       highlight: "indigo",
     },
-	{
-  label: "Alte Setări",
-  sublabel: "Servicii, materiale și configurări",
-  route: "/admin/setari",
-},
+    {
+      label: "Concedii",
+      sublabel: "Gestionează zilele de concediu și aprobă solicitările",
+      route: "/admin/concediu",
+    },
+    {
+      label: "Alte Setări",
+      sublabel: "Servicii, materiale și configurări",
+      route: "/admin/setari",
+    },
   ];
 
   const renderAdminIcon = (label: string, highlight?: "blue" | "green" | "indigo") => {
@@ -136,6 +141,23 @@ export default function AdminPage() {
         </svg>
       );
     }
+    if (label.includes("Concedii")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <rect x="3" y="4" width="18" height="18" rx="2" stroke={base} strokeWidth="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" stroke={base} strokeWidth="2" strokeLinecap="round" />
+          <path d="M8 15h2M14 15h2M8 19h2" stroke={base} strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      );
+    }
+    if (label.includes("Setări")) {
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+          <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" stroke={base} strokeWidth="2" />
+          <path d="M19 12a1.8 1.8 0 0 0 1.3 1.7l.1.1a1.9 1.9 0 0 1-1.3 3.3h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.9 1.9 0 0 1-1.3-3.3l.1-.1A1.8 1.8 0 0 0 5 12c0-.7-.3-1.3-.8-1.7l-.1-.1a1.9 1.9 0 0 1 1.3-3.3h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.9 1.9 0 0 1 1.3 3.3l-.1.1c-.5.4-.8 1-.8 1.7Z" stroke={base} strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    }
     return (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
         <circle cx="12" cy="12" r="4" fill={base} />
@@ -155,6 +177,8 @@ export default function AdminPage() {
     if (action.label.includes("Centre")) return "bg-blue-50";
     if (action.label.includes("Personal")) return "bg-sky-50";
     if (action.label.includes("Parc")) return "bg-amber-50";
+    if (action.label.includes("Concedii")) return "bg-green-50";
+    if (action.label.includes("Setări")) return "bg-gray-100";
     return "bg-blue-50";
   };
 
@@ -165,18 +189,10 @@ export default function AdminPage() {
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           </div>
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
+          <button onClick={() => router.push("/dashboard")}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
             Înapoi la dashboard
           </button>
         </div>
@@ -186,9 +202,7 @@ export default function AdminPage() {
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
             <p className="text-sm text-gray-500">Modul administrativ</p>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-              Panou Admin
-            </h1>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Panou Admin</h1>
             <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
               Gestionare date, module administrative și funcții financiare.
             </p>
@@ -197,20 +211,16 @@ export default function AdminPage() {
 
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              Module administrative
-            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Module administrative</p>
             <div className="h-px flex-1 bg-[#E8E5DE]" />
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {actions.map((action) => (
-              <button
-                key={`${action.label}-${action.route}`}
-                type="button"
+              <button key={`${action.label}-${action.route}`} type="button"
                 onClick={() => router.push(action.route)}
-                className={`relative min-h-[160px] overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[180px] sm:p-6 ${getBgClasses(action)}`}
-              >
+                className={`relative min-h-[160px] overflow-hidden rounded-[22px] border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md sm:min-h-[180px] sm:p-6 ${getBgClasses(action)}`}>
+
                 {/* Badge ore neplatite */}
                 {action.label.includes("Ore") && unpaidCount > 0 && (
                   <span className="absolute right-4 top-4 inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
@@ -235,9 +245,7 @@ export default function AdminPage() {
 
                 <div className={`absolute bottom-3 right-3 flex h-7 w-7 items-center justify-center rounded-full text-sm sm:h-8 sm:w-8 sm:text-base ${
                   isColored(action) ? "bg-white/15 text-white" : "bg-[#F0EEE9] text-gray-400"
-                }`}>
-                  ›
-                </div>
+                }`}>›</div>
               </button>
             ))}
           </div>

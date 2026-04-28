@@ -80,15 +80,15 @@ function countWorkingDays(startDate: string, endDate: string): number {
 
 function getRoleLabel(role: string): string {
   if (role === "administrator") return "Administrator";
-  if (role === "sef_echipa") return "Șef de echipă";
+  if (role === "sef_echipa") return "Sef de echipa";
   if (role === "user") return "Utilizator";
   return role;
 }
 
 function getStatusLabel(status: string): string {
-  if (status === "pending") return "În așteptare";
-  if (status === "approved") return "Aprobată";
-  if (status === "rejected") return "Respinsă";
+  if (status === "pending") return "In asteptare";
+  if (status === "approved") return "Aprobata";
+  if (status === "rejected") return "Respinsa";
   return status;
 }
 
@@ -238,10 +238,10 @@ export default function ProfilPage() {
 
     if (request.status === "approved") {
       doc.setFontSize(11); doc.setTextColor(20, 120, 60);
-      doc.text("✓ Aprobată", 14, 135);
+      doc.text("✓ Aprobata", 14, 135);
       doc.setFontSize(9); doc.setTextColor(60);
       if (request.approved_at) {
-        doc.text(`Data aprobării: ${new Date(request.approved_at).toLocaleDateString("ro-RO")}`, 14, 142);
+        doc.text(`Data aprobarii: ${new Date(request.approved_at).toLocaleDateString("ro-RO")}`, 14, 142);
       }
     }
 
