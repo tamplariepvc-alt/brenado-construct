@@ -664,12 +664,7 @@ export default function PontajePage() {
           )}
         </section>
       </main>
-	  return (
-  <div className="min-h-screen bg-[#F0EEE9]">
-    {/* ... restul paginii ... */}
-    <BottomNav />
-  </div>
-);
+ <BottomNav />
     </div>
   );
 }
