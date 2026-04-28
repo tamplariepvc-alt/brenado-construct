@@ -119,6 +119,11 @@ export default function SetariMaterialePage() {
 
   const handleDelete = async (id: string) => {
     if (isReadOnly) return;
+    const article = articles.find((a) => a.id === id);
+    const confirmed = window.confirm(
+      `Sigur vrei să ștergi articolul "${article?.name || "acest articol"}"? Acțiunea este ireversibilă.`
+    );
+    if (!confirmed) return;
     setDeleting(id);
     await supabase.from("inventory_articles").delete().eq("id", id);
     setDeleting(null);
