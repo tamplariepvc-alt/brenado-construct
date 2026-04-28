@@ -44,6 +44,10 @@ export default function CreeazaDevizPage() {
       if (!user) { router.push("/login"); return; }
       const { data: profileData } = await supabase.from("profiles").select("id, full_name, role").eq("id", user.id).single();
       if (!profileData) { router.push("/login"); return; }
+      // admin_limitat nu are acces la creare devize
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "sef_echipa"];
+      if (!allowedRoles.includes(profileData.role)) { router.push("/dashboard"); return; }
+
       const [projectsRes, servicesRes] = await Promise.all([
         supabase.from("projects").select("id, name, beneficiary, status").neq("status", "finalizat").order("created_at", { ascending: false }),
         supabase.from("services").select("id, name, um, price_ron").eq("is_active", true).order("name"),

@@ -44,6 +44,14 @@ export default function AdaugaProiectPage() {
 
   useEffect(() => {
     const loadTeamLeads = async () => {
+      // Verificare acces — admin_limitat nu poate adauga proiecte
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (!profile) { router.push("/login"); return; }
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager"];
+      if (!allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
+
       const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name")

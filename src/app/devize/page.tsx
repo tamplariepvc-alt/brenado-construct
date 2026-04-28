@@ -4,12 +4,11 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import BottomNav from "@/components/BottomNav";
 
 type Profile = {
   id: string;
   full_name: string;
-  role: "administrator" | "sef_echipa" | "user";
+  role: "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 };
 
 type Estimate = {
@@ -50,7 +49,8 @@ export default function DevizePage() {
       .from("profiles").select("id, full_name, role").eq("id", user.id).single();
     if (!profileData) { router.push("/login"); return; }
 
-    const estimatesQuery = profileData.role === "administrator"
+    const isFullAccess = ["administrator", "cont_tehnic", "project_manager"].includes(profileData.role);
+    const estimatesQuery = isFullAccess
       ? supabase.from("estimates").select("id, project_id, beneficiary, site_name, created_by, created_at").order("created_at", { ascending: false })
       : supabase.from("estimates").select("id, project_id, beneficiary, site_name, created_by, created_at").eq("created_by", user.id).order("created_at", { ascending: false });
 
@@ -185,7 +185,7 @@ export default function DevizePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-green-50 sm:h-14 sm:w-14">
@@ -309,7 +309,6 @@ export default function DevizePage() {
           )}
         </section>
       </main>
-      <BottomNav />
     </div>
   );
 }
