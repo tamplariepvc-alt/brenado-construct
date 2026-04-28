@@ -81,11 +81,11 @@ const createInitialCardData = (): ProjectCardData => ({
 const isAdminRole = (role: string | null | undefined) =>
   ["administrator", "cont_tehnic", "project_manager"].includes(role || "");
 
-// Verifica daca e dupa 17:00 ora Romaniei
-const isAfter17Romania = () => {
+// Verifica daca pontarea e blocata (17:00 - 05:00 ora Romaniei)
+const isPontareBlockedNow = () => {
   const nowRo = new Date().toLocaleString("en-US", { timeZone: "Europe/Bucharest" });
   const h = new Date(nowRo).getHours();
-  return h >= 17;
+  return h >= 17 || h < 5;
 };
 
 export default function PontajePage() {
@@ -106,7 +106,7 @@ export default function PontajePage() {
     return new Date(nowRo).getHours();
   }, [now]);
 
-  const isPontareBlocked = romaniaHour >= 17;
+  const isPontareBlocked = romaniaHour >= 17 || romaniaHour < 5;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -535,7 +535,7 @@ export default function PontajePage() {
             <div>
               <p className="text-sm font-bold text-orange-800">Pontarea nu mai este disponibilă</p>
               <p className="mt-0.5 text-xs text-orange-700">
-                Programul de lucru s-a încheiat la ora 17:00. Pontajele active au fost oprite automat de sistem.
+                Pontarea nu este disponibilă între 17:00 și 05:00. Pontajele active au fost oprite automat la 17:00.
               </p>
             </div>
           </div>
@@ -704,7 +704,7 @@ export default function PontajePage() {
                         </button>
                       ) : isPontareBlocked ? (
                         <div className="w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-center">
-                          <p className="text-sm font-semibold text-orange-700">Pontarea s-a încheiat la 17:00</p>
+                          <p className="text-sm font-semibold text-orange-700">Pontarea nu este disponibilă între 17:00 - 05:00</p>
                         </div>
                       ) : (
                         <button type="button"
