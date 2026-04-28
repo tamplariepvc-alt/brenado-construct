@@ -1,5 +1,5 @@
 "use client";
-import BottomNav from "@/components/BottomNav";
+
 import Image from "next/image";
 import {
   ChangeEvent,
@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-type Role = "administrator" | "sef_echipa" | "user";
+type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
 
 type Project = {
@@ -362,7 +362,12 @@ export default function ProiectePage() {
   const [statusModal, setStatusModal] = useState<{ projectId: string; currentStatus: string | null } | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
-  const isAdmin = profile?.role === "administrator";
+  const isAdmin = ["administrator", "cont_tehnic", "project_manager"].includes(profile?.role || "");
+  const isAdminLimitat = profile?.role === "admin_limitat";
+  const isProjectManager = profile?.role === "project_manager";
+  const canManageProjects = isAdmin || isProjectManager;
+  const canAddPhotos = profile?.role === "sef_echipa" || isProjectManager;
+  const canCreateDeviz = profile?.role === "sef_echipa";
 
   const openLightbox = (photos: DailyPhoto[], index: number) => {
     setLightboxPhotos(photos);
@@ -528,7 +533,8 @@ export default function ProiectePage() {
       return;
     }
 
-    if (profileData.role !== "administrator" && profileData.role !== "sef_echipa") {
+    const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "admin_limitat", "sef_echipa"];
+    if (!allowedRoles.includes(profileData.role)) {
       router.push("/dashboard");
       return;
     }
@@ -537,7 +543,7 @@ export default function ProiectePage() {
 
     let visibleProjects: Project[] = [];
 
-    if (profileData.role === "administrator") {
+    if (["administrator", "cont_tehnic", "project_manager", "admin_limitat"].includes(profileData.role)) {
       const { data } = await supabase
         .from("projects")
         .select("id, name, beneficiary, status, created_at")
@@ -1121,7 +1127,7 @@ export default function ProiectePage() {
   }, [devizItems]);
 
   const handleSaveDeviz = async () => {
-    if (!devizProjectId || isAdmin) return;
+    if (!devizProjectId || !canCreateDeviz) return;
 
     // Validare strictă: serviciu + cantitate obligatorii pe fiecare linie
     if (!isDevizFullyValid) {
@@ -1460,7 +1466,7 @@ export default function ProiectePage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {!isAdmin && (
+      {profile?.role === "sef_echipa" && (
         <>
           <input
             ref={bonInputRef}
@@ -1586,7 +1592,7 @@ export default function ProiectePage() {
                             {item.quantity} {svc?.um} × {(svc?.price_ron || 0).toFixed(2)} lei
                           </p>
                         </div>
-                        {isAdmin && (
+                        {canManageProjects && (
                           <p className="shrink-0 text-sm font-bold text-teal-700">{lineTotal.toFixed(2)} lei</p>
                         )}
                       </div>
@@ -1597,7 +1603,7 @@ export default function ProiectePage() {
             </div>
 
             <div className="shrink-0 border-t border-gray-100 bg-[#FCFBF8] px-5 py-4">
-              {isAdmin && (
+              {canManageProjects && (
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-semibold text-gray-700">Total deviz</p>
                   <p className="text-lg font-bold text-teal-700">{devizModalTotal.toFixed(2)} lei</p>
@@ -1605,7 +1611,7 @@ export default function ProiectePage() {
               )}
 
               <div className="flex flex-col gap-2 sm:flex-row">
-                {isAdmin && (
+                {canManageProjects && (
                   <button
                     type="button"
                     onClick={() => handleExportDeviz(devizModal.projectId, devizModal.date, devizModal.projectName)}
@@ -1615,7 +1621,7 @@ export default function ProiectePage() {
                   </button>
                 )}
 
-                {!isAdmin && (
+                {canCreateDeviz && (
                   <button
                     type="button"
                     onClick={() => {
@@ -2019,13 +2025,13 @@ export default function ProiectePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
-            <p className="text-sm text-gray-500">{isAdmin ? "Administrare proiecte" : "Proiectele tale"}</p>
+            <p className="text-sm text-gray-500">{canManageProjects ? "Administrare proiecte" : "Proiectele mele"}</p>
 
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-              {isAdmin ? "Toate proiectele" : "Proiectele mele"}
+              {canManageProjects ? "Toate proiectele" : "Proiectele mele"}
             </h1>
 
             <p className="mt-2 text-sm text-gray-500">{profile?.full_name}</p>
@@ -2089,7 +2095,7 @@ export default function ProiectePage() {
                         </div>
 
                         <div className="flex flex-col items-end gap-2">
-                          {isAdmin ? (
+                          {canManageProjects ? (
                             <button
                               type="button"
                               onClick={() => { setStatusModal({ projectId: project.id, currentStatus: project.status }); setPendingStatus(project.status); }}
@@ -2105,7 +2111,7 @@ export default function ProiectePage() {
                               {getStatusLabel(project.status)}
                             </span>
                           )}
-                          {isAdmin && (
+                          {canManageProjects && (
                             <button
                               type="button"
                               onClick={() => openDeleteProject(project.id)}
@@ -2162,23 +2168,25 @@ export default function ProiectePage() {
                           Financiar
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setProjectTab(project.id, "tehnic");
-                            setDevizProjectId(null);
-                          }}
-                          className={`flex-1 rounded-2xl py-2.5 text-sm font-semibold transition ${
-                            projectTab === "tehnic" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                          }`}
-                        >
-                          Tehnic
-                        </button>
+                        {!isAdminLimitat && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProjectTab(project.id, "tehnic");
+                              setDevizProjectId(null);
+                            }}
+                            className={`flex-1 rounded-2xl py-2.5 text-sm font-semibold transition ${
+                              projectTab === "tehnic" ? "bg-gray-900 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                            }`}
+                          >
+                            Tehnic
+                          </button>
+                        )}
                       </div>
 
                       {projectTab === "financiar" && (
                         <div className="mt-4 flex flex-col gap-3">
-                          {!isAdmin ? (
+                          {profile?.role === "sef_echipa" ? (
                             <>
                               <button
                                 type="button"
@@ -2443,7 +2451,7 @@ export default function ProiectePage() {
 
                             return (
                               <div className="mt-4 space-y-3">
-                                {!isAdmin && (
+                                {canAddPhotos && (
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -2599,7 +2607,7 @@ export default function ProiectePage() {
                           {tehnicTab === "deviz" && (
                             <div className="mt-4 space-y-3">
                               {/* Total cumulat — doar admin */}
-                              {isAdmin && projectReports.length > 0 && (
+                              {canManageProjects && projectReports.length > 0 && (
                                 <div className="rounded-2xl border border-teal-200 bg-gradient-to-br from-teal-50 to-emerald-50 p-4">
                                   <div className="flex items-center justify-between">
                                     <div>
@@ -2733,7 +2741,7 @@ export default function ProiectePage() {
                                                   </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                  {isAdmin && (
+                                                  {canManageProjects && (
                                                     <p className="text-sm font-bold text-teal-700">{dayTotal.toFixed(2)} lei</p>
                                                   )}
                                                   <span className="text-teal-600">›</span>
@@ -2779,7 +2787,7 @@ export default function ProiectePage() {
                               })()}
 
                               {/* Form creare deviz — doar șef echipă */}
-                              {!isAdmin && isDevizOpen && (
+                              {canCreateDeviz && isDevizOpen && (
                                 <div className="rounded-2xl border border-teal-200 bg-teal-50 p-3 sm:p-4">
                                   <div className="mb-3 flex items-center justify-between gap-2">
                                     <div className="min-w-0">
@@ -2955,7 +2963,7 @@ export default function ProiectePage() {
                                 </div>
                               )}
 
-                              {!isAdmin && !isDevizOpen && (
+                              {canCreateDeviz && !isDevizOpen && (
                                 <button
                                   type="button"
                                   onClick={() => openDeviz(project.id)}
@@ -2971,7 +2979,7 @@ export default function ProiectePage() {
                     </div>
 
                     {/* FORMULAR BON / FACTURĂ */}
-                    {!isAdmin && activeInlineProjectId === project.id && projectTab === "financiar" && (
+                    {profile?.role === "sef_echipa" && activeInlineProjectId === project.id && projectTab === "financiar" && (
                       <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
                         <div className="mb-4">
                           <p className="text-base font-semibold text-gray-900">
@@ -3215,7 +3223,6 @@ export default function ProiectePage() {
           )}
         </section>
       </main>
- <BottomNav />
     </div>
   );
 }
