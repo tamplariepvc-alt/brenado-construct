@@ -88,11 +88,14 @@ export default function AdaugaComandaPage() {
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [notes, setNotes] = useState("");
 
-  const [articleSearch, setArticleSearch] = useState("");
-  const [items, setItems] = useState<OrderItemForm[]>([]);
+  const [items, setItems] = useState<OrderItemForm[]>([{
+    localId: generateLocalId(), article_id: "", article_number: "", article_code: "",
+    article_name: "", unit: "", unit_price: 0, vat_percent: 21, quantity: "",
+  }]);
 
-  const [selectedArticleForPopup, setSelectedArticleForPopup] = useState<Article | null>(null);
-  const [popupQuantity, setPopupQuantity] = useState("1");
+  // Picker deviz-style
+  const [pickerItemIndex, setPickerItemIndex] = useState<number | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
 
   const showToast = (type: ToastType, message: string, duration = 4000) => {
     setToast({ type, message });
@@ -167,56 +170,50 @@ export default function AdaugaComandaPage() {
   }, [router]);
 
   const filteredArticles = useMemo(() => {
-    const q = articleSearch.trim().toLowerCase();
+    const q = pickerSearch.trim().toLowerCase();
     if (!q) return articles;
     return articles.filter((a) =>
       a.name.toLowerCase().includes(q) ||
       (a.article_code || "").toLowerCase().includes(q) ||
       (a.article_number || "").toLowerCase().includes(q)
     );
-  }, [articles, articleSearch]);
+  }, [articles, pickerSearch]);
 
-  const openAddArticlePopup = (article: Article) => {
-    setSelectedArticleForPopup(article);
-    setPopupQuantity("1");
+  // Deviz-style picker helpers
+  const openPicker = (index: number) => { setPickerItemIndex(index); setPickerSearch(""); };
+  const closePicker = () => { setPickerItemIndex(null); setPickerSearch(""); };
+  const selectArticle = (article: Article) => {
+    if (pickerItemIndex === null) return;
+    setItems((prev) => {
+      const next = [...prev];
+      next[pickerItemIndex] = {
+        ...next[pickerItemIndex],
+        article_id: article.id,
+        article_number: article.article_number || "",
+        article_code: article.article_code || "",
+        article_name: article.name,
+        unit: article.unit || "",
+        unit_price: Number(article.unit_price || 0),
+        vat_percent: Number(article.vat_percent || 21),
+      };
+      return next;
+    });
+    closePicker();
   };
 
-  const closeAddArticlePopup = () => {
-    setSelectedArticleForPopup(null);
-    setPopupQuantity("1");
-  };
+  const addLine = () => setItems((prev) => [...prev, {
+    localId: generateLocalId(), article_id: "", article_number: "", article_code: "",
+    article_name: "", unit: "", unit_price: 0, vat_percent: 21, quantity: "",
+  }]);
 
-  const confirmAddArticle = () => {
-    if (!selectedArticleForPopup) return;
-    const qty = Number(popupQuantity);
-    if (!popupQuantity || Number.isNaN(qty) || qty < 1) {
-      showToast("error", "Introdu o cantitate validă.");
-      return;
-    }
-    setItems((prev) => [
-      ...prev,
-      {
-        localId: generateLocalId(),
-        article_id: selectedArticleForPopup.id,
-        article_number: selectedArticleForPopup.article_number || "",
-        article_code: selectedArticleForPopup.article_code || "",
-        article_name: selectedArticleForPopup.name,
-        unit: selectedArticleForPopup.unit || "",
-        unit_price: Number(selectedArticleForPopup.unit_price || 0),
-        vat_percent: Number(selectedArticleForPopup.vat_percent || 21),
-        quantity: String(qty),
-      },
-    ]);
-    closeAddArticlePopup();
-  };
+  const removeLine = (localId: string) => setItems((prev) => prev.filter((item) => item.localId !== localId));
+
+
 
   const updateItemQuantity = (localId: string, quantity: string) => {
     setItems((prev) => prev.map((item) => item.localId === localId ? { ...item, quantity } : item));
   };
 
-  const removeItem = (localId: string) => {
-    setItems((prev) => prev.filter((item) => item.localId !== localId));
-  };
 
   const subtotal = useMemo(() =>
     items.reduce((sum, item) => sum + item.unit_price * (Number(item.quantity) || 0), 0),
@@ -356,7 +353,69 @@ export default function AdaugaComandaPage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {/* TOAST */}
+      {/* PICKER ARTICOL — deviz style bottom sheet */}
+      {pickerItemIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={closePicker}>
+          <div
+            className="w-full max-w-lg overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:rounded-[24px]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="h-1 w-10 rounded-full bg-gray-200" />
+            </div>
+
+            <div className="flex items-center justify-between px-5 pb-3 pt-2">
+              <p className="text-base font-bold text-gray-900">Alege articol</p>
+              <button type="button" onClick={closePicker}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-sm text-gray-500 hover:bg-gray-200">
+                ✕
+              </button>
+            </div>
+
+            <div className="px-4 pb-2">
+              <input
+                autoFocus
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                placeholder="Caută după cod sau denumire..."
+                className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[#0196ff]"
+              />
+            </div>
+
+            <div className="max-h-72 overflow-y-auto px-4 pb-6">
+              {filteredArticles.length === 0 ? (
+                <p className="py-6 text-center text-sm text-gray-400">Niciun articol găsit.</p>
+              ) : (
+                <div className="space-y-1">
+                  {filteredArticles.map((article) => {
+                    const isSelected = pickerItemIndex !== null && items[pickerItemIndex]?.article_id === article.id;
+                    return (
+                      <button key={article.id} type="button" onClick={() => selectArticle(article)}
+                        className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${
+                          isSelected ? "bg-[#0196ff] text-white" : "hover:bg-gray-50"
+                        }`}>
+                        <div className="min-w-0 flex-1">
+                          <span className={`block text-sm font-medium leading-snug break-words ${isSelected ? "text-white" : "text-gray-900"}`}>
+                            {article.name}
+                          </span>
+                          <span className={`text-xs ${isSelected ? "text-white/70" : "text-gray-400"}`}>
+                            {article.article_code || "-"}
+                          </span>
+                        </div>
+                        <span className={`shrink-0 text-xs ${isSelected ? "text-white/80" : "text-gray-400"}`}>
+                          {article.unit} · {Number(article.unit_price).toFixed(2)} lei
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4">
           <div className={`flex items-start gap-3 rounded-[18px] border px-4 py-3.5 shadow-lg ${toastColors[toast.type]}`}>
@@ -431,120 +490,80 @@ export default function AdaugaComandaPage() {
             </div>
           </section>
 
-          {/* Selectează articol — stil deviz */}
-          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Selectează articol</h2>
-              <p className="text-sm text-gray-500">Caută rapid și adaugă articole în comandă.</p>
-            </div>
-
-            <input
-              type="text"
-              value={articleSearch}
-              onChange={(e) => setArticleSearch(e.target.value)}
-              placeholder="Caută după număr, cod sau denumire articol..."
-              className="mb-3 w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-[#0196ff]"
-            />
-
-            {/* Listă articole — carduri stil deviz */}
-            {articleSearch.trim() && (
-              <div className="max-h-72 space-y-1.5 overflow-y-auto rounded-2xl border border-gray-100 bg-gray-50 p-2">
-                {filteredArticles.length === 0 ? (
-                  <p className="px-3 py-3 text-sm text-gray-400">Nu există articole găsite.</p>
-                ) : (
-                  filteredArticles.map((article) => (
-                    <button
-                      key={article.id}
-                      type="button"
-                      onClick={() => openAddArticlePopup(article)}
-                      className="flex w-full items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 text-left transition hover:bg-[#0196ff]/5"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-gray-900">{article.name}</p>
-                        <p className="text-xs text-gray-400">{article.article_code || "-"} · {article.unit || "-"} · {Number(article.unit_price).toFixed(2)} lei</p>
-                      </div>
-                      <span className="shrink-0 rounded-xl bg-[#0196ff] px-3 py-1.5 text-xs font-semibold text-white">
-                        + Adaugă
-                      </span>
-                    </button>
-                  ))
-                )}
+          {/* Articole comandă — deviz style */}
+          <section className="rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Articole comandă</p>
+                <p className="mt-0.5 text-sm font-bold text-gray-900">{items.length} {items.length === 1 ? "articol" : "articole"}</p>
               </div>
-            )}
-
-            {!articleSearch.trim() && (
-              <p className="text-xs text-gray-400">Începe să tastezi pentru a căuta articole.</p>
-            )}
-          </section>
-
-          {/* Articole selectate */}
-          <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Articole selectate</h2>
-              <p className="text-sm text-gray-500">Ajustează cantitățile și verifică valorile.</p>
+              <button type="button" onClick={addLine}
+                className="rounded-xl bg-[#0196ff] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+                + Adaugă
+              </button>
             </div>
 
-            {items.length === 0 ? (
-              <p className="text-sm text-gray-500">Nu ai adăugat încă niciun articol în comandă.</p>
-            ) : (
-              <div className="space-y-2">
-                {items.map((item, index) => {
-                  const qty = Number(item.quantity) || 0;
-                  const lineTotal = item.unit_price * qty;
+            <div className="divide-y divide-[#F0EEE9]">
+              {items.map((item, index) => {
+                const qty = Number(item.quantity) || 0;
+                const lineTotal = item.unit_price * qty;
+                const hasArticle = Boolean(item.article_id);
 
-                  return (
-                    <div
-                      key={item.localId}
-                      className="rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-3"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          {/* Număr + denumire — wrap complet */}
-                          <div className="flex items-start gap-2">
-                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#0196ff]/10 text-[11px] font-bold text-[#0196ff]">
-                              {index + 1}
-                            </span>
-                            <p className="text-sm font-semibold text-[#0196ff] break-words">{item.article_name}</p>
-                          </div>
-                          <p className="mt-1 pl-7 text-xs text-gray-400">{item.article_code || "-"} · {item.unit || "-"}</p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.localId)}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-sm font-bold text-red-500 transition hover:bg-red-100"
-                        >
+                return (
+                  <div key={item.localId} className="px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500">
+                        {index + 1}
+                      </span>
+                      <button type="button" onClick={() => openPicker(index)}
+                        className={`flex flex-1 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                          hasArticle ? "border-[#0196ff]/30 bg-[#0196ff]/5" : "border-gray-200 bg-[#F8F7F3]"
+                        }`}>
+                        <span className={`truncate font-medium ${hasArticle ? "text-[#0057b3]" : "text-gray-400"}`}>
+                          {hasArticle ? item.article_name : "Alege articol..."}
+                        </span>
+                        {hasArticle && (
+                          <span className="shrink-0 text-xs text-[#0196ff]">{item.unit}</span>
+                        )}
+                      </button>
+                      {items.length > 1 && (
+                        <button type="button" onClick={() => removeLine(item.localId)}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-400 hover:bg-red-100">
                           ×
                         </button>
-                      </div>
+                      )}
+                    </div>
 
-                      <div className="mt-3 flex items-center justify-between gap-3 pl-7">
+                    {hasArticle && (
+                      <div className="mt-2 flex items-center gap-3 pl-8">
                         <div className="flex items-center gap-2">
-                          <label className="text-xs text-gray-500">Cantitate</label>
+                          <label className="text-xs text-gray-400">Cant.</label>
                           <input
-                            type="number"
-                            min="1"
-                            step="1"
+                            type="number" min="1" step="1"
                             value={item.quantity}
                             onChange={(e) => updateItemQuantity(item.localId, e.target.value)}
                             onBlur={() => {
-                              if (!item.quantity || Number(item.quantity) < 1) {
-                                updateItemQuantity(item.localId, "1");
-                              }
+                              if (!item.quantity || Number(item.quantity) < 1) updateItemQuantity(item.localId, "1");
                             }}
-                            className="h-8 w-20 rounded-xl border border-gray-300 bg-white px-2 text-center text-sm outline-none focus:border-[#0196ff]"
+                            placeholder="0"
+                            className="w-24 rounded-xl border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-[#0196ff]"
                           />
-                          <span className="text-xs text-gray-400">{item.unit}</span>
+                          <span className="text-xs font-medium text-gray-500">{item.unit}</span>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[11px] text-gray-400">Total</p>
-                          <p className="text-sm font-bold text-gray-900">{lineTotal.toFixed(2)} lei</p>
-                        </div>
+                        {lineTotal > 0 && (
+                          <span className="ml-auto text-sm font-bold text-[#0196ff]">{lineTotal.toFixed(2)} lei</span>
+                        )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-[#E8E5DE] px-5 py-4">
+              <p className="text-sm font-semibold text-gray-700">Total (fără TVA)</p>
+              <p className="text-xl font-extrabold text-[#0196ff]">{subtotal.toFixed(2)} lei</p>
+            </div>
           </section>
 
           {/* Total comandă */}
@@ -592,79 +611,7 @@ export default function AdaugaComandaPage() {
           </div>
         </div>
 
-        {/* POPUP ADAUGĂ ARTICOL */}
-        {selectedArticleForPopup && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-            <div className="w-full max-w-sm rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-xl">
-              <h3 className="text-lg font-semibold text-gray-900">Adaugă articol</h3>
 
-              <div className="mt-4 space-y-3">
-                <div>
-                  <p className="text-xs text-gray-500">Denumire</p>
-                  <p className="mt-1 text-sm font-semibold text-[#0196ff] break-words leading-snug">
-                    {selectedArticleForPopup.name}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Cod</p>
-                    <p className="text-sm font-medium text-gray-700">{selectedArticleForPopup.article_code || "-"}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">U.M.</p>
-                    <p className="text-sm font-semibold text-gray-700">{selectedArticleForPopup.unit || "-"}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <p className="text-xs text-gray-500">Preț unitar</p>
-                    <p className="text-sm font-semibold text-gray-900">{Number(selectedArticleForPopup.unit_price).toFixed(2)} lei</p>
-                  </div>
-                  <div className="w-28">
-                    <label className="mb-1 block text-xs text-gray-500">Cantitate</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={popupQuantity}
-                      onChange={(e) => setPopupQuantity(e.target.value)}
-                      className="w-full rounded-xl border border-gray-300 px-3 py-2 text-center text-sm outline-none focus:border-[#0196ff]"
-                    />
-                  </div>
-                </div>
-
-                {/* Preview valoare */}
-                {popupQuantity && Number(popupQuantity) > 0 && (
-                  <div className="rounded-2xl bg-[#0196ff]/8 border border-[#0196ff]/20 px-4 py-2.5">
-                    <p className="text-xs text-[#0057b3]">Valoare estimată</p>
-                    <p className="text-base font-bold text-[#0196ff]">
-                      {(Number(selectedArticleForPopup.unit_price) * Number(popupQuantity)).toFixed(2)} lei
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-5 flex gap-3">
-                <button
-                  type="button"
-                  onClick={closeAddArticlePopup}
-                  className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                >
-                  Renunță
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmAddArticle}
-                  className="flex-1 rounded-xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90"
-                >
-                  Confirmă
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
