@@ -415,7 +415,7 @@ export default function AdaugaComandaPage() {
         </div>
       )}
 
-      {/* TOAST */}}
+      {/* TOAST */}
       {toast && (
         <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4">
           <div className={`flex items-start gap-3 rounded-[18px] border px-4 py-3.5 shadow-lg ${toastColors[toast.type]}`}>
