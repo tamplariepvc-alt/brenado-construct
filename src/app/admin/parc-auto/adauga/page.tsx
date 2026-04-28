@@ -93,7 +93,7 @@ export default function AdaugaAutoPage() {
     <div className="relative mt-3">
       <label className="mb-2 block text-sm font-medium text-gray-700">Cost (RON)</label>
       <div className="relative">
-        <input type="number" min="0" step="0.01" value={value} onChange={(e) => onChange(e.target.value)}
+        <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={value} onChange={(e) => onChange(e.target.value)}
           placeholder="Ex: 450.00"
           className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none transition focus:border-black" />
         <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">RON</span>
@@ -217,7 +217,7 @@ export default function AdaugaAutoPage() {
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Cost (RON)</label>
                     <div className="relative">
-                      <input type="number" min="0" step="0.01" value={rovinietaCost} onChange={(e) => setRovinietaCost(e.target.value)}
+                      <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={rovinietaCost} onChange={(e) => setRovinietaCost(e.target.value)}
                         placeholder="Ex: 28.00"
                         className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none transition focus:border-black" />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">RON</span>
@@ -243,7 +243,7 @@ export default function AdaugaAutoPage() {
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Cost (RON)</label>
                     <div className="relative">
-                      <input type="number" min="0" step="0.01" value={cascoCost} onChange={(e) => setCascoCost(e.target.value)}
+                      <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={cascoCost} onChange={(e) => setCascoCost(e.target.value)}
                         placeholder="Ex: 1200.00"
                         className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none transition focus:border-black" />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">RON</span>
@@ -267,7 +267,7 @@ export default function AdaugaAutoPage() {
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Rată lunară</label>
                     <div className="relative">
-                      <input type="number" min="0" step="0.01" value={monthlyRate} onChange={(e) => setMonthlyRate(e.target.value)}
+                      <input type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*" value={monthlyRate} onChange={(e) => setMonthlyRate(e.target.value)}
                         placeholder="Ex: 1500"
                         className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 pr-14 outline-none transition focus:border-black" />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">RON</span>
