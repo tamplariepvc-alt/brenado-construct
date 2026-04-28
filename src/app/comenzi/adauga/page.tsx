@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -105,7 +105,7 @@ export default function AdaugaComandaPage() {
     warning: "border-yellow-300 bg-yellow-50 text-yellow-800",
   };
 
-  const toastIcons: Record<ToastType, JSX.Element> = {
+  const toastIcons: Record<ToastType, React.ReactElement> = {
     error: (
       <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-red-500" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" />
