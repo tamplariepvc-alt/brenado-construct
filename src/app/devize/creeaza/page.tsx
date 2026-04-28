@@ -29,7 +29,6 @@ export default function CreeazaDevizPage() {
   const [estimateDate, setEstimateDate] = useState(getTodayDate());
   const [lines, setLines] = useState<DevizLine[]>([{ service_id: "", quantity: "" }]);
 
-  // Service picker
   const [pickerLineIndex, setPickerLineIndex] = useState<number | null>(null);
   const [serviceSearch, setServiceSearch] = useState("");
 
@@ -180,14 +179,14 @@ export default function CreeazaDevizPage() {
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
 
-      {/* ── Service picker bottom sheet ── */}
+      {/* Picker bottom sheet — h-[90vh] pe mobil ca la comenzi */}
       {pickerLineIndex !== null && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={closePicker}>
           <div
-            className="w-full max-w-lg overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:rounded-[24px]"
+            className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[80vh] sm:rounded-[24px]"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Handle */}
+            {/* Handle mobil */}
             <div className="flex justify-center pt-3 pb-1 sm:hidden">
               <div className="h-1 w-10 rounded-full bg-gray-200" />
             </div>
@@ -210,7 +209,8 @@ export default function CreeazaDevizPage() {
               />
             </div>
 
-            <div className="max-h-64 overflow-y-auto px-4 pb-6">
+            {/* flex-1 — ocupă tot spațiul rămas */}
+            <div className="flex-1 overflow-y-auto px-4 pb-6">
               {filteredServices.length === 0 ? (
                 <p className="py-6 text-center text-sm text-gray-400">Niciun serviciu găsit.</p>
               ) : (
@@ -222,8 +222,13 @@ export default function CreeazaDevizPage() {
                         className={`flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition ${
                           isSelected ? "bg-green-700 text-white" : "hover:bg-gray-50"
                         }`}>
-                        <span className="text-sm font-medium leading-snug">{svc.name}</span>
-                        <span className={`shrink-0 text-xs ${isSelected ? "text-white/80" : "text-gray-400"}`}>
+                        <div className="min-w-0 flex-1">
+                          {/* break-words — nu mai iese din card */}
+                          <span className={`block text-sm font-medium leading-snug break-words ${isSelected ? "text-white" : "text-gray-900"}`}>
+                            {svc.name}
+                          </span>
+                        </div>
+                        <span className={`shrink-0 text-xs ml-2 ${isSelected ? "text-white/80" : "text-gray-400"}`}>
                           {svc.um} · {svc.price_ron.toFixed(2)} lei
                         </span>
                       </button>
@@ -247,7 +252,7 @@ export default function CreeazaDevizPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pb-10 pt-4 sm:px-6 lg:px-8 space-y-4">
+      <main className="mx-auto w-full max-w-3xl space-y-4 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
 
         {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:p-6">
@@ -305,7 +310,6 @@ export default function CreeazaDevizPage() {
 
         {/* Articole */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
-          {/* Section header */}
           <div className="flex items-center justify-between border-b border-[#E8E5DE] px-5 py-4">
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Articole deviz</p>
@@ -317,7 +321,6 @@ export default function CreeazaDevizPage() {
             </button>
           </div>
 
-          {/* Lista articole — fiecare e un rând simplu */}
           <div className="divide-y divide-[#F0EEE9]">
             {lines.map((line, index) => {
               const svc = serviceMap.get(line.service_id);
@@ -325,31 +328,30 @@ export default function CreeazaDevizPage() {
 
               return (
                 <div key={index} className="px-4 py-4">
-                  {/* Rând 1: Selector serviciu + buton sterge */}
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500">
+                  <div className="flex items-start gap-2">
+                    <span className="mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 text-[11px] font-bold text-gray-500">
                       {index + 1}
                     </span>
+                    {/* FIX: items-start + break-words — textul lung nu mai iese din card */}
                     <button type="button" onClick={() => openPicker(index)}
-                      className={`flex flex-1 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                      className={`flex flex-1 items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
                         svc ? "border-green-200 bg-green-50" : "border-gray-200 bg-[#F8F7F3]"
                       }`}>
-                      <span className={`truncate font-medium ${svc ? "text-green-900" : "text-gray-400"}`}>
+                      <span className={`min-w-0 flex-1 break-words text-xs font-medium leading-snug ${svc ? "text-green-900" : "text-gray-400"}`}>
                         {svc ? svc.name : "Alege serviciu..."}
                       </span>
                       {svc && (
-                        <span className="shrink-0 text-xs text-green-600">{svc.um}</span>
+                        <span className="ml-1 shrink-0 text-xs text-green-600">{svc.um}</span>
                       )}
                     </button>
                     {lines.length > 1 && (
                       <button type="button" onClick={() => removeLine(index)}
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-400 hover:bg-red-100">
+                        className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-red-400 hover:bg-red-100">
                         ×
                       </button>
                     )}
                   </div>
 
-                  {/* Rând 2: Cantitate + Total — doar dacă s-a ales un serviciu */}
                   {svc && (
                     <div className="mt-2 flex items-center gap-3 pl-8">
                       <div className="flex items-center gap-2">
@@ -375,7 +377,6 @@ export default function CreeazaDevizPage() {
             })}
           </div>
 
-          {/* Total */}
           <div className="flex items-center justify-between border-t border-[#E8E5DE] px-5 py-4">
             <p className="text-sm font-semibold text-gray-700">Total deviz</p>
             <p className="text-xl font-extrabold text-green-700">{total.toFixed(2)} lei</p>
