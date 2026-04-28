@@ -4,8 +4,6 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 type Profile = {
   id: string;
@@ -30,13 +28,6 @@ type EstimateItem = {
   unit_price: number;
 };
 
-type Service = {
-  id: string;
-  name: string;
-  um: string;
-  price_ron: number;
-};
-
 export default function DevizePage() {
   const router = useRouter();
 
@@ -44,134 +35,59 @@ export default function DevizePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [estimates, setEstimates] = useState<Estimate[]>([]);
   const [items, setItems] = useState<EstimateItem[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const loadData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { router.push("/login"); return; }
+  // Ștergere
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-      const { data: profileData } = await supabase
-        .from("profiles").select("id, full_name, role").eq("id", user.id).single();
-      if (!profileData) { router.push("/login"); return; }
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/login"); return; }
 
-      const estimatesQuery = profileData.role === "administrator"
-        ? supabase.from("estimates")
-            .select("id, project_id, beneficiary, site_name, created_by, created_at")
-            .order("created_at", { ascending: false })
-        : supabase.from("estimates")
-            .select("id, project_id, beneficiary, site_name, created_by, created_at")
-            .eq("created_by", user.id)
-            .order("created_at", { ascending: false });
+    const { data: profileData } = await supabase
+      .from("profiles").select("id, full_name, role").eq("id", user.id).single();
+    if (!profileData) { router.push("/login"); return; }
 
-      const [estimatesRes, itemsRes, servicesRes] = await Promise.all([
-        estimatesQuery,
-        supabase.from("estimate_items").select("id, estimate_id, service_id, quantity, unit_price"),
-        supabase.from("services").select("id, name, um, price_ron"),
-      ]);
+    const estimatesQuery = profileData.role === "administrator"
+      ? supabase.from("estimates").select("id, project_id, beneficiary, site_name, created_by, created_at").order("created_at", { ascending: false })
+      : supabase.from("estimates").select("id, project_id, beneficiary, site_name, created_by, created_at").eq("created_by", user.id).order("created_at", { ascending: false });
 
-      setProfile(profileData as Profile);
-      setEstimates((estimatesRes.data as Estimate[]) || []);
-      setItems((itemsRes.data as EstimateItem[]) || []);
-      setServices((servicesRes.data as Service[]) || []);
-      setLoading(false);
-    };
+    const [estimatesRes, itemsRes] = await Promise.all([
+      estimatesQuery,
+      supabase.from("estimate_items").select("id, estimate_id, service_id, quantity, unit_price"),
+    ]);
 
-    loadData();
-  }, [router]);
+    setProfile(profileData as Profile);
+    setEstimates((estimatesRes.data as Estimate[]) || []);
+    setItems((itemsRes.data as EstimateItem[]) || []);
+    setLoading(false);
+  };
 
-  const serviceMap = useMemo(() =>
-    new Map(services.map((s) => [s.id, s])),
-    [services]
-  );
+  useEffect(() => { loadData(); }, [router]);
 
   const filteredEstimates = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return estimates;
     return estimates.filter((e) =>
-      e.beneficiary.toLowerCase().includes(q) ||
-      e.site_name.toLowerCase().includes(q)
+      e.beneficiary.toLowerCase().includes(q) || e.site_name.toLowerCase().includes(q)
     );
   }, [estimates, search]);
 
-  const getEstimateItems = (estimateId: string) =>
-    items.filter((item) => item.estimate_id === estimateId);
-
   const getEstimateTotal = (estimateId: string) =>
-    getEstimateItems(estimateId).reduce(
-      (sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0), 0
-    );
+    items
+      .filter((item) => item.estimate_id === estimateId)
+      .reduce((sum, item) => sum + Number(item.quantity || 0) * Number(item.unit_price || 0), 0);
 
-  const exportPdf = async (estimate: Estimate) => {
-    const estimateItems = getEstimateItems(estimate.id);
-    const doc = new jsPDF("p", "mm", "a4");
-
-    try {
-      const logo = new window.Image();
-      logo.src = "/logo.png";
-      await new Promise((resolve) => { logo.onload = resolve; logo.onerror = resolve; });
-      doc.addImage(logo, "PNG", 14, 10, 42, 13);
-    } catch {}
-
-    doc.setDrawColor(21, 128, 61);
-    doc.setLineWidth(0.6);
-    doc.line(14, 28, 196, 28);
-
-    doc.setFontSize(17);
-    doc.setTextColor(20, 83, 45);
-    doc.text("Deviz lucrari", 14, 38);
-
-    doc.setFontSize(9);
-    doc.setTextColor(90);
-    doc.text(`Beneficiar: ${estimate.beneficiary || "-"}`, 14, 45);
-    doc.text(`Santier: ${estimate.site_name || "-"}`, 14, 50);
-    doc.text(`Data deviz: ${new Date(estimate.created_at).toLocaleDateString("ro-RO")}`, 14, 55);
-    doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 60);
-
-    let total = 0;
-    const rows = estimateItems.map((item, index) => {
-      const service = serviceMap.get(item.service_id);
-      const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0);
-      total += lineTotal;
-      return [
-        String(index + 1),
-        service?.name || "-",
-        service?.um || "-",
-        String(item.quantity),
-        `${Number(item.unit_price || 0).toFixed(2)} lei`,
-        `${lineTotal.toFixed(2)} lei`,
-      ];
-    });
-
-    autoTable(doc, {
-      startY: 68,
-      head: [["Nr.", "Serviciu", "UM", "Cantitate", "Pret unitar", "Total"]],
-      body: rows,
-      foot: [["", "", "", "", "TOTAL", `${total.toFixed(2)} lei`]],
-      styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
-      headStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: "bold" },
-      footStyles: { fillColor: [20, 83, 45], textColor: [255, 255, 255], fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [248, 250, 252] },
-      theme: "grid",
-    });
-
-    const finalY = (doc as any).lastAutoTable.finalY || 68;
-    doc.setFontSize(10);
-    doc.setTextColor(0);
-    doc.text("Semnatura executant:", 14, finalY + 22);
-
-    try {
-      const stampila = new window.Image();
-      stampila.src = "/stampila.png";
-      await new Promise((resolve) => { stampila.onload = resolve; stampila.onerror = resolve; });
-      doc.addImage(stampila, "PNG", 11, finalY + 26, 35, 28);
-    } catch {}
-
-    doc.setFontSize(8);
-    doc.setTextColor(120);
-    doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
-    doc.save(`deviz_${estimate.site_name.replace(/\s+/g, "_")}_${estimate.id.slice(0, 8)}.pdf`);
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    await supabase.from("estimate_items").delete().eq("estimate_id", deleteId);
+    await supabase.from("estimates").delete().eq("id", deleteId);
+    setDeleting(false);
+    setDeleteId(null);
+    setEstimates((prev) => prev.filter((e) => e.id !== deleteId));
+    setItems((prev) => prev.filter((i) => i.estimate_id !== deleteId));
   };
 
   const renderDevizIcon = () => (
@@ -191,9 +107,7 @@ export default function DevizePage() {
         </header>
         <div className="flex flex-1 items-center justify-center px-4">
           <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
-            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-green-50">
-              {renderDevizIcon()}
-            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-green-50">{renderDevizIcon()}</div>
             <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-green-700" />
             <div className="text-center">
               <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
@@ -207,20 +121,63 @@ export default function DevizePage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
+      {/* MODAL CONFIRMARE ȘTERGERE */}
+      {deleteId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-red-600" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 9v4M12 17h.01" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <h3 className="text-center text-lg font-bold text-gray-900">Ștergi acest deviz?</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Devizul și toate articolele sale vor fi șterse definitiv. Acțiunea nu poate fi anulată.
+              </p>
+              {(() => {
+                const est = estimates.find((e) => e.id === deleteId);
+                return est ? (
+                  <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-center">
+                    <p className="text-sm font-bold text-red-800">{est.site_name}</p>
+                    <p className="mt-0.5 text-xs text-red-600">{est.beneficiary}</p>
+                  </div>
+                ) : null;
+              })()}
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                >
+                  {deleting ? "Se șterge..." : "Da, șterge"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteId(null)}
+                  disabled={deleting}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+                >
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <div className="flex gap-3">
-            <button
-              onClick={() => router.push("/dashboard")}
-              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-            >
+            <button onClick={() => router.push("/dashboard")}
+              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
               Înapoi la dashboard
             </button>
-            <button
-              onClick={() => router.push("/devize/creeaza")}
-              className="rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800"
-            >
+            <button onClick={() => router.push("/devize/creeaza")}
+              className="rounded-xl bg-green-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-green-800">
               + Adaugă deviz
             </button>
           </div>
@@ -228,8 +185,6 @@ export default function DevizePage() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
-
-        {/* Page header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-green-50 sm:h-14 sm:w-14">
@@ -237,28 +192,21 @@ export default function DevizePage() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm text-gray-500">Devize lucrări</p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                Istoric devize
-              </h1>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Istoric devize</h1>
               <p className="mt-1 text-sm text-gray-500">{profile?.full_name}</p>
             </div>
           </div>
 
-          {/* Sumar + search */}
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-green-50 px-4 py-3 text-center">
               <p className="text-2xl font-extrabold text-green-700">{estimates.length}</p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-400">
-                Total devize
-              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-green-400">Total devize</p>
             </div>
             <div className="rounded-2xl bg-[#F8F7F3] px-4 py-3 text-center">
               <p className="text-2xl font-extrabold text-gray-900">
                 {estimates.reduce((s, e) => s + getEstimateTotal(e.id), 0).toFixed(0)} lei
               </p>
-              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">
-                Valoare totală
-              </p>
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-400">Valoare totală</p>
             </div>
             <div>
               <input
@@ -271,7 +219,6 @@ export default function DevizePage() {
           </div>
         </section>
 
-        {/* Lista devize */}
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
@@ -286,19 +233,13 @@ export default function DevizePage() {
                 <p className="text-sm text-gray-500">Nu există devize pentru căutarea introdusă.</p>
               ) : (
                 <div className="flex flex-col items-center gap-4 py-4 text-center">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-green-50">
-                    {renderDevizIcon()}
-                  </div>
+                  <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-green-50">{renderDevizIcon()}</div>
                   <div>
                     <p className="text-base font-semibold text-gray-900">Nu există devize încă</p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Apasă pe „+ Adaugă deviz" pentru a crea primul deviz.
-                    </p>
+                    <p className="mt-1 text-sm text-gray-500">Apasă pe „+ Adaugă deviz" pentru a crea primul deviz.</p>
                   </div>
-                  <button
-                    onClick={() => router.push("/devize/creeaza")}
-                    className="rounded-xl bg-green-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-800"
-                  >
+                  <button onClick={() => router.push("/devize/creeaza")}
+                    className="rounded-xl bg-green-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-800">
                     + Adaugă deviz
                   </button>
                 </div>
@@ -307,72 +248,58 @@ export default function DevizePage() {
           ) : (
             <div className="space-y-3">
               {filteredEstimates.map((estimate) => {
-                const estimateItems = getEstimateItems(estimate.id);
                 const total = getEstimateTotal(estimate.id);
+                const itemCount = items.filter((i) => i.estimate_id === estimate.id).length;
 
                 return (
-                  <div
-                    key={estimate.id}
-                    className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm"
-                  >
-                    <div className="p-4 sm:p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 flex-1 items-start gap-3">
-                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl bg-green-50">
-                            {renderDevizIcon()}
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[15px] font-bold text-gray-900">{estimate.site_name}</p>
-                            <p className="mt-0.5 text-sm text-gray-500">{estimate.beneficiary}</p>
-                            <p className="mt-0.5 text-xs text-gray-400">
-                              {new Date(estimate.created_at).toLocaleDateString("ro-RO", {
-                                day: "2-digit", month: "long", year: "numeric",
-                              })}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex shrink-0 flex-col items-end gap-2">
-                          <p className="text-xl font-extrabold text-green-700">{total.toFixed(2)} lei</p>
-                          <button
-                            type="button"
-                            onClick={() => exportPdf(estimate)}
-                            className="rounded-xl bg-green-700 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-green-800"
-                          >
-                            Export PDF
-                          </button>
-                        </div>
+                  <div key={estimate.id} className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+                    {/* Card clickabil */}
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/devize/${estimate.id}`)}
+                      className="flex w-full items-start gap-3 p-4 text-left transition hover:bg-[#FCFBF8] sm:p-5"
+                    >
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-3xl bg-green-50">
+                        {renderDevizIcon()}
                       </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-bold text-gray-900">{estimate.site_name}</p>
+                        <p className="mt-0.5 text-sm text-gray-500">{estimate.beneficiary}</p>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {new Date(estimate.created_at).toLocaleDateString("ro-RO", { day: "2-digit", month: "long", year: "numeric" })}
+                          {" · "}{itemCount} {itemCount === 1 ? "articol" : "articole"}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <p className="text-xl font-extrabold text-green-700">{total.toFixed(2)} lei</p>
+                        <span className="text-xs text-gray-400">›</span>
+                      </div>
+                    </button>
 
-                      {/* Preview articole */}
-                      {estimateItems.length > 0 && (
-                        <div className="mt-4 rounded-2xl bg-[#F8F7F3] p-3">
-                          <div className="space-y-1.5">
-                            {estimateItems.slice(0, 5).map((item) => {
-                              const service = serviceMap.get(item.service_id);
-                              const lineTotal = Number(item.quantity || 0) * Number(item.unit_price || 0);
-                              return (
-                                <div key={item.id} className="flex items-center justify-between gap-2 text-xs">
-                                  <span className="min-w-0 flex-1 truncate text-gray-700">
-                                    {service?.name || "-"}
-                                  </span>
-                                  <span className="shrink-0 text-gray-500">
-                                    {item.quantity} {service?.um || ""}
-                                  </span>
-                                  <span className="shrink-0 font-semibold text-gray-900">
-                                    {lineTotal.toFixed(2)} lei
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {estimateItems.length > 5 && (
-                            <p className="mt-2 text-xs font-semibold text-gray-400">
-                              +{estimateItems.length - 5} articole suplimentare
-                            </p>
-                          )}
-                        </div>
-                      )}
+                    {/* Butoane acțiuni */}
+                    <div className="flex items-center gap-2 border-t border-[#F0EEE9] px-4 py-3 sm:px-5">
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/devize/${estimate.id}`)}
+                        className="flex items-center gap-1.5 rounded-xl border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-700 transition hover:bg-green-100"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 16V4M7 11l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M4 20h16" strokeLinecap="round" />
+                        </svg>
+                        Export PDF
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setDeleteId(estimate.id)}
+                        className="flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        Șterge
+                      </button>
                     </div>
                   </div>
                 );
