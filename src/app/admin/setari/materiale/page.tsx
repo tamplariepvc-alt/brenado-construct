@@ -38,8 +38,8 @@ export default function SetariMaterialePage() {
   const [artPrice, setArtPrice] = useState("");
   const [artVat, setArtVat] = useState("21");
 
-  // admin_limitat are acces read-only (nu poate adauga/edita/sterge)
-  const isReadOnly = userRole === "admin_limitat";
+  // Toti rolurile permise au acces full la articole comenzi
+  const isReadOnly = false;
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -221,15 +221,9 @@ export default function SetariMaterialePage() {
               <p className="text-sm text-gray-500">Setări · Comenzi</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Articole comenzi</h1>
               <p className="mt-2 text-sm text-gray-500">
-                {isReadOnly
-                  ? "Vizualizează catalogul de articole disponibile la comenzi."
-                  : "Catalogul de articole disponibile la crearea comenzilor de materiale."}
+                {"Catalogul de articole disponibile la crearea comenzilor de materiale."}
               </p>
-              {isReadOnly && (
-                <span className="mt-2 inline-block rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-500">
-                  Doar vizualizare
-                </span>
-              )}
+
             </div>
             <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600">
               {articles.length} articole
