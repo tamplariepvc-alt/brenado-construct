@@ -33,6 +33,7 @@ export default function AlimentariPage() {
   const [activeTab, setActiveTab] = useState<"alimentari" | "solicitari">("alimentari");
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [isReadOnly, setIsReadOnly] = useState(false); // project_manager = read-only
+  const [userRole, setUserRole] = useState<string>("");
 
   const getFundingTypeLabel = (type: string) => type === "card" ? "Card" : type === "cont" ? "Cont" : type;
   const getFundingTypeClasses = (type: string) => {
@@ -58,6 +59,7 @@ export default function AlimentariPage() {
     // project_manager = read-only (fara alimentare si aprobare)
     // admin_limitat = acces complet
     setIsReadOnly(profile.role === "project_manager");
+    setUserRole(profile.role);
 
     const { data: fundingData } = await supabase
       .from("project_fundings")
@@ -219,7 +221,7 @@ export default function AlimentariPage() {
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <div className="flex gap-3">
-            <button onClick={() => router.push("/admin")}
+            <button onClick={() => router.push(userRole === "admin_limitat" ? "/dashboard" : "/admin")}
               className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
               Înapoi
             </button>
