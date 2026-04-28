@@ -531,12 +531,12 @@ export default function AlimentariPage() {
           </section>
         )}
       </main>
-    </div>
-	return (
+return (
   <div className="min-h-screen bg-[#F0EEE9]">
     {/* ... restul paginii ... */}
     <BottomNav />
   </div>
 );
+  </div>
   );
 }
