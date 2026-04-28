@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
-type Role = "administrator" | "sef_echipa" | "user";
+type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
 type ProjectStats = { total: number; inCurs: number; finalizate: number };
 type ActiveProject = {
@@ -46,10 +46,15 @@ export default function DashboardPage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push("/login"); };
 
-  const todayLabel = useMemo(() => new Date().toLocaleDateString("ro-RO", { weekday: "short", day: "2-digit", month: "short", year: "numeric" }), []);
+  const todayLabel = useMemo(() => new Date().toLocaleDateString("ro-RO", {
+    weekday: "short", day: "2-digit", month: "short", year: "numeric"
+  }), []);
 
   const getRoleLabel = (role?: Role) => {
     if (role === "administrator") return "Administrator";
+    if (role === "cont_tehnic") return "Cont tehnic";
+    if (role === "project_manager") return "Project Manager";
+    if (role === "admin_limitat") return "Cont de administrare limitat";
     if (role === "sef_echipa") return "Șef de echipă";
     if (role === "user") return "Utilizator";
     return "-";
@@ -62,6 +67,22 @@ export default function DashboardPage() {
     { label: "Organizare\nEchipe", sublabel: "Planificare", route: "/organizarea-echipelor" },
     { label: "Devize", sublabel: "Ofertă / lucrare", route: "/devize" },
     { label: "Panou\nAdmin", sublabel: "Setări sistem", route: "/admin", dark: true },
+  ];
+
+  const projectManagerActions: QuickAction[] = [
+    { label: "Adaugă\nProiect", sublabel: "Proiect nou", route: "/proiecte/adauga" },
+    { label: "Vezi\nProiecte", sublabel: `${stats.total} active`, route: "/proiecte" },
+    { label: "Comenzi\nMateriale", sublabel: "Gestionează", route: "/comenzi" },
+    { label: "Devize", sublabel: "Ofertă / lucrare", route: "/devize" },
+    { label: "Pontare", sublabel: "Toate șantierele", route: "/pontaje" },
+    { label: "Organizare\nEchipe", sublabel: "Planificare", route: "/organizarea-echipelor" },
+    { label: "Modul\nAdministrativ", sublabel: "Concedii, setări", route: "/modul-admin", dark: true },
+  ];
+
+  const adminLimitatActions: QuickAction[] = [
+    { label: "Vezi\nProiecte", sublabel: `${stats.total} active`, route: "/proiecte" },
+    { label: "Comenzi\nMateriale", sublabel: "Vizualizare", route: "/comenzi" },
+    { label: "Modul\nAdministrativ", sublabel: "Setări limitate", route: "/admin", dark: true },
   ];
 
   const teamLeadActions: QuickAction[] = [
@@ -79,7 +100,12 @@ export default function DashboardPage() {
     { label: "Organizare\nEchipe", sublabel: "Programări", route: "/organizarea-echipelor" },
   ];
 
-  const quickActions = profile?.role === "administrator" ? adminActions : profile?.role === "sef_echipa" ? teamLeadActions : userActions;
+  const quickActions =
+    profile?.role === "administrator" || profile?.role === "cont_tehnic" ? adminActions
+    : profile?.role === "project_manager" ? projectManagerActions
+    : profile?.role === "admin_limitat" ? adminLimitatActions
+    : profile?.role === "sef_echipa" ? teamLeadActions
+    : userActions;
 
   const activeProjects = useMemo(() => projects.filter((p) => p.status !== "finalizat"), [projects]);
   const desktopProjects = useMemo(() => activeProjects.slice(0, 4), [activeProjects]);
@@ -101,6 +127,7 @@ export default function DashboardPage() {
     if (label.includes("Pontare")) return "bg-emerald-50";
     if (label.includes("Ore Extra")) return "bg-purple-50";
     if (label.includes("Deviz")) return "bg-green-50";
+    if (label.includes("Organizare")) return "bg-blue-50";
     return "bg-blue-50";
   };
 
@@ -111,7 +138,7 @@ export default function DashboardPage() {
     if (label.includes("Pontare")) return <svg viewBox="0 0 24 24" fill="none" className={c}><circle cx="12" cy="12" r="7.5" stroke={dark ? "currentColor" : "#059669"} strokeWidth="2" /><path d="M12 8v4l2.8 2" stroke={dark ? "currentColor" : "#059669"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
     if (label.includes("Ore Extra")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M12 4v16M4 12h16" stroke={dark ? "currentColor" : "#7C3AED"} strokeWidth="2.2" strokeLinecap="round" /><circle cx="12" cy="12" r="8" stroke={dark ? "currentColor" : "#7C3AED"} strokeWidth="2" /></svg>;
     if (label.includes("Organizare")) return <svg viewBox="0 0 24 24" fill="none" className={c}><circle cx="12" cy="6.5" r="2" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" /><circle cx="7" cy="16.5" r="1.8" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" /><circle cx="17" cy="16.5" r="1.8" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" /><path d="M12 8.5v3M12 11.5l-5 3M12 11.5l5 3" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" strokeLinecap="round" /></svg>;
-    if (label.includes("Panou")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" stroke="currentColor" strokeWidth="2" /><path d="M19 12a1.8 1.8 0 0 0 1.3 1.7l.1.1a1.9 1.9 0 0 1-1.3 3.3h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.9 1.9 0 0 1-1.3-3.3l.1-.1A1.8 1.8 0 0 0 5 12c0-.7-.3-1.3-.8-1.7l-.1-.1a1.9 1.9 0 0 1 1.3-3.3h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.9 1.9 0 0 1 1.3 3.3l-.1.1c-.5.4-.8 1-.8 1.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+    if (label.includes("Panou") || label.includes("Modul")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" stroke="currentColor" strokeWidth="2" /><path d="M19 12a1.8 1.8 0 0 0 1.3 1.7l.1.1a1.9 1.9 0 0 1-1.3 3.3h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.9 1.9 0 0 1-1.3-3.3l.1-.1A1.8 1.8 0 0 0 5 12c0-.7-.3-1.3-.8-1.7l-.1-.1a1.9 1.9 0 0 1 1.3-3.3h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.9 1.9 0 0 1 1.3 3.3l-.1.1c-.5.4-.8 1-.8 1.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
     if (label.includes("Solicită")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M7 5h10l2 2v12H7V5Z" stroke={dark ? "currentColor" : "#2563EB"} strokeWidth="2" strokeLinejoin="round" /><path d="M10 11h6M10 15h4" stroke={dark ? "currentColor" : "#2563EB"} strokeWidth="2" strokeLinecap="round" /></svg>;
     if (label.includes("Deviz")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2Z" stroke={dark ? "currentColor" : "#16A34A"} strokeWidth="2" strokeLinejoin="round" /><path d="M8 9h8M8 13h8M8 17h5" stroke={dark ? "currentColor" : "#16A34A"} strokeWidth="2" strokeLinecap="round" /></svg>;
     return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M6 8h12M6 12h12M6 16h8" stroke={dark ? "currentColor" : "#0F766E"} strokeWidth="2.2" strokeLinecap="round" /></svg>;
@@ -188,7 +215,6 @@ export default function DashboardPage() {
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <div className="flex items-center gap-2">
-            {/* ── Buton Profil ── */}
             <button onClick={() => router.push("/profil")}
               className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 hover:text-[#0196ff]"
               title="Profil">
@@ -206,8 +232,6 @@ export default function DashboardPage() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
-
-        {/* ── Desktop ── */}
         <div className="hidden xl:grid xl:grid-cols-[1.35fr_1fr] xl:gap-6">
           <div className="space-y-6">
             <section className="rounded-[24px] border border-[#E8E5DE] bg-white p-5 shadow-sm sm:p-6">
@@ -224,7 +248,6 @@ export default function DashboardPage() {
               </div>
               <div className="mt-4"><StatsCards /></div>
             </section>
-
             <section>
               <div className="mb-3 flex items-center gap-3 px-1">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Acțiuni rapide</p>
@@ -235,7 +258,6 @@ export default function DashboardPage() {
               </div>
             </section>
           </div>
-
           <div className="min-w-0">
             <div className="mb-3 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Proiecte active</p>
@@ -250,7 +272,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Mobile ── */}
         <div className="xl:hidden">
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:p-6">
             <div className="flex flex-col gap-3">
@@ -266,7 +287,6 @@ export default function DashboardPage() {
             </div>
             <div className="mt-4"><StatsCards small /></div>
           </section>
-
           <section className="mt-6">
             <div className="mb-3 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Acțiuni rapide</p>
@@ -276,7 +296,6 @@ export default function DashboardPage() {
               {quickActions.map((action) => <ActionButton key={`${action.label}-m`} action={action} minH="min-h-[160px] sm:min-h-[190px]" />)}
             </div>
           </section>
-
           <section className="mt-6">
             <div className="mb-3 flex items-center gap-3 px-1">
               <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Proiecte active</p>
@@ -292,7 +311,6 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* ── Bottom nav mobil ── */}
       <nav className="fixed bottom-0 left-0 right-0 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4">
           <button onClick={() => router.push("/dashboard")} className="flex flex-col items-center gap-1 py-1 text-blue-600">
@@ -302,22 +320,18 @@ export default function DashboardPage() {
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Acasă</span>
             <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-600" />
           </button>
-
           <button onClick={() => router.push("/proiecte")} className="flex flex-col items-center gap-1 py-1 text-gray-400 transition hover:text-gray-600">
             <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
               <path d="M6 8h12M6 12h12M6 16h8" strokeLinecap="round" />
             </svg>
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Proiecte</span>
           </button>
-
           <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
             <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" />
             </svg>
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Notificări</span>
           </button>
-
-          {/* ── Profil — router.push("/profil") ── */}
           <button onClick={() => router.push("/profil")} className="flex flex-col items-center gap-1 py-1 text-gray-400 transition hover:text-[#0196ff]">
             <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="8" r="4" />
