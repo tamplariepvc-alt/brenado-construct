@@ -20,6 +20,19 @@ type WorkerLeave = {
   days_taken: number;
 };
 
+type LeaveRequest = {
+  id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  days_count: number;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  approved_at: string | null;
+  user_name?: string;
+};
+
 type Toast = { type: "success" | "error"; message: string } | null;
 
 export default function SetariConcediuPage() {
@@ -33,6 +46,9 @@ export default function SetariConcediuPage() {
   const [savingLeave, setSavingLeave] = useState<string | null>(null);
   const [editingLeave, setEditingLeave] = useState<Record<string, { days_total: string; days_taken: string }>>({});
   const [toast, setToast] = useState<Toast>(null);
+  const [activeTab, setActiveTab] = useState<"concediu" | "solicitari">("concediu");
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -61,6 +77,25 @@ export default function SetariConcediuPage() {
       };
     });
     setEditingLeave(init);
+
+    // Incarca solicitarile de concediu
+    const reqRes = await supabase
+      .from("leave_requests")
+      .select("id, user_id, start_date, end_date, days_count, notes, status, created_at, approved_at")
+      .order("created_at", { ascending: false });
+
+    const reqs = (reqRes.data as LeaveRequest[]) || [];
+
+    // Fetch nume utilizatori
+    const userIds = [...new Set(reqs.map((r) => r.user_id))];
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabase
+        .from("profiles").select("id, full_name").in("id", userIds);
+      const profileMap = new Map((profilesData || []).map((p: any) => [p.id, p.full_name]));
+      setLeaveRequests(reqs.map((r) => ({ ...r, user_name: profileMap.get(r.user_id) || "-" })));
+    } else {
+      setLeaveRequests([]);
+    }
   };
 
   useEffect(() => {
@@ -78,6 +113,43 @@ export default function SetariConcediuPage() {
   useEffect(() => {
     if (!loading) loadData();
   }, [leaveYear]);
+
+  const handleApproveRequest = async (requestId: string, userId: string, daysCount: number) => {
+    setProcessingId(requestId);
+
+    // Aproba cererea
+    const { error: approveError } = await supabase.from("leave_requests").update({
+      status: "approved",
+      approved_at: new Date().toISOString(),
+      approved_by: (await supabase.auth.getUser()).data.user?.id,
+    }).eq("id", requestId);
+
+    if (approveError) { showToast("error", `Eroare: ${approveError.message}`); setProcessingId(null); return; }
+
+    // Actualizeaza days_taken in worker_leave
+    const { data: leaveData } = await supabase.from("worker_leave")
+      .select("id, days_taken").eq("user_id", userId).eq("year", new Date().getFullYear()).single();
+
+    if (leaveData) {
+      await supabase.from("worker_leave").update({
+        days_taken: leaveData.days_taken + daysCount,
+        updated_at: new Date().toISOString(),
+      }).eq("id", leaveData.id);
+    }
+
+    setProcessingId(null);
+    await loadData();
+    showToast("success", "Cererea a fost aprobată și zilele au fost actualizate.");
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    setProcessingId(requestId);
+    const { error } = await supabase.from("leave_requests").update({ status: "rejected" }).eq("id", requestId);
+    if (error) { showToast("error", `Eroare: ${error.message}`); setProcessingId(null); return; }
+    setProcessingId(null);
+    await loadData();
+    showToast("success", "Cererea a fost respinsă.");
+  };
 
   const handleSaveLeave = async (workerId: string) => {
     const val = editingLeave[workerId];
@@ -230,7 +302,32 @@ export default function SetariConcediuPage() {
           </div>
         </section>
 
-        <section className="mt-6">
+        {/* Tabs */}
+        <div className="mt-4 flex gap-2">
+          <button type="button" onClick={() => setActiveTab("concediu")}
+            className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+              activeTab === "concediu" ? "bg-[#0196ff] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            }`}>
+            Zile concediu
+            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === "concediu" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>
+              {workers.length}
+            </span>
+          </button>
+          <button type="button" onClick={() => setActiveTab("solicitari")}
+            className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+              activeTab === "solicitari" ? "bg-orange-500 text-white" : "bg-orange-50 text-orange-600 hover:bg-orange-100"
+            }`}>
+            Solicitări
+            {leaveRequests.filter(r => r.status === "pending").length > 0 && (
+              <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === "solicitari" ? "bg-white/20 text-white" : "bg-orange-200 text-orange-700"}`}>
+                {leaveRequests.filter(r => r.status === "pending").length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === "concediu" && (
+        <section className="mt-4">
           <div className="mb-3 flex items-center gap-3 px-1">
             <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
               Angajați — {filteredWorkers.length} înregistrări
@@ -321,6 +418,67 @@ export default function SetariConcediuPage() {
             </div>
           )}
         </section>
+        )}
+
+        {activeTab === "solicitari" && (
+          <section className="mt-4 space-y-3">
+            <div className="mb-3 flex items-center gap-3 px-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+                Solicitări concediu — {leaveRequests.length} total
+              </p>
+              <div className="h-px flex-1 bg-[#E8E5DE]" />
+            </div>
+
+            {leaveRequests.length === 0 ? (
+              <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
+                <p className="text-sm text-gray-500">Nu există solicitări de concediu.</p>
+              </div>
+            ) : (
+              leaveRequests.map((req) => (
+                <div key={req.id} className={`rounded-[22px] border bg-white p-5 shadow-sm ${
+                  req.status === "pending" ? "border-orange-200" : "border-[#E8E5DE]"
+                }`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-bold text-gray-900">{req.user_name}</p>
+                      <p className="mt-0.5 text-sm text-gray-600">
+                        {new Date(req.start_date).toLocaleDateString("ro-RO")} → {new Date(req.end_date).toLocaleDateString("ro-RO")}
+                      </p>
+                      <p className="mt-0.5 text-xs text-gray-500">
+                        {req.days_count} zile lucrătoare · {new Date(req.created_at).toLocaleDateString("ro-RO")}
+                      </p>
+                      {req.notes && <p className="mt-1 text-xs italic text-gray-400">"{req.notes}"</p>}
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      req.status === "pending" ? "bg-yellow-100 text-yellow-700"
+                      : req.status === "approved" ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                    }`}>
+                      {req.status === "pending" ? "În așteptare" : req.status === "approved" ? "Aprobată" : "Respinsă"}
+                    </span>
+                  </div>
+
+                  {req.status === "pending" && (
+                    <div className="mt-4 flex gap-3">
+                      <button type="button"
+                        onClick={() => handleApproveRequest(req.id, req.user_id, req.days_count)}
+                        disabled={processingId === req.id}
+                        className="flex-1 rounded-xl bg-green-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+                        {processingId === req.id ? "..." : "Aprobă"}
+                      </button>
+                      <button type="button"
+                        onClick={() => handleRejectRequest(req.id)}
+                        disabled={processingId === req.id}
+                        className="rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-100 disabled:opacity-60">
+                        {processingId === req.id ? "..." : "Respinge"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </section>
+        )}
       </main>
     </div>
   );
