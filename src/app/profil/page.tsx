@@ -367,7 +367,7 @@ export default function ProfilPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl space-y-4 px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-3xl space-y-4 px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
 
         {/* Date cont */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
