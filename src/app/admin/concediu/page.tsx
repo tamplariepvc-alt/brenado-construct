@@ -133,7 +133,7 @@ export default function AdminConcediuPage() {
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
 
       // Permite: administrator, cont_tehnic, project_manager
-      const allowedRoles = ["administrator", "cont_tehnic", "project_manager"];
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "admin_limitat"];
       if (!profile || !allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
 
       setUserRole(profile.role);
@@ -339,7 +339,7 @@ export default function AdminConcediuPage() {
   );
 
   // Back destination: project_manager vine din /modul-admin
-  const backPath = userRole === "project_manager" ? "/modul-admin" : "/admin";
+  const backPath = userRole === "project_manager" ? "/modul-admin" : userRole === "admin_limitat" ? "/admin" : "/admin";
 
   if (loading) {
     return (
