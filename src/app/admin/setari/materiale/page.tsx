@@ -29,6 +29,7 @@ export default function SetariMaterialePage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [toast, setToast] = useState<Toast>(null);
+  const [userRole, setUserRole] = useState<string>("");
 
   const [artNumber, setArtNumber] = useState("");
   const [artCode, setArtCode] = useState("");
@@ -36,6 +37,9 @@ export default function SetariMaterialePage() {
   const [artUnit, setArtUnit] = useState("");
   const [artPrice, setArtPrice] = useState("");
   const [artVat, setArtVat] = useState("21");
+
+  // admin_limitat are acces read-only (nu poate adauga/edita/sterge)
+  const isReadOnly = userRole === "admin_limitat";
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
@@ -54,7 +58,12 @@ export default function SetariMaterialePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-      if (!profile || profile.role !== "administrator") { router.push("/dashboard"); return; }
+
+      // Permite: administrator, cont_tehnic, project_manager, admin_limitat
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "admin_limitat"];
+      if (!profile || !allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
+
+      setUserRole(profile.role);
       await loadArticles();
       setLoading(false);
     };
@@ -68,6 +77,7 @@ export default function SetariMaterialePage() {
   };
 
   const openEdit = (art: Article) => {
+    if (isReadOnly) return;
     setEditingId(art.id);
     setArtNumber(art.article_number || "");
     setArtCode(art.article_code || "");
@@ -79,6 +89,7 @@ export default function SetariMaterialePage() {
   };
 
   const handleSave = async () => {
+    if (isReadOnly) return;
     if (!artName.trim()) { showToast("error", "Completează denumirea articolului."); return; }
     if (!artUnit.trim()) { showToast("error", "Completează unitatea de măsură."); return; }
     if (!artPrice || Number(artPrice) < 0) { showToast("error", "Completează un preț valid."); return; }
@@ -107,6 +118,7 @@ export default function SetariMaterialePage() {
   };
 
   const handleDelete = async (id: string) => {
+    if (isReadOnly) return;
     setDeleting(id);
     await supabase.from("inventory_articles").delete().eq("id", id);
     setDeleting(null);
@@ -120,6 +132,13 @@ export default function SetariMaterialePage() {
     (a.article_code || "").toLowerCase().includes(search.toLowerCase()) ||
     (a.article_number || "").toLowerCase().includes(search.toLowerCase())
   );
+
+  // Back navigation inteligenta pe rol
+  const getBackPath = () => {
+    if (userRole === "admin_limitat") return "/admin";
+    if (userRole === "project_manager") return "/modul-admin";
+    return "/admin/setari";
+  };
 
   const renderIcon = () => (
     <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-orange-600 sm:h-7 sm:w-7">
@@ -177,14 +196,17 @@ export default function SetariMaterialePage() {
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <div className="flex gap-3">
-            <button onClick={() => router.push("/admin/setari")}
+            <button onClick={() => router.push(getBackPath())}
               className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-              Înapoi la setări
+              Înapoi
             </button>
-            <button onClick={() => { resetForm(); setShowForm(true); }}
-              className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
-              + Articol nou
-            </button>
+            {/* Buton adaugare — ascuns pentru admin_limitat */}
+            {!isReadOnly && (
+              <button onClick={() => { resetForm(); setShowForm(true); }}
+                className="rounded-xl bg-orange-500 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+                + Articol nou
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -199,8 +221,15 @@ export default function SetariMaterialePage() {
               <p className="text-sm text-gray-500">Setări · Comenzi</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Articole comenzi</h1>
               <p className="mt-2 text-sm text-gray-500">
-                Catalogul de articole disponibile la crearea comenzilor de materiale.
+                {isReadOnly
+                  ? "Vizualizează catalogul de articole disponibile la comenzi."
+                  : "Catalogul de articole disponibile la crearea comenzilor de materiale."}
               </p>
+              {isReadOnly && (
+                <span className="mt-2 inline-block rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-500">
+                  Doar vizualizare
+                </span>
+              )}
             </div>
             <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600">
               {articles.length} articole
@@ -214,7 +243,8 @@ export default function SetariMaterialePage() {
         </section>
 
         <div className="mt-6 space-y-4">
-          {showForm && (
+          {/* Formular adaugare/editare — ascuns pentru admin_limitat */}
+          {showForm && !isReadOnly && (
             <div className="rounded-[22px] border border-orange-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex items-center gap-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
@@ -282,40 +312,47 @@ export default function SetariMaterialePage() {
           {filteredArticles.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-500">
-                {search ? "Nu există articole pentru căutarea introdusă." : "Nu există articole adăugate. Apasă «+ Articol nou» pentru a adăuga."}
+                {search ? "Nu există articole pentru căutarea introdusă." : "Nu există articole adăugate."}
               </p>
             </div>
           ) : (
             <>
+              {/* Desktop table */}
               <div className="hidden overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm lg:block">
-                <div className="grid grid-cols-12 border-b bg-[#F8F7F3] px-5 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  <div className="col-span-1">Nr.</div>
-                  <div className="col-span-2">Cod</div>
-                  <div className="col-span-4">Denumire</div>
-                  <div className="col-span-1">UM</div>
-                  <div className="col-span-2">Preț</div>
-                  <div className="col-span-1">TVA</div>
-                  <div className="col-span-1 text-right">Acțiuni</div>
+                <div className="grid border-b bg-[#F8F7F3] px-5 py-4 text-xs font-semibold uppercase tracking-wide text-gray-500"
+                  style={{ gridTemplateColumns: isReadOnly ? "1fr 2fr 4fr 1fr 2fr 1fr" : "1fr 2fr 4fr 1fr 2fr 1fr 1fr" }}>
+                  <div>Nr.</div>
+                  <div>Cod</div>
+                  <div>Denumire</div>
+                  <div>UM</div>
+                  <div>Preț</div>
+                  <div>TVA</div>
+                  {!isReadOnly && <div className="text-right">Acțiuni</div>}
                 </div>
                 {filteredArticles.map((art) => (
-                  <div key={art.id} className="grid grid-cols-12 items-center border-b border-[#E8E5DE] px-5 py-3.5 text-sm last:border-b-0">
-                    <div className="col-span-1 text-xs text-gray-400">{art.article_number || "-"}</div>
-                    <div className="col-span-2 text-xs text-gray-500">{art.article_code || "-"}</div>
-                    <div className="col-span-4 break-words font-medium text-gray-900">{art.name}</div>
-                    <div className="col-span-1 text-gray-500">{art.unit || "-"}</div>
-                    <div className="col-span-2 font-bold text-gray-900">{Number(art.unit_price).toFixed(2)} lei</div>
-                    <div className="col-span-1 text-gray-500">{art.vat_percent}%</div>
-                    <div className="col-span-1 flex justify-end gap-1.5">
-                      <button type="button" onClick={() => openEdit(art)}
-                        className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">Editează</button>
-                      <button type="button" onClick={() => handleDelete(art.id)} disabled={deleting === art.id}
-                        className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60">
-                        {deleting === art.id ? "..." : "Șterge"}
-                      </button>
-                    </div>
+                  <div key={art.id} className="grid items-center border-b border-[#E8E5DE] px-5 py-3.5 text-sm last:border-b-0"
+                    style={{ gridTemplateColumns: isReadOnly ? "1fr 2fr 4fr 1fr 2fr 1fr" : "1fr 2fr 4fr 1fr 2fr 1fr 1fr" }}>
+                    <div className="text-xs text-gray-400">{art.article_number || "-"}</div>
+                    <div className="text-xs text-gray-500">{art.article_code || "-"}</div>
+                    <div className="break-words font-medium text-gray-900">{art.name}</div>
+                    <div className="text-gray-500">{art.unit || "-"}</div>
+                    <div className="font-bold text-gray-900">{Number(art.unit_price).toFixed(2)} lei</div>
+                    <div className="text-gray-500">{art.vat_percent}%</div>
+                    {!isReadOnly && (
+                      <div className="flex justify-end gap-1.5">
+                        <button type="button" onClick={() => openEdit(art)}
+                          className="rounded-xl border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50">Editează</button>
+                        <button type="button" onClick={() => handleDelete(art.id)} disabled={deleting === art.id}
+                          className="rounded-xl border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60">
+                          {deleting === art.id ? "..." : "Șterge"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
+
+              {/* Mobile cards */}
               <div className="space-y-3 lg:hidden">
                 {filteredArticles.map((art) => (
                   <div key={art.id} className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
@@ -325,14 +362,16 @@ export default function SetariMaterialePage() {
                         {art.article_code || "-"} · {art.unit || "-"} · {Number(art.unit_price).toFixed(2)} lei · TVA {art.vat_percent}%
                       </p>
                     </div>
-                    <div className="mt-3 flex gap-2">
-                      <button type="button" onClick={() => openEdit(art)}
-                        className="flex-1 rounded-xl border border-gray-200 bg-white py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Editează</button>
-                      <button type="button" onClick={() => handleDelete(art.id)} disabled={deleting === art.id}
-                        className="flex-1 rounded-xl border border-red-200 bg-red-50 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60">
-                        {deleting === art.id ? "..." : "Șterge"}
-                      </button>
-                    </div>
+                    {!isReadOnly && (
+                      <div className="mt-3 flex gap-2">
+                        <button type="button" onClick={() => openEdit(art)}
+                          className="flex-1 rounded-xl border border-gray-200 bg-white py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">Editează</button>
+                        <button type="button" onClick={() => handleDelete(art.id)} disabled={deleting === art.id}
+                          className="flex-1 rounded-xl border border-red-200 bg-red-50 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 disabled:opacity-60">
+                          {deleting === art.id ? "..." : "Șterge"}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -340,7 +379,7 @@ export default function SetariMaterialePage() {
           )}
         </div>
       </main>
- <BottomNav />
+      <BottomNav />
     </div>
   );
 }
