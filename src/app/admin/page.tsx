@@ -6,44 +6,129 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BottomNav from "@/components/BottomNav";
 
+type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
+
 type AdminAction = {
   label: string;
   sublabel: string;
   route: string;
   highlight?: "blue" | "green" | "indigo" | "violet";
+  roles?: Role[]; // daca lipseste = vizibil pentru toti
 };
 
 export default function AdminPage() {
   const router = useRouter();
   const [unpaidCount, setUnpaidCount] = useState(0);
+  const [userRole, setUserRole] = useState<Role | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadUnpaidCount = async () => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push("/login"); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles").select("role").eq("id", user.id).single();
+      if (!profile) { router.push("/login"); return; }
+
+      const allowed = ["administrator", "cont_tehnic", "admin_limitat"];
+      if (!allowed.includes(profile.role)) { router.push("/dashboard"); return; }
+
+      setUserRole(profile.role as Role);
+
       const { data, error } = await supabase
         .from("extra_work")
         .select("id, extra_hours, weekend_days_count, extra_hours_paid, weekend_paid");
-      if (error || !data) { setUnpaidCount(0); return; }
-      const count = data.filter((row) => {
-        const hasExtra = Number(row.extra_hours || 0) > 0;
-        const hasWeekend = Number(row.weekend_days_count || 0) > 0;
-        return (hasExtra && !row.extra_hours_paid) || (hasWeekend && !row.weekend_paid);
-      }).length;
-      setUnpaidCount(count);
-    };
-    loadUnpaidCount();
-  }, []);
+      if (!error && data) {
+        const count = data.filter((row) => {
+          const hasExtra = Number(row.extra_hours || 0) > 0;
+          const hasWeekend = Number(row.weekend_days_count || 0) > 0;
+          return (hasExtra && !row.extra_hours_paid) || (hasWeekend && !row.weekend_paid);
+        }).length;
+        setUnpaidCount(count);
+      }
 
-  const actions: AdminAction[] = [
-    { label: "Centre de cost", sublabel: "Vezi toate proiectele și costurile aferente", route: "/admin/centre-de-cost" },
-    { label: "Personal", sublabel: "Gestionează personalul, funcțiile și salariile", route: "/admin/muncitori" },
-    { label: "Parc Auto", sublabel: "Vehicule, documente și leasing", route: "/admin/parc-auto" },
-    { label: "Ore Extra + Weekend", sublabel: "Filtrează, achită și exportă rapoarte", route: "/admin/ore-extra", highlight: "blue" },
-    { label: "Alimentare Carduri / Conturi", sublabel: "Alimentează proiectele și vezi istoricul", route: "/admin/alimentari", highlight: "green" },
-    { label: "Istoric Pontaje", sublabel: "Vizualizează pontajele pe șantiere, zile și personal", route: "/admin/istoric-pontaje", highlight: "indigo" },
-    { label: "Concedii", sublabel: "Gestionează zilele de concediu și aprobă solicitările", route: "/admin/concediu" },
-    { label: "Utilizatori", sublabel: "Gestionează conturile și rolurile utilizatorilor", route: "/admin/utilizatori", highlight: "violet" },
-    { label: "Alte Setări", sublabel: "Servicii, materiale și configurări", route: "/admin/setari" },
+      setLoading(false);
+    };
+    init();
+  }, [router]);
+
+  // Toate actiunile cu rolurile care le pot vedea
+  const allActions: AdminAction[] = [
+    {
+      label: "Centre de cost",
+      sublabel: "Vezi toate proiectele și costurile aferente",
+      route: "/admin/centre-de-cost",
+      roles: ["administrator", "cont_tehnic"],
+    },
+    {
+      label: "Personal",
+      sublabel: "Gestionează personalul, funcțiile și salariile",
+      route: "/admin/muncitori",
+      // toti
+    },
+    {
+      label: "Parc Auto",
+      sublabel: "Vehicule, documente și leasing",
+      route: "/admin/parc-auto",
+      // toti
+    },
+    {
+      label: "Ore Extra + Weekend",
+      sublabel: "Filtrează, achită și exportă rapoarte",
+      route: "/admin/ore-extra",
+      highlight: "blue",
+      // toti
+    },
+    {
+      label: "Alimentare Carduri / Conturi",
+      sublabel: "Alimentează proiectele și vezi istoricul",
+      route: "/admin/alimentari",
+      highlight: "green",
+      // toti
+    },
+    {
+      label: "Istoric Pontaje",
+      sublabel: "Vizualizează pontajele pe șantiere, zile și personal",
+      route: "/admin/istoric-pontaje",
+      highlight: "indigo",
+      roles: ["administrator", "cont_tehnic"],
+    },
+    {
+      label: "Concedii",
+      sublabel: "Gestionează zilele de concediu și aprobă solicitările",
+      route: "/admin/concediu",
+      // toti
+    },
+    {
+      label: "Utilizatori",
+      sublabel: "Gestionează conturile și rolurile utilizatorilor",
+      route: "/admin/utilizatori",
+      highlight: "violet",
+      roles: ["administrator", "cont_tehnic"],
+    },
+    {
+      label: "Alte Setări",
+      sublabel: "Servicii, materiale și configurări",
+      route: "/admin/setari",
+      roles: ["administrator", "cont_tehnic"],
+    },
+    {
+      label: "Articole Comenzi",
+      sublabel: "Gestionează catalogul de articole pentru comenzi",
+      route: "/admin/setari/materiale",
+      roles: ["admin_limitat"],
+    },
   ];
+
+  // Filtrare actiuni pe baza rolului
+  const actions = allActions.filter((action) => {
+    if (!userRole) return false;
+    if (!action.roles) return true; // vizibil pentru toti
+    return action.roles.includes(userRole);
+  });
+
+  const isAdminLimitat = userRole === "admin_limitat";
 
   const renderAdminIcon = (label: string, highlight?: string) => {
     const isColored = !!highlight;
@@ -107,7 +192,7 @@ export default function AdminPage() {
         <path d="M19 6v2l1 1" stroke={base} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
-    if (label.includes("Setări")) return (
+    if (label.includes("Setări") || label.includes("Articole")) return (
       <svg viewBox="0 0 24 24" fill="none" className={cls}>
         <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" stroke={base} strokeWidth="2" />
         <path d="M19 12a1.8 1.8 0 0 0 1.3 1.7l.1.1a1.9 1.9 0 0 1-1.3 3.3h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.9 1.9 0 0 1-1.3-3.3l.1-.1A1.8 1.8 0 0 0 5 12c0-.7-.3-1.3-.8-1.7l-.1-.1a1.9 1.9 0 0 1 1.3-3.3h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.9 1.9 0 0 1 1.3 3.3l-.1.1c-.5.4-.8 1-.8 1.7Z" stroke={base} strokeWidth="1.6" strokeLinecap="round" />
@@ -130,11 +215,19 @@ export default function AdminPage() {
     if (action.label.includes("Personal")) return "bg-sky-50";
     if (action.label.includes("Parc")) return "bg-amber-50";
     if (action.label.includes("Concedii")) return "bg-green-50";
-    if (action.label.includes("Setări")) return "bg-gray-100";
+    if (action.label.includes("Setări") || action.label.includes("Articole")) return "bg-gray-100";
     return "bg-blue-50";
   };
 
   const isColored = (action: AdminAction) => Boolean(action.highlight);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F0EEE9]">
+        <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
@@ -152,10 +245,19 @@ export default function AdminPage() {
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
             <p className="text-sm text-gray-500">Modul administrativ</p>
-            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Panou Admin</h1>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              {isAdminLimitat ? "Modul Administrativ" : "Panou Admin"}
+            </h1>
             <p className="mt-3 max-w-2xl text-sm text-gray-500 sm:text-base">
-              Gestionare date, module administrative și funcții financiare.
+              {isAdminLimitat
+                ? "Acces la modulele administrative permise pentru rolul tău."
+                : "Gestionare date, module administrative și funcții financiare."}
             </p>
+            {isAdminLimitat && (
+              <span className="mt-2 inline-block rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                Cont de administrare limitat
+              </span>
+            )}
           </div>
         </section>
 
