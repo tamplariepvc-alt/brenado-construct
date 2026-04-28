@@ -240,8 +240,15 @@ export default function AdaugaComandaPage() {
       return;
     }
 
-    if (items.length === 0) {
+    if (items.length === 0 || items.every((item) => !item.article_id)) {
       showToast("error", "Adaugă cel puțin un articol în comandă.");
+      isSubmittingRef.current = false;
+      return;
+    }
+
+    const itemsWithoutQty = items.filter((item) => item.article_id && (!item.quantity || Number(item.quantity) < 1));
+    if (itemsWithoutQty.length > 0) {
+      showToast("error", `Introdu cantitatea pentru: ${itemsWithoutQty.map((i) => i.article_name).join(", ")}`);
       isSubmittingRef.current = false;
       return;
     }
