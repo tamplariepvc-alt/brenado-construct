@@ -6,16 +6,10 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BottomNav from "@/components/BottomNav";
 
-
 type Service = {
-  id: string;
-  name: string;
-  um: string;
-  price_ron: number;
-  is_active: boolean;
-  created_at: string;
+  id: string; name: string; um: string;
+  price_ron: number; is_active: boolean; created_at: string;
 };
-
 type Toast = { type: "success" | "error"; message: string } | null;
 
 export default function SetariServiciiPage() {
@@ -52,7 +46,11 @@ export default function SetariServiciiPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push("/login"); return; }
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-      if (!profile || profile.role !== "administrator") { router.push("/dashboard"); return; }
+
+      // Permite: administrator, cont_tehnic, project_manager
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager"];
+      if (!profile || !allowedRoles.includes(profile.role)) { router.push("/dashboard"); return; }
+
       await loadServices();
       setLoading(false);
     };
@@ -190,7 +188,7 @@ export default function SetariServiciiPage() {
               <p className="text-sm text-gray-500">Setări · Devize</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">Servicii deviz</h1>
               <p className="mt-2 text-sm text-gray-500">
-                Serviciile din care șefii de echipă completează devizul zilnic. Prețul e vizibil doar pentru administrator.
+                Serviciile din care șefii de echipă completează devizul zilnic.
               </p>
             </div>
             <span className="shrink-0 rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600">
@@ -256,7 +254,7 @@ export default function SetariServiciiPage() {
           {filteredServices.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-500">
-                {search ? "Nu există servicii pentru căutarea introdusă." : "Nu există servicii adăugate. Apasă «+ Serviciu nou» pentru a adăuga."}
+                {search ? "Nu există servicii pentru căutarea introdusă." : "Nu există servicii adăugate."}
               </p>
             </div>
           ) : (
@@ -319,7 +317,7 @@ export default function SetariServiciiPage() {
           )}
         </div>
       </main>
- <BottomNav />
+      <BottomNav />
     </div>
   );
 }
