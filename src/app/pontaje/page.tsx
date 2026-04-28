@@ -57,6 +57,12 @@ type ProjectCardData = {
   plannedWorkerIds: string[];
 };
 
+// Modal confirmare stop
+type StopConfirmModal =
+  | { type: "single"; projectId: string; entryId: string; workerName: string }
+  | { type: "all"; projectId: string; count: number }
+  | null;
+
 const getTodayDate = () => new Date().toISOString().split("T")[0];
 
 const createInitialCardData = (): ProjectCardData => ({
@@ -75,6 +81,13 @@ const createInitialCardData = (): ProjectCardData => ({
 const isAdminRole = (role: string | null | undefined) =>
   ["administrator", "cont_tehnic", "project_manager"].includes(role || "");
 
+// Verifica daca e dupa 17:00 ora Romaniei
+const isAfter17Romania = () => {
+  const nowRo = new Date().toLocaleString("en-US", { timeZone: "Europe/Bucharest" });
+  const h = new Date(nowRo).getHours();
+  return h >= 17;
+};
+
 export default function PontajePage() {
   const router = useRouter();
 
@@ -83,8 +96,17 @@ export default function PontajePage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectCards, setProjectCards] = useState<Record<string, ProjectCardData>>({});
   const [now, setNow] = useState(Date.now());
+  const [stopConfirm, setStopConfirm] = useState<StopConfirmModal>(null);
 
   const todayDate = useMemo(() => getTodayDate(), []);
+
+  // Ora curenta Romania live
+  const romaniaHour = useMemo(() => {
+    const nowRo = new Date(now).toLocaleString("en-US", { timeZone: "Europe/Bucharest" });
+    return new Date(nowRo).getHours();
+  }, [now]);
+
+  const isPontareBlocked = romaniaHour >= 17;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -236,27 +258,21 @@ export default function PontajePage() {
 
       if (profileError || !profileData) { router.push("/login"); return; }
 
-      // Permite: administrator, cont_tehnic, project_manager, sef_echipa
       const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "sef_echipa"];
-      if (!allowedRoles.includes(profileData.role)) {
-        router.push("/dashboard"); return;
-      }
+      if (!allowedRoles.includes(profileData.role)) { router.push("/dashboard"); return; }
 
       setProfile(profileData as Profile);
 
       let visibleProjects: Project[] = [];
 
       if (isAdminRole(profileData.role)) {
-        // Admin/project_manager: vede toate echipele permanente
         const { data: dailyTeamsData } = await supabase
           .from("daily_teams")
           .select("id, project_id, work_date, created_at")
           .order("created_at", { ascending: true });
 
         if (!dailyTeamsData || dailyTeamsData.length === 0) {
-          setProjects([]);
-          setLoading(false);
-          return;
+          setProjects([]); setLoading(false); return;
         }
 
         const teamProjectIds = Array.from(new Set((dailyTeamsData as DailyTeam[]).map((item) => item.project_id)));
@@ -272,22 +288,18 @@ export default function PontajePage() {
       } else if (profileData.role === "sef_echipa") {
         const { data: workerData } = await supabase
           .from("workers").select("id").eq("user_id", user.id).maybeSingle();
-
         if (!workerData) { setProjects([]); setLoading(false); return; }
 
         const { data: teamWorkerData } = await supabase
           .from("daily_team_workers").select("daily_team_id").eq("worker_id", workerData.id).maybeSingle();
-
         if (!teamWorkerData) { setProjects([]); setLoading(false); return; }
 
         const { data: teamData } = await supabase
           .from("daily_teams").select("id, project_id").eq("id", teamWorkerData.daily_team_id).single();
-
         if (!teamData) { setProjects([]); setLoading(false); return; }
 
         const { data: projectData } = await supabase
           .from("projects").select("id, name, beneficiary, project_location, status").eq("id", teamData.project_id).single();
-
         if (projectData) visibleProjects = [projectData as Project];
       }
 
@@ -298,7 +310,6 @@ export default function PontajePage() {
       setProjectCards(initialCards);
 
       await Promise.all(visibleProjects.map((project) => loadProjectCardData(project.id, profileData.role)));
-
       setLoading(false);
     };
 
@@ -319,42 +330,30 @@ export default function PontajePage() {
       const activeWorkerIds = prev.activeEntries.map((e) => e.worker_id);
       const availableWorkers = prev.workers.filter((w) => !activeWorkerIds.includes(w.id));
       if (checked) {
-        return {
-          ...prev,
-          sameTeamAsYesterday: true,
-          selectedWorkers: prev.yesterdayWorkerIds.filter((id) => availableWorkers.some((w) => w.id === id)),
-        };
+        return { ...prev, sameTeamAsYesterday: true, selectedWorkers: prev.yesterdayWorkerIds.filter((id) => availableWorkers.some((w) => w.id === id)) };
       }
-      return {
-        ...prev,
-        sameTeamAsYesterday: false,
-        selectedWorkers: availableWorkers.filter((w) => prev.plannedWorkerIds.includes(w.id)).map((w) => w.id),
-      };
+      return { ...prev, sameTeamAsYesterday: false, selectedWorkers: availableWorkers.filter((w) => prev.plannedWorkerIds.includes(w.id)).map((w) => w.id) };
     });
   };
 
   const handleStartTimeEntries = async (projectId: string) => {
+    if (isPontareBlocked) return;
     const card = projectCards[projectId];
     if (!card) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
-    if (card.selectedWorkers.length === 0) { alert("Selectează cel puțin un muncitor."); return; }
+    if (card.selectedWorkers.length === 0) return;
 
     setCardData(projectId, (prev) => ({ ...prev, submitting: true }));
 
     const { error } = await supabase.from("time_entries").insert(
       card.selectedWorkers.map((workerId) => ({
-        project_id: projectId,
-        worker_id: workerId,
-        started_by: user.id,
-        start_time: new Date().toISOString(),
-        work_date: todayDate,
-        status: "activ",
+        project_id: projectId, worker_id: workerId, started_by: user.id,
+        start_time: new Date().toISOString(), work_date: todayDate, status: "activ",
       }))
     );
 
     if (error) {
-      alert("A apărut o eroare la pontare.");
       setCardData(projectId, (prev) => ({ ...prev, submitting: false }));
       return;
     }
@@ -364,6 +363,7 @@ export default function PontajePage() {
   };
 
   const handleStopTimeEntry = async (projectId: string, entryId: string) => {
+    setStopConfirm(null);
     setCardData(projectId, (prev) => ({ ...prev, stoppingId: entryId }));
     const { error } = await supabase.from("time_entries").update({ end_time: new Date().toISOString(), status: "oprit" }).eq("id", entryId);
     if (error) { alert("Eroare la oprirea pontajului."); }
@@ -372,9 +372,9 @@ export default function PontajePage() {
   };
 
   const handleStopAllTimeEntries = async (projectId: string) => {
+    setStopConfirm(null);
     const card = projectCards[projectId];
     if (!card || card.activeEntries.length === 0) return;
-    if (!window.confirm("Sigur vrei să oprești pontajul pentru toți muncitorii activi?")) return;
 
     setCardData(projectId, (prev) => ({ ...prev, submitting: true }));
     const { error } = await supabase.from("time_entries")
@@ -431,6 +431,69 @@ export default function PontajePage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
+
+      {/* MODAL CONFIRMARE STOP */}
+      {stopConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              {/* Icon */}
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-red-600" stroke="currentColor" strokeWidth="2">
+                  <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none" />
+                </svg>
+              </div>
+
+              {stopConfirm.type === "single" ? (
+                <>
+                  <h3 className="text-center text-lg font-bold text-gray-900">Oprești pontajul?</h3>
+                  <p className="mt-2 text-center text-sm text-gray-500">
+                    Vrei să oprești pontajul pentru
+                  </p>
+                  <p className="mt-1 text-center text-base font-bold text-gray-900">
+                    {stopConfirm.workerName}
+                  </p>
+                  <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-center">
+                    <p className="text-xs text-red-600">Ora de oprire va fi înregistrată ca <span className="font-bold">{new Date().toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</span></p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-center text-lg font-bold text-gray-900">Oprești toată echipa?</h3>
+                  <p className="mt-2 text-center text-sm text-gray-500">
+                    Se vor opri pontajele pentru
+                  </p>
+                  <p className="mt-1 text-center text-2xl font-extrabold text-red-600">
+                    {stopConfirm.count} {stopConfirm.count === 1 ? "muncitor" : "muncitori"}
+                  </p>
+                  <div className="mt-4 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-center">
+                    <p className="text-xs text-red-600">Ora de oprire va fi înregistrată ca <span className="font-bold">{new Date().toLocaleTimeString("ro-RO", { hour: "2-digit", minute: "2-digit" })}</span></p>
+                  </div>
+                </>
+              )}
+
+              <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+                <button type="button"
+                  onClick={() => {
+                    if (stopConfirm.type === "single") {
+                      handleStopTimeEntry(stopConfirm.projectId, stopConfirm.entryId);
+                    } else {
+                      handleStopAllTimeEntries(stopConfirm.projectId);
+                    }
+                  }}
+                  className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
+                  Confirmă oprirea
+                </button>
+                <button type="button" onClick={() => setStopConfirm(null)}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
@@ -459,6 +522,24 @@ export default function PontajePage() {
             </div>
           </div>
         </section>
+
+        {/* Banner blocat dupa 17:00 */}
+        {isPontareBlocked && (
+          <div className="mt-4 flex items-start gap-3 rounded-[20px] border border-orange-300 bg-orange-50 px-5 py-4 shadow-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-100">
+              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 text-orange-600" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-orange-800">Pontarea nu mai este disponibilă</p>
+              <p className="mt-0.5 text-xs text-orange-700">
+                Programul de lucru s-a încheiat la ora 17:00. Pontajele active au fost oprite automat de sistem.
+              </p>
+            </div>
+          </div>
+        )}
 
         <section className="mt-6">
           <div className="mb-3 flex items-center gap-3 px-1">
@@ -504,7 +585,7 @@ export default function PontajePage() {
                     </div>
 
                     <div className="mt-5 space-y-4">
-                      {!hasActive && (
+                      {!hasActive && !isPontareBlocked && (
                         <>
                           {card.loading ? (
                             <p className="text-sm text-gray-500">Se încarcă echipa...</p>
@@ -592,7 +673,12 @@ export default function PontajePage() {
                                     {inPause ? "Pauză" : formatDuration(entry.start_time)}
                                   </span>
                                   <button type="button"
-                                    onClick={() => handleStopTimeEntry(project.id, entry.id)}
+                                    onClick={() => setStopConfirm({
+                                      type: "single",
+                                      projectId: project.id,
+                                      entryId: entry.id,
+                                      workerName: entry.worker_name || "-",
+                                    })}
                                     disabled={card.stoppingId === entry.id || card.submitting}
                                     className="w-16 rounded-xl bg-red-600 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
                                     {card.stoppingId === entry.id ? "..." : "Stop"}
@@ -604,12 +690,30 @@ export default function PontajePage() {
                         </div>
                       )}
 
-                      <button type="button"
-                        onClick={() => hasActive ? handleStopAllTimeEntries(project.id) : handleStartTimeEntries(project.id)}
-                        disabled={card.submitting || card.loading || (!hasActive && card.selectedWorkers.length === 0)}
-                        className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 ${hasActive ? "bg-red-600" : "bg-green-600"}`}>
-                        {card.submitting ? "Se procesează..." : hasActive ? "■ Oprește toți" : "Pontează"}
-                      </button>
+                      {/* Buton principal pontare / oprire toti */}
+                      {hasActive ? (
+                        <button type="button"
+                          onClick={() => setStopConfirm({
+                            type: "all",
+                            projectId: project.id,
+                            count: card.activeEntries.length,
+                          })}
+                          disabled={card.submitting || card.loading}
+                          className="w-full rounded-xl bg-red-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+                          {card.submitting ? "Se procesează..." : "■ Oprește toți"}
+                        </button>
+                      ) : isPontareBlocked ? (
+                        <div className="w-full rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-center">
+                          <p className="text-sm font-semibold text-orange-700">Pontarea s-a încheiat la 17:00</p>
+                        </div>
+                      ) : (
+                        <button type="button"
+                          onClick={() => handleStartTimeEntries(project.id)}
+                          disabled={card.submitting || card.loading || card.selectedWorkers.length === 0}
+                          className="w-full rounded-xl bg-green-600 px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+                          {card.submitting ? "Se procesează..." : "Pontează"}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
