@@ -10,6 +10,13 @@ type TeamLead = {
   full_name: string;
 };
 
+type ToastType = "error" | "success" | "warning";
+
+type Toast = {
+  type: ToastType;
+  message: string;
+} | null;
+
 export default function AdaugaProiectPage() {
   const router = useRouter();
 
@@ -28,6 +35,12 @@ export default function AdaugaProiectPage() {
   const [showTeamLeadsDropdown, setShowTeamLeadsDropdown] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [toast, setToast] = useState<Toast>(null);
+
+  const showToast = (type: ToastType, message: string) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     const loadTeamLeads = async () => {
@@ -47,9 +60,7 @@ export default function AdaugaProiectPage() {
 
   const toggleLead = (id: string) => {
     setSelectedLeads((prev) =>
-      prev.includes(id)
-        ? prev.filter((item) => item !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
@@ -67,17 +78,17 @@ export default function AdaugaProiectPage() {
       !termen ||
       !status
     ) {
-      alert("Completează toate câmpurile obligatorii, inclusiv bugetul.");
+      showToast("error", "Completează toate câmpurile obligatorii, inclusiv bugetul.");
       return;
     }
 
     if (selectedLeads.length === 0) {
-      alert("Selectează cel puțin un șef de echipă.");
+      showToast("error", "Selectează cel puțin un șef de echipă.");
       return;
     }
 
     if (Number(bugetRon) < 0) {
-      alert("Bugetul nu poate fi negativ.");
+      showToast("error", "Bugetul nu poate fi negativ.");
       return;
     }
 
@@ -108,7 +119,7 @@ export default function AdaugaProiectPage() {
       .single();
 
     if (projectError || !projectData) {
-      alert("A apărut o eroare la salvarea proiectului.");
+      showToast("error", "A apărut o eroare la salvarea proiectului.");
       setLoading(false);
       return;
     }
@@ -123,98 +134,83 @@ export default function AdaugaProiectPage() {
       .insert(rows);
 
     if (leadsError) {
-      alert("Proiectul a fost creat, dar șefii de echipă nu au putut fi salvați.");
+      showToast("warning", "Proiectul a fost creat, dar șefii de echipă nu au putut fi salvați.");
       setLoading(false);
       return;
     }
 
     setLoading(false);
-    alert("Proiect salvat cu succes.");
-    router.push("/dashboard");
+    showToast("success", "Proiect salvat cu succes!");
+    setTimeout(() => router.push("/dashboard"), 1200);
+  };
+
+  const toastColors = {
+    error: "border-red-300 bg-red-50 text-red-800",
+    success: "border-green-300 bg-green-50 text-green-800",
+    warning: "border-yellow-300 bg-yellow-50 text-yellow-800",
+  };
+
+  const toastIcons = {
+    error: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-red-500" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
+      </svg>
+    ),
+    success: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-green-500" stroke="currentColor" strokeWidth="2">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M8 12l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+    warning: (
+      <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-yellow-500" stroke="currentColor" strokeWidth="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 9v4M12 17h.01" strokeLinecap="round" />
+      </svg>
+    ),
   };
 
   const renderProjectIcon = () => (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
-    >
-      <rect
-        x="4"
-        y="4"
-        width="7"
-        height="7"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <rect
-        x="13"
-        y="4"
-        width="7"
-        height="4"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <rect
-        x="13"
-        y="10"
-        width="7"
-        height="10"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <rect
-        x="4"
-        y="13"
-        width="7"
-        height="7"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
+      <rect x="4" y="4" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="4" width="7" height="4" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="13" y="10" width="7" height="10" rx="2" stroke="currentColor" strokeWidth="2" />
+      <rect x="4" y="13" width="7" height="7" rx="2" stroke="currentColor" strokeWidth="2" />
     </svg>
   );
 
   const renderTeamIcon = () => (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
-    >
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
       <circle cx="9" cy="8" r="3" stroke="currentColor" strokeWidth="2" />
       <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+      <path d="M4 18c0-2.5 2.2-4.5 5-4.5s5 2 5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      <path d="M14 18c.2-1.8 1.8-3.2 4-3.2 1.1 0 2.1.3 2.9.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
+      {/* TOAST NOTIFICATION */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4">
+          <div className={`flex items-start gap-3 rounded-[18px] border px-4 py-3.5 shadow-lg backdrop-blur ${toastColors[toast.type]}`}>
+            {toastIcons[toast.type]}
+            <p className="text-sm font-medium leading-snug">{toast.message}</p>
+            <button
+              type="button"
+              onClick={() => setToast(null)}
+              className="ml-auto shrink-0 text-lg leading-none opacity-50 hover:opacity-80"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={140}
-              height={44}
-              className="h-10 w-auto object-contain sm:h-11"
-            />
-          </div>
-
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
           <button
             type="button"
             onClick={() => router.push("/dashboard")}
@@ -231,7 +227,6 @@ export default function AdaugaProiectPage() {
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
               {renderProjectIcon()}
             </div>
-
             <div>
               <p className="text-sm text-gray-500">Administrare proiecte</p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
@@ -251,20 +246,14 @@ export default function AdaugaProiectPage() {
                 {renderProjectIcon()}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Informații proiect
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Datele generale ale proiectului.
-                </p>
+                <h2 className="text-lg font-semibold text-gray-900">Informații proiect</h2>
+                <p className="text-sm text-gray-500">Datele generale ale proiectului.</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Nume proiect *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Nume proiect *</label>
                 <input
                   type="text"
                   value={nume}
@@ -275,9 +264,7 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Beneficiar *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Beneficiar *</label>
                 <input
                   type="text"
                   value={beneficiar}
@@ -288,9 +275,7 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Locație proiect *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Locație proiect *</label>
                 <input
                   type="text"
                   value={locatie}
@@ -301,9 +286,7 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Tip proiect *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Tip proiect *</label>
                 <input
                   type="text"
                   value={tip}
@@ -314,9 +297,7 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Selectează grupa *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Selectează grupa *</label>
                 <select
                   value={grupa}
                   onChange={(e) => setGrupa(e.target.value)}
@@ -329,14 +310,11 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Buget (RON) *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Buget (RON) *</label>
                 <input
                   type="number"
                   step="0.01"
                   min="0"
-                  required
                   value={bugetRon}
                   onChange={(e) => setBugetRon(e.target.value)}
                   placeholder="Introdu bugetul proiectului"
@@ -348,19 +326,13 @@ export default function AdaugaProiectPage() {
 
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Planificare și status
-              </h2>
-              <p className="text-sm text-gray-500">
-                Setează perioada și starea inițială a proiectului.
-              </p>
+              <h2 className="text-lg font-semibold text-gray-900">Planificare și status</h2>
+              <p className="text-sm text-gray-500">Setează perioada și starea inițială a proiectului.</p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Data de început *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Data de început *</label>
                 <input
                   type="date"
                   value={dataStart}
@@ -370,9 +342,7 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Termen de execuție *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Termen de execuție *</label>
                 <input
                   type="date"
                   value={termen}
@@ -382,9 +352,7 @@ export default function AdaugaProiectPage() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Status proiect *
-                </label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Status proiect *</label>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
@@ -404,12 +372,8 @@ export default function AdaugaProiectPage() {
                 {renderTeamIcon()}
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Șefi de echipă
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Selectează minim un șef de echipă pentru proiect.
-                </p>
+                <h2 className="text-lg font-semibold text-gray-900">Șefi de echipă</h2>
+                <p className="text-sm text-gray-500">Selectează minim un șef de echipă pentru proiect.</p>
               </div>
             </div>
 
@@ -424,17 +388,13 @@ export default function AdaugaProiectPage() {
                     ? `Selectați: ${selectedLeads.length}`
                     : "Selectează șefii de echipă"}
                 </span>
-                <span className="text-lg">
-                  {showTeamLeadsDropdown ? "▲" : "▼"}
-                </span>
+                <span className="text-lg">{showTeamLeadsDropdown ? "▲" : "▼"}</span>
               </button>
 
               {showTeamLeadsDropdown && (
                 <div className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-gray-300 bg-white p-3 shadow-lg">
                   {teamLeads.length === 0 ? (
-                    <p className="px-2 py-2 text-sm text-gray-500">
-                      Nu există utilizatori cu rol de șef de echipă.
-                    </p>
+                    <p className="px-2 py-2 text-sm text-gray-500">Nu există utilizatori cu rol de șef de echipă.</p>
                   ) : (
                     <div className="space-y-2">
                       {teamLeads.map((lead) => (
@@ -448,9 +408,7 @@ export default function AdaugaProiectPage() {
                             onChange={() => toggleLead(lead.id)}
                             className="h-5 w-5"
                           />
-                          <span className="text-base text-gray-800">
-                            {lead.full_name}
-                          </span>
+                          <span className="text-base text-gray-800">{lead.full_name}</span>
                         </label>
                       ))}
                     </div>
@@ -483,7 +441,6 @@ export default function AdaugaProiectPage() {
             >
               {loading ? "Se salvează..." : "Salvează proiect"}
             </button>
-
             <button
               type="button"
               onClick={() => router.push("/dashboard")}
