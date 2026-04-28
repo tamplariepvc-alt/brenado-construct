@@ -224,17 +224,17 @@ export default function ProfilPage() {
     doc.text("Date solicitant", 14, 58);
     doc.setFontSize(9); doc.setTextColor(60);
     doc.text(`Nume: ${profile.full_name}`, 14, 65);
-    doc.text(`Funcție: ${getRoleLabel(profile.role)}`, 14, 71);
+    doc.text(`Functie: ${getRoleLabel(profile.role)}`, 14, 71);
     doc.text(`Email: ${email}`, 14, 77);
 
     doc.setFontSize(11); doc.setTextColor(0);
     doc.text("Detalii concediu", 14, 90);
     doc.setFontSize(9); doc.setTextColor(60);
     doc.text(`Data început: ${new Date(request.start_date).toLocaleDateString("ro-RO")}`, 14, 97);
-    doc.text(`Data sfârșit: ${new Date(request.end_date).toLocaleDateString("ro-RO")}`, 14, 103);
-    doc.text(`Zile lucrătoare: ${request.days_count}`, 14, 109);
+    doc.text(`Data sfarsit: ${new Date(request.end_date).toLocaleDateString("ro-RO")}`, 14, 103);
+    doc.text(`Zile lucratoare: ${request.days_count}`, 14, 109);
     doc.text(`Status: ${getStatusLabel(request.status)}`, 14, 115);
-    if (request.notes) doc.text(`Observații: ${request.notes}`, 14, 121);
+    if (request.notes) doc.text(`Observatii: ${request.notes}`, 14, 121);
 
     if (request.status === "approved") {
       doc.setFontSize(11); doc.setTextColor(20, 120, 60);
@@ -246,8 +246,8 @@ export default function ProfilPage() {
     }
 
     doc.setFontSize(10); doc.setTextColor(0);
-    doc.text("Semnătura solicitant:", 14, 200);
-    doc.text("Semnătura administrator:", 110, 200);
+    doc.text("Semnatura solicitant:", 14, 200);
+    doc.text("Semnatura administrator:", 110, 200);
 
     doc.setFontSize(8); doc.setTextColor(120);
     doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);

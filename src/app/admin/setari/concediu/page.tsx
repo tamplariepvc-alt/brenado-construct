@@ -117,24 +117,39 @@ export default function SetariConcediuPage() {
   const handleApproveRequest = async (requestId: string, userId: string, daysCount: number) => {
     setProcessingId(requestId);
 
-    // Aproba cererea
+    const currentYear = new Date().getFullYear();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // 1. Aproba cererea
     const { error: approveError } = await supabase.from("leave_requests").update({
       status: "approved",
       approved_at: new Date().toISOString(),
-      approved_by: (await supabase.auth.getUser()).data.user?.id,
+      approved_by: user?.id,
     }).eq("id", requestId);
 
     if (approveError) { showToast("error", `Eroare: ${approveError.message}`); setProcessingId(null); return; }
 
-    // Actualizeaza days_taken in worker_leave
-    const { data: leaveData } = await supabase.from("worker_leave")
-      .select("id, days_taken").eq("user_id", userId).eq("year", new Date().getFullYear()).single();
+    // 2. Cauta worker_leave dupa user_id
+    const { data: leaveByUser } = await supabase.from("worker_leave")
+      .select("id, days_taken, days_total")
+      .eq("user_id", userId)
+      .eq("year", currentYear)
+      .maybeSingle();
 
-    if (leaveData) {
+    if (leaveByUser) {
+      // Exista deja — actualizeaza
       await supabase.from("worker_leave").update({
-        days_taken: leaveData.days_taken + daysCount,
+        days_taken: leaveByUser.days_taken + daysCount,
         updated_at: new Date().toISOString(),
-      }).eq("id", leaveData.id);
+      }).eq("id", leaveByUser.id);
+    } else {
+      // Nu exista — creeaza cu user_id (21 zile default, scade daysCount)
+      await supabase.from("worker_leave").insert({
+        user_id: userId,
+        year: currentYear,
+        days_total: 21,
+        days_taken: daysCount,
+      });
     }
 
     setProcessingId(null);
