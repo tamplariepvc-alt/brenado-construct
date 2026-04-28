@@ -1466,7 +1466,7 @@ export default function ProiectePage() {
 
   return (
     <div className="min-h-screen bg-[#F0EEE9]">
-      {profile?.role === "sef_echipa" && (
+      {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat") && (
         <>
           <input
             ref={bonInputRef}
@@ -2186,7 +2186,7 @@ export default function ProiectePage() {
 
                       {projectTab === "financiar" && (
                         <div className="mt-4 flex flex-col gap-3">
-                          {profile?.role === "sef_echipa" ? (
+                          {(profile?.role === "sef_echipa" || profile?.role === "admin_limitat") ? (
                             <>
                               <button
                                 type="button"
