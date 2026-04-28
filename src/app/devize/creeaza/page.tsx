@@ -19,6 +19,12 @@ export default function CreeazaDevizPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<{ type: "error" | "success" | "warning"; message: string } | null>(null);
+
+  const showToast = (type: "error" | "success" | "warning", message: string, duration = 4000) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), duration);
+  };
   const [profile, setProfile] = useState<Profile | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -137,10 +143,10 @@ export default function CreeazaDevizPage() {
 
   const handleSave = async () => {
     if (!profile) return;
-    if (!beneficiary.trim()) { alert("Completează beneficiarul."); return; }
-    if (!siteName.trim()) { alert("Completează șantierul."); return; }
+    if (!beneficiary.trim()) { showToast("error", "Completează beneficiarul."); return; }
+    if (!siteName.trim()) { showToast("error", "Completează șantierul."); return; }
     const validLines = lines.filter((l) => l.service_id && Number(l.quantity || 0) > 0);
-    if (validLines.length === 0) { alert("Adaugă cel puțin un articol cu cantitate."); return; }
+    if (validLines.length === 0) { showToast("error", "Adaugă cel puțin un articol cu cantitate."); return; }
     setSaving(true);
     const { data: estimateData, error: estimateError } = await supabase.from("estimates").insert({
       project_id: selectedProjectId || null,
@@ -148,14 +154,14 @@ export default function CreeazaDevizPage() {
       site_name: siteName.trim(),
       created_by: profile.id,
     }).select("id").single();
-    if (estimateError || !estimateData) { alert(`Eroare: ${estimateError?.message}`); setSaving(false); return; }
+    if (estimateError || !estimateData) { showToast("error", `Eroare la salvare: ${estimateError?.message}`); setSaving(false); return; }
     const { error: itemsError } = await supabase.from("estimate_items").insert(
       validLines.map((l) => {
         const svc = serviceMap.get(l.service_id);
         return { estimate_id: estimateData.id, service_id: l.service_id, quantity: Number(l.quantity), unit_price: Number(svc?.price_ron || 0) };
       })
     );
-    if (itemsError) { alert(`Eroare: ${itemsError.message}`); setSaving(false); return; }
+    if (itemsError) { showToast("error", `Eroare la salvarea articolelor: ${itemsError.message}`); setSaving(false); return; }
     setSaving(false);
     await exportPdf(validLines, beneficiary, siteName, estimateDate);
     router.push("/devize");
@@ -237,6 +243,36 @@ export default function CreeazaDevizPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 px-4">
+          <div className={`flex items-start gap-3 rounded-[18px] border px-4 py-3.5 shadow-lg ${
+            toast.type === "error" ? "border-red-300 bg-red-50 text-red-800"
+            : toast.type === "success" ? "border-green-300 bg-green-50 text-green-800"
+            : "border-yellow-300 bg-yellow-50 text-yellow-800"
+          }`}>
+            {toast.type === "error" && (
+              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-red-500" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" strokeLinecap="round" />
+              </svg>
+            )}
+            {toast.type === "success" && (
+              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-green-600" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" /><path d="M8 12l3 3 5-5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+            {toast.type === "warning" && (
+              <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0 text-yellow-500" stroke="currentColor" strokeWidth="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M12 9v4M12 17h.01" strokeLinecap="round" />
+              </svg>
+            )}
+            <p className="text-sm font-medium leading-snug">{toast.message}</p>
+            <button type="button" onClick={() => setToast(null)} className="ml-auto shrink-0 text-lg leading-none opacity-50 hover:opacity-80">✕</button>
           </div>
         </div>
       )}
@@ -383,12 +419,8 @@ export default function CreeazaDevizPage() {
           </div>
         </section>
 
-        {/* Butoane */}
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <button type="button" onClick={() => exportPdf()}
-            className="w-full rounded-xl border border-green-300 bg-white px-5 py-3 text-sm font-semibold text-green-700 transition hover:bg-green-50">
-            Export PDF fără salvare
-          </button>
+        {/* Buton */}
+        <div>
           <button type="button" onClick={handleSave} disabled={saving}
             className="w-full rounded-xl bg-green-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-green-800 disabled:opacity-60">
             {saving ? "Se salvează..." : "Salvează și exportă PDF"}
