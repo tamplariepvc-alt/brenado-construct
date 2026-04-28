@@ -357,7 +357,7 @@ export default function AdaugaComandaPage() {
       {pickerItemIndex !== null && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center" onClick={closePicker}>
           <div
-            className="w-full max-w-lg overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:rounded-[24px]"
+            className="flex h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl sm:h-auto sm:max-h-[80vh] sm:rounded-[24px]"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center pt-3 pb-1 sm:hidden">
@@ -382,7 +382,7 @@ export default function AdaugaComandaPage() {
               />
             </div>
 
-            <div className="max-h-72 overflow-y-auto px-4 pb-6">
+            <div className="flex-1 overflow-y-auto px-4 pb-6">
               {filteredArticles.length === 0 ? (
                 <p className="py-6 text-center text-sm text-gray-400">Niciun articol găsit.</p>
               ) : (
@@ -516,14 +516,14 @@ export default function AdaugaComandaPage() {
                         {index + 1}
                       </span>
                       <button type="button" onClick={() => openPicker(index)}
-                        className={`flex flex-1 items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
+                        className={`flex flex-1 items-start justify-between gap-2 rounded-xl border px-3 py-2.5 text-left text-sm transition ${
                           hasArticle ? "border-[#0196ff]/30 bg-[#0196ff]/5" : "border-gray-200 bg-[#F8F7F3]"
                         }`}>
-                        <span className={`truncate font-medium ${hasArticle ? "text-[#0057b3]" : "text-gray-400"}`}>
+                        <span className={`break-words min-w-0 flex-1 text-xs font-medium leading-snug ${hasArticle ? "text-[#0057b3]" : "text-gray-400"}`}>
                           {hasArticle ? item.article_name : "Alege articol..."}
                         </span>
                         {hasArticle && (
-                          <span className="shrink-0 text-xs text-[#0196ff]">{item.unit}</span>
+                          <span className="shrink-0 text-xs text-[#0196ff] ml-1">{item.unit}</span>
                         )}
                       </button>
                       {items.length > 1 && (
