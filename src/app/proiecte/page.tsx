@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import BottomNav from "@/components/BottomNav";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
@@ -3223,6 +3224,7 @@ export default function ProiectePage() {
           )}
         </section>
       </main>
+	   <BottomNav />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BottomNav from "@/components/BottomNav";
 
-type Role = "administrator" | "sef_echipa" | "user";
+type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 
 type Profile = {
   id: string;
@@ -72,6 +72,9 @@ const createInitialCardData = (): ProjectCardData => ({
   plannedWorkerIds: [],
 });
 
+const isAdminRole = (role: string | null | undefined) =>
+  ["administrator", "cont_tehnic", "project_manager"].includes(role || "");
+
 export default function PontajePage() {
   const router = useRouter();
 
@@ -95,9 +98,8 @@ export default function PontajePage() {
     return { pauseStart, pauseEnd };
   };
 
-  const getOverlapMs = (startMs: number, endMs: number, overlapStart: number, overlapEnd: number) => {
-    return Math.max(0, Math.min(endMs, overlapEnd) - Math.max(startMs, overlapStart));
-  };
+  const getOverlapMs = (startMs: number, endMs: number, overlapStart: number, overlapEnd: number) =>
+    Math.max(0, Math.min(endMs, overlapEnd) - Math.max(startMs, overlapStart));
 
   const getWorkedMsWithoutPause = (startTime: string, endTime?: string | null) => {
     const startMs = new Date(startTime).getTime();
@@ -164,7 +166,6 @@ export default function PontajePage() {
         return d.toISOString().split("T")[0];
       })());
 
-    // ECHIPE PERMANENTE — fără filtrare pe work_date
     const { data: dailyTeamData } = await supabase
       .from("daily_teams")
       .select("id, project_id, work_date")
@@ -191,7 +192,7 @@ export default function PontajePage() {
           .order("full_name", { ascending: true });
         workerPool = (workersData as Worker[]) || [];
       }
-    } else if (role === "administrator") {
+    } else if (isAdminRole(role)) {
       const { data: workersData } = await supabase
         .from("workers")
         .select("id, full_name, is_active")
@@ -231,23 +232,22 @@ export default function PontajePage() {
       if (!user) { router.push("/login"); return; }
 
       const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", user.id)
-        .single();
+        .from("profiles").select("id, full_name, role").eq("id", user.id).single();
 
       if (profileError || !profileData) { router.push("/login"); return; }
-      if (profileData.role !== "administrator" && profileData.role !== "sef_echipa") {
-        router.push("/dashboard");
-        return;
+
+      // Permite: administrator, cont_tehnic, project_manager, sef_echipa
+      const allowedRoles = ["administrator", "cont_tehnic", "project_manager", "sef_echipa"];
+      if (!allowedRoles.includes(profileData.role)) {
+        router.push("/dashboard"); return;
       }
 
       setProfile(profileData as Profile);
 
       let visibleProjects: Project[] = [];
 
-      if (profileData.role === "administrator") {
-        // Admin: vede toate echipele permanente
+      if (isAdminRole(profileData.role)) {
+        // Admin/project_manager: vede toate echipele permanente
         const { data: dailyTeamsData } = await supabase
           .from("daily_teams")
           .select("id, project_id, work_date, created_at")
@@ -270,54 +270,25 @@ export default function PontajePage() {
         visibleProjects = (projectsData as Project[]) || [];
 
       } else if (profileData.role === "sef_echipa") {
-        // Sef echipa: găsim workerul asociat via user_id
         const { data: workerData } = await supabase
-          .from("workers")
-          .select("id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+          .from("workers").select("id").eq("user_id", user.id).maybeSingle();
 
-        if (!workerData) {
-          setProjects([]);
-          setLoading(false);
-          return;
-        }
+        if (!workerData) { setProjects([]); setLoading(false); return; }
 
-        // Găsim echipa în care e inclus
         const { data: teamWorkerData } = await supabase
-          .from("daily_team_workers")
-          .select("daily_team_id")
-          .eq("worker_id", workerData.id)
-          .maybeSingle();
+          .from("daily_team_workers").select("daily_team_id").eq("worker_id", workerData.id).maybeSingle();
 
-        if (!teamWorkerData) {
-          setProjects([]);
-          setLoading(false);
-          return;
-        }
+        if (!teamWorkerData) { setProjects([]); setLoading(false); return; }
 
-        // Proiectul echipei lui
         const { data: teamData } = await supabase
-          .from("daily_teams")
-          .select("id, project_id")
-          .eq("id", teamWorkerData.daily_team_id)
-          .single();
+          .from("daily_teams").select("id, project_id").eq("id", teamWorkerData.daily_team_id).single();
 
-        if (!teamData) {
-          setProjects([]);
-          setLoading(false);
-          return;
-        }
+        if (!teamData) { setProjects([]); setLoading(false); return; }
 
         const { data: projectData } = await supabase
-          .from("projects")
-          .select("id, name, beneficiary, project_location, status")
-          .eq("id", teamData.project_id)
-          .single();
+          .from("projects").select("id, name, beneficiary, project_location, status").eq("id", teamData.project_id).single();
 
-        if (projectData) {
-          visibleProjects = [projectData as Project];
-        }
+        if (projectData) visibleProjects = [projectData as Project];
       }
 
       setProjects(visibleProjects);
@@ -463,10 +434,8 @@ export default function PontajePage() {
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
           <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
+          <button onClick={() => router.push("/dashboard")}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
             Înapoi la dashboard
           </button>
         </div>
@@ -504,7 +473,7 @@ export default function PontajePage() {
               <p className="text-sm text-gray-500">
                 {profile?.role === "sef_echipa"
                   ? "Nu ești atribuit niciunei echipe. Contactează administratorul."
-                  : "Nu există șantiere cu echipe organizate. Administratorul poate crea echipe în secțiunea Organizarea echipelor."}
+                  : "Nu există șantiere cu echipe organizate."}
               </p>
             </div>
           ) : (
@@ -550,16 +519,12 @@ export default function PontajePage() {
                                 <>
                                   <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-4 py-3">
                                     <p className="text-sm font-medium text-yellow-800">Nu există echipă organizată pentru acest șantier.</p>
-                                    <p className="mt-1 text-xs text-yellow-700">Administratorul poate ponta manual, dacă este necesar.</p>
                                   </div>
                                   <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3">
                                     <label className="flex cursor-pointer items-center gap-3">
-                                      <input
-                                        type="checkbox"
-                                        checked={card.sameTeamAsYesterday}
+                                      <input type="checkbox" checked={card.sameTeamAsYesterday}
                                         onChange={(e) => handleToggleSameTeamAsYesterday(project.id, e.target.checked)}
-                                        className="h-5 w-5"
-                                      />
+                                        className="h-5 w-5" />
                                       <span className="text-sm font-medium text-gray-800">Aceeași echipă ca ieri</span>
                                     </label>
                                   </div>
@@ -574,22 +539,17 @@ export default function PontajePage() {
                                     <p className="mb-3 text-sm font-semibold text-gray-900">Echipa pentru pontare</p>
                                     <div className="space-y-2">
                                       {availableWorkers.map((worker) => (
-                                        <label
-                                          key={worker.id}
-                                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
-                                        >
-                                          <input
-                                            type="checkbox"
+                                        <label key={worker.id}
+                                          className="flex cursor-pointer items-center gap-3 rounded-2xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50">
+                                          <input type="checkbox"
                                             checked={card.selectedWorkers.includes(worker.id)}
                                             onChange={() => toggleWorker(project.id, worker.id)}
-                                            className="h-5 w-5"
-                                          />
+                                            className="h-5 w-5" />
                                           <span className="text-sm font-medium text-gray-800">{worker.full_name}</span>
                                         </label>
                                       ))}
                                     </div>
                                   </div>
-
                                   {selectedWorkersList.length > 0 && (
                                     <div className="flex flex-wrap gap-2">
                                       {selectedWorkersList.map((worker) => (
@@ -625,20 +585,16 @@ export default function PontajePage() {
                             {card.activeEntries.map((entry) => {
                               const inPause = isNowInPauseForEntry(entry.start_time);
                               return (
-                                <div
-                                  key={entry.id}
-                                  className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${inPause ? "border-orange-200 bg-orange-50" : "border-green-200 bg-green-50"}`}
-                                >
+                                <div key={entry.id}
+                                  className={`flex items-center gap-2 rounded-2xl border px-4 py-3 ${inPause ? "border-orange-200 bg-orange-50" : "border-green-200 bg-green-50"}`}>
                                   <span className="flex-1 truncate text-sm font-semibold text-gray-900">{entry.worker_name || "-"}</span>
                                   <span className={`w-20 text-center text-sm font-bold tabular-nums ${inPause ? "text-orange-600" : "text-green-700"}`}>
                                     {inPause ? "Pauză" : formatDuration(entry.start_time)}
                                   </span>
-                                  <button
-                                    type="button"
+                                  <button type="button"
                                     onClick={() => handleStopTimeEntry(project.id, entry.id)}
                                     disabled={card.stoppingId === entry.id || card.submitting}
-                                    className="w-16 rounded-xl bg-red-600 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                                  >
+                                    className="w-16 rounded-xl bg-red-600 py-2 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
                                     {card.stoppingId === entry.id ? "..." : "Stop"}
                                   </button>
                                 </div>
@@ -648,12 +604,10 @@ export default function PontajePage() {
                         </div>
                       )}
 
-                      <button
-                        type="button"
+                      <button type="button"
                         onClick={() => hasActive ? handleStopAllTimeEntries(project.id) : handleStartTimeEntries(project.id)}
                         disabled={card.submitting || card.loading || (!hasActive && card.selectedWorkers.length === 0)}
-                        className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 ${hasActive ? "bg-red-600" : "bg-green-600"}`}
-                      >
+                        className={`w-full rounded-xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 ${hasActive ? "bg-red-600" : "bg-green-600"}`}>
                         {card.submitting ? "Se procesează..." : hasActive ? "■ Oprește toți" : "Pontează"}
                       </button>
                     </div>
@@ -664,7 +618,7 @@ export default function PontajePage() {
           )}
         </section>
       </main>
- <BottomNav />
+      <BottomNav />
     </div>
   );
 }

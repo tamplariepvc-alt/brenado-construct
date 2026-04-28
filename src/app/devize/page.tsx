@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import BottomNav from "@/components/BottomNav";
 
 type Profile = {
   id: string;
@@ -309,6 +310,7 @@ export default function DevizePage() {
           )}
         </section>
       </main>
+	   <BottomNav />
     </div>
   );
 }
