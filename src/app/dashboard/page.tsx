@@ -82,6 +82,8 @@ export default function DashboardPage() {
   const adminLimitatActions: QuickAction[] = [
     { label: "Vezi\nProiecte", sublabel: `${stats.total} active`, route: "/proiecte" },
     { label: "Comenzi\nMateriale", sublabel: "Vizualizare", route: "/comenzi" },
+    { label: "Ore Extra +\nWeekend", sublabel: "Pontaje speciale", route: "/admin/ore-extra" },
+    { label: "Alimentare\nCarduri", sublabel: "Carduri / Conturi", route: "/admin/alimentari" },
     { label: "Modul\nAdministrativ", sublabel: "Setări limitate", route: "/admin", dark: true },
   ];
 
@@ -126,6 +128,7 @@ export default function DashboardPage() {
     if (label.includes("Comenzi")) return "bg-amber-50";
     if (label.includes("Pontare")) return "bg-emerald-50";
     if (label.includes("Ore Extra")) return "bg-purple-50";
+    if (label.includes("Alimentare")) return "bg-green-50";
     if (label.includes("Deviz")) return "bg-green-50";
     if (label.includes("Organizare")) return "bg-blue-50";
     return "bg-blue-50";
@@ -140,6 +143,7 @@ export default function DashboardPage() {
     if (label.includes("Organizare")) return <svg viewBox="0 0 24 24" fill="none" className={c}><circle cx="12" cy="6.5" r="2" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" /><circle cx="7" cy="16.5" r="1.8" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" /><circle cx="17" cy="16.5" r="1.8" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" /><path d="M12 8.5v3M12 11.5l-5 3M12 11.5l5 3" stroke={dark ? "currentColor" : "#1D4ED8"} strokeWidth="2" strokeLinecap="round" /></svg>;
     if (label.includes("Panou") || label.includes("Modul")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z" stroke="currentColor" strokeWidth="2" /><path d="M19 12a1.8 1.8 0 0 0 1.3 1.7l.1.1a1.9 1.9 0 0 1-1.3 3.3h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.8 1.8 0 0 0-1.6 1l-.1.2a1.9 1.9 0 0 1-3.4 0l-.1-.2a1.8 1.8 0 0 0-1.6-1h-.2a1.9 1.9 0 0 1-1.3-3.3l.1-.1A1.8 1.8 0 0 0 5 12c0-.7-.3-1.3-.8-1.7l-.1-.1a1.9 1.9 0 0 1 1.3-3.3h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.8 1.8 0 0 0 1.6-1l.1-.2a1.9 1.9 0 0 1 3.4 0l.1.2a1.8 1.8 0 0 0 1.6 1h.2a1.9 1.9 0 0 1 1.3 3.3l-.1.1c-.5.4-.8 1-.8 1.7Z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>;
     if (label.includes("Solicită")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M7 5h10l2 2v12H7V5Z" stroke={dark ? "currentColor" : "#2563EB"} strokeWidth="2" strokeLinejoin="round" /><path d="M10 11h6M10 15h4" stroke={dark ? "currentColor" : "#2563EB"} strokeWidth="2" strokeLinecap="round" /></svg>;
+    if (label.includes("Alimentare")) return <svg viewBox="0 0 24 24" fill="none" className={c}><rect x="4" y="6" width="16" height="12" rx="3" stroke={dark ? "currentColor" : "#16A34A"} strokeWidth="2" /><path d="M8 12h8M14 9l3 3-3 3" stroke={dark ? "currentColor" : "#16A34A"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>;
     if (label.includes("Deviz")) return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2Z" stroke={dark ? "currentColor" : "#16A34A"} strokeWidth="2" strokeLinejoin="round" /><path d="M8 9h8M8 13h8M8 17h5" stroke={dark ? "currentColor" : "#16A34A"} strokeWidth="2" strokeLinecap="round" /></svg>;
     return <svg viewBox="0 0 24 24" fill="none" className={c}><path d="M6 8h12M6 12h12M6 16h8" stroke={dark ? "currentColor" : "#0F766E"} strokeWidth="2.2" strokeLinecap="round" /></svg>;
   };
