@@ -382,8 +382,7 @@ export default function CentreDeCostPage() {
           projectManoperaTotal = normalCost + extraCost;
         }
 
-        totalsMap[projectId] =
-          projectOrdersTotal +
+ totalsMap[projectId] =
           projectReceiptsTotal +
           projectInvoicesTotal +
           projectNondeductiblesTotal +
