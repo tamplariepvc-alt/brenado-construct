@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BottomNav from "@/components/BottomNav";
+import { createNotification } from "@/lib/notifications";
 
 type ProfileUser = {
   id: string;
@@ -232,6 +233,18 @@ export default function AdminConcediuPage() {
       });
     }
 
+    // Notificare catre userul care a cerut concediu
+    const req = leaveRequests.find((r) => r.id === requestId);
+    if (req) {
+      await createNotification({
+        user_id: req.user_id,
+        title: "Concediu aprobat",
+        message: `Cererea ta de concediu (${req.days_count} zile lucrătoare) a fost aprobată.`,
+        type: "success",
+        link: "/profil",
+      });
+    }
+
     setProcessingId(null);
     await loadData();
     showToast("success", "Cererea a fost aprobată și zilele actualizate.");
@@ -241,6 +254,18 @@ export default function AdminConcediuPage() {
     setProcessingId(requestId);
     const { error } = await supabase.from("leave_requests").update({ status: "rejected" }).eq("id", requestId);
     if (error) { showToast("error", `Eroare: ${error.message}`); setProcessingId(null); return; }
+    // Notificare catre userul care a cerut concediu
+    const reqToReject = leaveRequests.find((r) => r.id === requestId);
+    if (reqToReject) {
+      await createNotification({
+        user_id: reqToReject.user_id,
+        title: "Concediu respins",
+        message: `Cererea ta de concediu (${reqToReject.days_count} zile lucrătoare) a fost respinsă.`,
+        type: "error",
+        link: "/profil",
+      });
+    }
+
     setProcessingId(null);
     await loadData();
     showToast("success", "Cererea a fost respinsă.");

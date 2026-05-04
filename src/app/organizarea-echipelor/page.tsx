@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import BottomNav from "@/components/BottomNav";
+import { createNotification, createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 
@@ -333,6 +334,24 @@ export default function OrganizareaEchipelorPage() {
         .insert(selectedVehicleIds.map((vehicleId) => ({ daily_team_id: teamInsert.id, vehicle_id: vehicleId })));
       if (vehicleError) { alert(`Eroare: ${vehicleError.message}`); setSaving(false); return; }
 
+      // Notificare creare echipa → toti membrii echipei (sef_echipa via workers.user_id)
+      const projectName = projects.find((p) => p.id === selectedProjectId)?.name || "-";
+      const teamLink = `/organizarea-echipelor/${teamInsert.id}`;
+      const { data: workerUserIds } = await supabase
+        .from("workers")
+        .select("user_id")
+        .in("id", selectedWorkerIds)
+        .not("user_id", "is", null);
+      const memberUserIds = (workerUserIds || []).map((w: any) => w.user_id).filter(Boolean);
+      if (memberUserIds.length > 0) {
+        await createNotificationForMany(memberUserIds, {
+          title: "Echipă creată",
+          message: `A fost creată echipa pentru șantierul ${projectName}.`,
+          type: "info",
+          link: teamLink,
+        });
+      }
+
     } else {
       const { error: updateTeamError } = await supabase
         .from("daily_teams")
@@ -429,6 +448,33 @@ export default function OrganizareaEchipelorPage() {
       return;
     }
 
+    // Notificare transfer → userul muncitorului transferat
+    const { data: workerUserData } = await supabase
+      .from("workers")
+      .select("user_id")
+      .eq("id", transferModal.workerId)
+      .single();
+    if (workerUserData?.user_id) {
+      const targetProject = getProjectById(teams.find((t) => t.id === transferTargetTeamId)?.project_id || "");
+      const workerName = transferModal.workerName;
+      await createNotification({
+        user_id: workerUserData.user_id,
+        title: "Transfer echipă",
+        message: `${workerName} a fost transferat în echipa șantierului ${targetProject?.name || "-"}.`,
+        type: "info",
+        link: `/organizarea-echipelor/${transferTargetTeamId}`,
+      });
+    }
+    // Notificare transfer → admin + cont_tehnic + project_manager
+    const targetProjectName = getProjectById(teams.find((t) => t.id === transferTargetTeamId)?.project_id || "")?.name || "-";
+    const adminIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "project_manager"]);
+    await createNotificationForMany(adminIds, {
+      title: "Transfer personal",
+      message: `${transferModal.workerName} a fost transferat pe șantierul ${targetProjectName}.`,
+      type: "info",
+      link: `/organizarea-echipelor/${transferTargetTeamId}`,
+    });
+
     setTransferring(false);
     setTransferModal(null);
     setTransferTargetTeamId("");
@@ -456,12 +502,12 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(17);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Echipa – ${project?.name || "-"}`, 14, 38);
+    doc.text(`Echipă – ${project?.name || "-"}`, 14, 38);
 
     doc.setFontSize(9);
     doc.setTextColor(90);
     doc.text(`Beneficiar: ${project?.beneficiary || "-"}`, 14, 45);
-    doc.text(`Locatie: ${project?.project_location || "-"}`, 14, 50);
+    doc.text(`Locație: ${project?.project_location || "-"}`, 14, 50);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
 
     doc.setFontSize(12);
@@ -470,7 +516,7 @@ export default function OrganizareaEchipelorPage() {
 
     autoTable(doc, {
       startY: 69,
-      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA pana la", "ITP pana la"]],
+      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA până la", "ITP până la"]],
       body: currentVehicles.length > 0
         ? currentVehicles.map((v, i) => [
             String(i + 1), v.registration_number, `${v.brand} ${v.model}`,
@@ -488,7 +534,7 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(12);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Personal de executie (${currentWorkers.length})`, 14, afterVehicles);
+    doc.text(`Personal de execuție (${currentWorkers.length})`, 14, afterVehicles);
 
     autoTable(doc, {
       startY: afterVehicles + 4,
@@ -504,7 +550,7 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(8);
     doc.setTextColor(120);
-    doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
+    doc.text("Document generat automat din aplicația Brenado Construct.", 14, 287);
 
     doc.save(`echipa_${(project?.name || "export").replace(/\s+/g, "_")}.pdf`);
   };
@@ -598,7 +644,7 @@ export default function OrganizareaEchipelorPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -1088,7 +1134,7 @@ export default function OrganizareaEchipelorPage() {
           </div>
         </div>
       )}
-	  <BottomNav />
+      <BottomNav />
     </div>
   );
 }

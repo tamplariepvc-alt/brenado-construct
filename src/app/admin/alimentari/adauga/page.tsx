@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { createNotification } from "@/lib/notifications";
 
 type Project = { id: string; name: string; beneficiary: string | null; status: string; };
 type TeamLead = { id: string; full_name: string; };
@@ -68,8 +69,29 @@ function AdaugaAlimentareInner() {
 
     if (error) { alert(`A apărut o eroare la salvarea alimentării: ${error.message}`); setSaving(false); return; }
 
+    // Notificare catre sef_echipa
+    const projectName = projects.find((p) => p.id === selectedProjectId)?.name || "-";
+    const amount = Number(amountRon).toFixed(2);
+
     if (fromRequestId) {
+      // Aprobare solicitare → notif "solicitarea aprobata"
       await supabase.from("funding_requests").update({ status: "approved" }).eq("id", fromRequestId);
+      await createNotification({
+        user_id: selectedLeadId,
+        title: "Solicitare aprobată",
+        message: `Solicitarea ta de transfer în valoare de ${amount} lei a fost aprobată pentru șantierul ${projectName}.`,
+        type: "success",
+        link: "/solicita-bani",
+      });
+    } else {
+      // Alimentare directa → notif "au fost adaugati bani"
+      await createNotification({
+        user_id: selectedLeadId,
+        title: "Alimentare card",
+        message: `Au fost adăugați ${amount} lei în contul tău pentru șantierul ${projectName}.`,
+        type: "success",
+        link: undefined,
+      });
     }
 
     setSaving(false);

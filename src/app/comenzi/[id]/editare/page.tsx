@@ -4,6 +4,7 @@ import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
@@ -255,6 +256,27 @@ export default function EditareComandaPage() {
 
     const { error: itemsError } = await supabase.from("order_items").insert(orderItemsRows);
     if (itemsError) { showToast("warning", "Comanda a fost actualizată, dar articolele nu au putut fi salvate."); isSubmittingRef.current = false; return; }
+
+    // Notificare la trimitere comandă (nu draft)
+    if (status === "asteapta_confirmare" && profile) {
+      // Fetch order number and project name
+      const { data: orderData } = await supabase
+        .from("orders")
+        .select("order_number, projects:project_id (name)")
+        .eq("id", orderId)
+        .single();
+      const orderNum = (orderData as any)?.order_number || "fără număr";
+      const projectName = (orderData as any)?.projects?.[0]?.name || (orderData as any)?.projects?.name || selectedProjectId;
+      const creatorName = profile.full_name;
+
+      const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "project_manager"]);
+      await createNotificationForMany(recipientIds, {
+        title: "Comandă nouă de aprobare",
+        message: `${creatorName} a creat comanda ${orderNum} din șantierul ${projectName}. Aprobă sau respinge comanda.`,
+        type: "warning",
+        link: `/comenzi/${orderId}`,
+      });
+    }
 
     showToast("success", status === "draft" ? "Draftul a fost actualizat." : "Comanda a fost trimisă cu succes.", 2000);
     isSubmittingRef.current = false;

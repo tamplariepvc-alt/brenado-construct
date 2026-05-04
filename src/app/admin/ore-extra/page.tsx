@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import BottomNav from "@/components/BottomNav";
+import { createNotification } from "@/lib/notifications";
 
 type ExtraWorkRow = {
   id: string; project_id: string; worker_id: string; work_date: string;
@@ -141,6 +142,21 @@ export default function OreExtraWeekendPage() {
     setProcessingId(row.id);
     const { error } = await supabase.from("extra_work").update({ extra_hours_paid: true }).eq("id", row.id);
     if (error) { alert("A apărut o eroare la achitarea orelor."); setProcessingId(null); return; }
+
+    // Notificare catre sef_echipa (workerul asociat)
+    const { data: workerData } = await supabase
+      .from("workers").select("user_id").eq("id", row.worker_id).single();
+    if (workerData?.user_id) {
+      const workDate = new Date(row.work_date).toLocaleDateString("ro-RO");
+      await createNotification({
+        user_id: workerData.user_id,
+        title: "Ore suplimentare achitate",
+        message: `Orele suplimentare din ziua ${workDate} au fost achitate.`,
+        type: "success",
+        link: "/ore-extra-weekend",
+      });
+    }
+
     setProcessingId(null);
     await loadData();
   };
@@ -149,6 +165,21 @@ export default function OreExtraWeekendPage() {
     setProcessingId(row.id);
     const { error } = await supabase.from("extra_work").update({ weekend_paid: true }).eq("id", row.id);
     if (error) { alert("A apărut o eroare la achitarea zilelor de weekend."); setProcessingId(null); return; }
+
+    // Notificare catre sef_echipa (workerul asociat)
+    const { data: workerData } = await supabase
+      .from("workers").select("user_id").eq("id", row.worker_id).single();
+    if (workerData?.user_id) {
+      const workDate = new Date(row.work_date).toLocaleDateString("ro-RO");
+      await createNotification({
+        user_id: workerData.user_id,
+        title: "Zi de weekend achitată",
+        message: `Ziua suplimentară din data ${workDate} a fost achitată.`,
+        type: "success",
+        link: "/ore-extra-weekend",
+      });
+    }
+
     setProcessingId(null);
     await loadData();
   };

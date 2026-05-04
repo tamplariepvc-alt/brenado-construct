@@ -39,23 +39,24 @@ function getRomaniaOffset(date = new Date()) {
 
 Deno.serve(async (_req) => {
   try {
-	  const nowRoString = new Date().toLocaleString("en-US", {
-  timeZone: "Europe/Bucharest",
-});
+    const nowRoString = new Date().toLocaleString("en-US", {
+      timeZone: "Europe/Bucharest",
+    });
 
-const nowRo = new Date(nowRoString);
-const hour = nowRo.getHours();
+    const nowRo = new Date(nowRoString);
+    const hour = nowRo.getHours();
 
-if (hour < 17) {
-  return new Response(
-    JSON.stringify({
-      ok: true,
-      message: "Nu e încă 17:00 România",
-      currentHour: hour,
-    }),
-    { headers: { "Content-Type": "application/json" } }
-  );
-}
+    if (hour < 17) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          message: "Nu e încă 17:00 România",
+          currentHour: hour,
+        }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -65,10 +66,7 @@ if (hour < 17) {
           ok: false,
           error: "Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY",
         }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -86,10 +84,7 @@ if (hour < 17) {
           romania_today: ro.today,
           romania_hour: ro.hour,
         }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -98,7 +93,7 @@ if (hour < 17) {
 
     const { data: activeEntries, error: fetchError } = await supabase
       .from("time_entries")
-      .select("id")
+      .select("id, project_id")
       .eq("work_date", ro.today)
       .eq("status", "activ")
       .is("end_time", null);
@@ -111,10 +106,7 @@ if (hour < 17) {
           error: fetchError.message,
           romania_today: ro.today,
         }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -127,10 +119,7 @@ if (hour < 17) {
           romania_today: ro.today,
           stopped_at: stopIso,
         }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -138,10 +127,7 @@ if (hour < 17) {
 
     const { error: updateError } = await supabase
       .from("time_entries")
-      .update({
-        end_time: stopIso,
-        status: "oprit",
-      })
+      .update({ end_time: stopIso, status: "oprit" })
       .in("id", ids);
 
     if (updateError) {
@@ -153,12 +139,57 @@ if (hour < 17) {
           romania_today: ro.today,
           ids_count: ids.length,
         }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    // ── NOTIFICARI PONTAJE INCHEIATE ──
+    const projectIds = [
+      ...new Set(
+        activeEntries.map((e: any) => e.project_id).filter(Boolean)
+      ),
+    ] as string[];
+
+    if (projectIds.length > 0) {
+      const { data: projects } = await supabase
+        .from("projects")
+        .select("id, name")
+        .in("id", projectIds);
+
+      const projectMap = new Map(
+        (projects || []).map((p: any) => [p.id, p.name])
+      );
+
+      const { data: adminProfiles } = await supabase
+        .from("profiles")
+        .select("id")
+        .in("role", ["administrator", "cont_tehnic"]);
+
+      const adminIds = (adminProfiles || []).map((p: any) => p.id);
+
+      if (adminIds.length > 0) {
+        const notifications: any[] = [];
+
+        for (const projectId of projectIds) {
+          const projectName =
+            projectMap.get(projectId) || "Șantier necunoscut";
+          for (const adminId of adminIds) {
+            notifications.push({
+              user_id: adminId,
+              title: "Pontaje încheiate",
+              message: `Pontajele din șantierul ${projectName} au fost închise pentru azi.`,
+              type: "info",
+              link: "/admin/istoric-pontaje",
+            });
+          }
+        }
+
+        if (notifications.length > 0) {
+          await supabase.from("notifications").insert(notifications);
+        }
+      }
+    }
+    // ── SFARSIT NOTIFICARI ──
 
     return new Response(
       JSON.stringify({
@@ -167,10 +198,7 @@ if (hour < 17) {
         romania_today: ro.today,
         stopped_at: stopIso,
       }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 200, headers: { "Content-Type": "application/json" } }
     );
   } catch (error) {
     return new Response(
@@ -178,10 +206,7 @@ if (hour < 17) {
         ok: false,
         error: error instanceof Error ? error.message : "Unknown error",
       }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
+      { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
 });

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import BottomNav from "@/components/BottomNav";
+import { createNotification } from "@/lib/notifications";
 
 type FundingBaseRow = {
   id: string; project_id: string; added_by: string; team_lead_user_id: string;
@@ -150,8 +151,26 @@ export default function AlimentariPage() {
 
   const handleRejectRequest = async (reqId: string) => {
     setRejectingId(reqId);
+
+    // Fetch request details before update for notification
+    const req = requests.find((r) => r.id === reqId);
+
     const { error } = await supabase.from("funding_requests").update({ status: "rejected" }).eq("id", reqId);
     if (error) { alert(`Eroare: ${error.message}`); setRejectingId(null); return; }
+
+    // Notificare sef_echipa — solicitare refuzata
+    if (req) {
+      const amount = Number(req.amount_ron).toFixed(2);
+      const projectName = req.project_name || "-";
+      await createNotification({
+        user_id: req.team_lead_user_id,
+        title: "Solicitare refuzată",
+        message: `Solicitarea ta de transfer în valoare de ${amount} lei pentru șantierul ${projectName} a fost refuzată.`,
+        type: "error",
+        link: "/solicita-bani",
+      });
+    }
+
     await loadData();
     setRejectingId(null);
   };

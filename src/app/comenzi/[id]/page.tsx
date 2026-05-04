@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { exportOrderPdf } from "@/lib/pdf/export-order-pdf";
 import BottomNav from "@/components/BottomNav";
+import { createNotification, createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
@@ -137,6 +138,32 @@ export default function ComandaDetaliuPage() {
     const { error } = await supabase.from("orders").update({ status: newStatus }).eq("id", order.id);
     if (error) { setActionLoading(false); setConfirmModal(null); return; }
     setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
+
+    // Notificari
+    const orderNum = order.order_number || "fără număr";
+    const projectName = order.projects?.name || "-";
+    const orderLink = `/comenzi/${order.id}`;
+
+    if (newStatus === "aprobata") {
+      // → sef_echipa creator
+      await createNotification({
+        user_id: order.created_by,
+        title: "Comandă aprobată",
+        message: `Comanda ${orderNum} din șantierul ${projectName} a fost aprobată.`,
+        type: "success",
+        link: orderLink,
+      });
+    } else {
+      // → sef_echipa creator
+      await createNotification({
+        user_id: order.created_by,
+        title: "Comandă refuzată",
+        message: `Comanda ${orderNum} din șantierul ${projectName} a fost refuzată.`,
+        type: "error",
+        link: orderLink,
+      });
+    }
+
     setActionLoading(false);
     setConfirmModal(null);
   };

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type ToastType = "error" | "success" | "warning";
 type Toast = { type: ToastType; message: string; } | null;
@@ -83,6 +84,15 @@ export default function AdaugaProiectPage() {
       setLoading(false);
       return;
     }
+
+    // Notificare proiect nou → admin + cont_tehnic + admin_limitat
+    const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "admin_limitat"]);
+    await createNotificationForMany(recipientIds, {
+      title: "Proiect nou creat",
+      message: `A fost creat un proiect nou cu numele ${nume.trim()}.`,
+      type: "info",
+      link: `/admin/centre-de-cost`,
+    });
 
     setLoading(false);
     showToast("success", "Proiect salvat cu succes!");

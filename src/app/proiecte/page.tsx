@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import BottomNav from "@/components/BottomNav";
-
+import { createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
@@ -403,6 +403,26 @@ export default function ProiectePage() {
       setProjects((prev) =>
         prev.map((p) => p.id === projectId ? { ...p, status: pendingStatus } : p)
       );
+
+      // Notificari schimbare status
+      const projectName = projects.find((p) => p.id === projectId)?.name || "-";
+      const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "project_manager", "admin_limitat"]);
+
+      if (pendingStatus === "finalizat") {
+        await createNotificationForMany(recipientIds, {
+          title: "Șantier finalizat",
+          message: `Șantierul ${projectName} a fost marcat ca finalizat. Vezi centrul de cost.`,
+          type: "success",
+          link: `/admin/centre-de-cost`,
+        });
+      } else if (pendingStatus === "in_lucru") {
+        await createNotificationForMany(recipientIds, {
+          title: "Șantier în lucru",
+          message: `Șantierul ${projectName} a fost trecut în lucru.`,
+          type: "info",
+          link: `/proiecte`,
+        });
+      }
     }
     setSavingStatusId(null);
     setStatusModal(null);
@@ -1014,6 +1034,21 @@ export default function ProiectePage() {
           line_total: Number(item.line_total || 0),
         }))
       );
+    }
+
+    // Notificare upload document financiar → admin + cont_tehnic + admin_limitat
+    const uploaderProfile = profile;
+    if (uploaderProfile && activeInlineProjectId) {
+      const projectName = projects.find((p) => p.id === activeInlineProjectId)?.name || "-";
+      const uploaderName = uploaderProfile.full_name;
+      const docLabel = activeInlineType === "bon" ? "bon fiscal" : "factură";
+      const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "admin_limitat"]);
+      await createNotificationForMany(recipientIds, {
+        title: `${activeInlineType === "bon" ? "Bon fiscal" : "Factură"} încărcat`,
+        message: `${uploaderName} a încărcat un ${docLabel} în șantierul ${projectName}.`,
+        type: "info",
+        link: `/proiecte`,
+      });
     }
 
     setSavingInline(false);
@@ -2031,7 +2066,7 @@ export default function ProiectePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg-pb-10">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
             <p className="text-sm text-gray-500">{canManageProjects ? "Administrare proiecte" : "Proiectele mele"}</p>
