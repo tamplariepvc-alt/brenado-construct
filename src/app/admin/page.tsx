@@ -19,6 +19,7 @@ type AdminAction = {
 export default function AdminPage() {
   const router = useRouter();
   const [unpaidCount, setUnpaidCount] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [userRole, setUserRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +48,12 @@ export default function AdminPage() {
         }).length;
         setUnpaidCount(count);
       }
+
+      const { data: reqData } = await supabase
+        .from("funding_requests")
+        .select("id, status")
+        .eq("status", "pending");
+      setPendingRequestsCount((reqData || []).length);
 
       setLoading(false);
     };
@@ -81,7 +88,7 @@ export default function AdminPage() {
       roles: ["administrator", "cont_tehnic"],
     },
     {
-      label: "Alimentare Carduri / Conturi",
+      label: "Alimentare Carduri",
       sublabel: "Alimentează proiectele și vezi istoricul",
       route: "/admin/alimentari",
       highlight: "green",
@@ -276,6 +283,11 @@ export default function AdminPage() {
                 {action.label.includes("Ore") && unpaidCount > 0 && (
                   <span className="absolute right-4 top-4 inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
                     {unpaidCount}
+                  </span>
+                )}
+                {action.label.includes("Alimentare") && pendingRequestsCount > 0 && (
+                  <span className="absolute right-4 top-4 inline-flex min-w-[28px] items-center justify-center rounded-full bg-red-600 px-2 py-1 text-xs font-bold text-white">
+                    {pendingRequestsCount}
                   </span>
                 )}
 
