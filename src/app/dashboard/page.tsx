@@ -83,7 +83,7 @@ export default function DashboardPage() {
     { label: "Vezi\nProiecte", sublabel: `${stats.total} active`, route: "/proiecte" },
     { label: "Comenzi\nMateriale", sublabel: "Vizualizare", route: "/comenzi" },
     { label: "Ore Extra +\nWeekend", sublabel: "Pontaje speciale", route: "/admin/ore-extra" },
-    { label: "Alimentare\nCarduri", sublabel: "Carduri / Conturi", route: "/admin/alimentari" },
+    { label: "Alimentare\nCarduri", sublabel: "Trimite bani", route: "/admin/alimentari" },
     { label: "Modul\nAdministrativ", sublabel: "Setări limitate", route: "/admin", dark: true },
   ];
 
