@@ -1081,8 +1081,8 @@ function ProiectePageInner() {
       const docKind = activeInlineType === "bon" ? "bon" : "factura";
       const linkUrl = insertedDocId ? `/proiecte?openDoc=${docKind}:${insertedDocId}` : `/proiecte`;
       await createNotificationForMany(recipientIds, {
-        title: `${activeInlineType === "bon" ? "Bon fiscal" : "Factură"} încărcat`,
-        message: `${uploaderName} a încărcat un ${docLabel} în șantierul ${projectName}.`,
+        title: `${activeInlineType === "bon" ? "Bon fiscal" : "Factură"} încărcat/ă`,
+        message: `${uploaderName} a încărcat ${docLabel} în șantierul ${projectName}.`,
         type: "info",
         link: linkUrl,
       });
