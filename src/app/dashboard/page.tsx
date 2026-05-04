@@ -18,6 +18,7 @@ type QuickAction = { label: string; sublabel: string; route?: string; dark?: boo
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [unpaidOreCount, setUnpaidOreCount] = useState(0);
   const [pendingAlimentariCount, setPendingAlimentariCount] = useState(0);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -63,7 +64,10 @@ export default function DashboardPage() {
     loadDashboard();
   }, [router]);
 
-  const handleLogout = async () => { await supabase.auth.signOut(); router.push("/login"); };
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   const todayLabel = useMemo(() => new Date().toLocaleDateString("ro-RO", {
     weekday: "short", day: "2-digit", month: "short", year: "numeric"
@@ -316,7 +320,7 @@ export default function DashboardPage() {
                 <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" strokeLinecap="round" />
               </svg>
             </button>
-            <button onClick={handleLogout}
+            <button onClick={() => setShowLogoutModal(true)}
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100">
               Deconectare
             </button>
@@ -403,6 +407,37 @@ export default function DashboardPage() {
           </section>
         </div>
       </main>
+
+      {/* MODAL CONFIRMARE DECONECTARE */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+                <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-red-500" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M16 17l5-5-5-5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M21 12H9" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <h3 className="text-center text-lg font-bold text-gray-900">Ieși din cont?</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Vei fi deconectat și redirecționat către pagina de autentificare.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <button type="button" onClick={handleLogout}
+                  className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
+                  Da, deconectează-mă
+                </button>
+                <button type="button" onClick={() => setShowLogoutModal(false)}
+                  className="flex-1 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                  Anulează
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="fixed bottom-0 left-0 right-0 border-t border-[#E8E5DE] bg-white/95 px-2 py-3 backdrop-blur lg:hidden">
         <div className="mx-auto grid max-w-md grid-cols-4">
