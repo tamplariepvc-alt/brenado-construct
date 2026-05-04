@@ -43,8 +43,7 @@ type WorkerEntry = {
   // ore extra
   extra_hours: string;
   // weekend
-  is_saturday: boolean;
-  is_sunday: boolean;
+  worked: boolean;
 };
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -131,8 +130,7 @@ export default function OreExtraWeekendSefPage() {
     setWorkerEntries(workersPool.map((w) => ({
       worker_id: w.id,
       extra_hours: "",
-      is_saturday: false,
-      is_sunday: false,
+      worked: false,
     })));
 
     // Istoric ore extra/weekend pentru acest proiect
@@ -154,8 +152,7 @@ export default function OreExtraWeekendSefPage() {
     setWorkerEntries((prev) => prev.map((e) => ({
       ...e,
       extra_hours: "",
-      is_saturday: false,
-      is_sunday: false,
+      worked: false,
     })));
   }, [entryType]);
 
@@ -181,10 +178,9 @@ export default function OreExtraWeekendSefPage() {
         totalValue += hours * rate;
         workerCount++;
       } else {
-        const days = (entry.is_saturday ? 1 : 0) + (entry.is_sunday ? 1 : 0);
-        if (days === 0) return;
+        if (!entry.worked) return;
         const rate = Number(worker.weekend_day_rate || 0);
-        totalValue += days * rate;
+        totalValue += rate;
         workerCount++;
       }
     });
@@ -198,7 +194,7 @@ export default function OreExtraWeekendSefPage() {
     // Filtreaza doar muncitorii cu valori introduse
     const validEntries = workerEntries.filter((entry) => {
       if (entryType === "extra") return Number(entry.extra_hours || 0) > 0;
-      return entry.is_saturday || entry.is_sunday;
+      return entry.worked;
     });
 
     if (validEntries.length === 0) {
@@ -234,17 +230,20 @@ export default function OreExtraWeekendSefPage() {
           notes: notes.trim() || null,
         };
       } else {
-        const days = (entry.is_saturday ? 1 : 0) + (entry.is_sunday ? 1 : 0);
-        const value = days * weekendDayRate;
+        const value = weekendDayRate;
+        // Determinam sambata/duminica din data selectata
+        const dayOfWeek = new Date(`${workDate}T00:00:00`).getDay();
+        const isSat = dayOfWeek === 6;
+        const isSun = dayOfWeek === 0;
         return {
           project_id: project.id,
           worker_id: entry.worker_id,
           work_date: workDate,
           extra_hours: 0,
           extra_hours_value: 0,
-          is_saturday: entry.is_saturday,
-          is_sunday: entry.is_sunday,
-          weekend_days_count: days,
+          is_saturday: isSat,
+          is_sunday: isSun,
+          weekend_days_count: 1,
           weekend_value: value,
           total_value: value,
           extra_hours_paid: false,
@@ -264,7 +263,7 @@ export default function OreExtraWeekendSefPage() {
 
     // Reset form
     setWorkerEntries((prev) => prev.map((e) => ({
-      ...e, extra_hours: "", is_saturday: false, is_sunday: false,
+      ...e, extra_hours: "", worked: false,
     })));
     setNotes("");
     setWorkDate(getTodayDate());
@@ -419,38 +418,22 @@ export default function OreExtraWeekendSefPage() {
                 workers.map((worker) => {
                   const entry = workerEntries.find((e) => e.worker_id === worker.id);
                   if (!entry) return null;
-                  const days = (entry.is_saturday ? 1 : 0) + (entry.is_sunday ? 1 : 0);
                   const rate = Number(worker.weekend_day_rate || 0);
-                  const value = days * rate;
-                  const hasValue = days > 0;
+                  const hasValue = entry.worked;
 
                   return (
-                    <div key={worker.id}
-                      className={`rounded-2xl border p-4 transition ${hasValue ? "border-orange-200 bg-orange-50/40" : "border-gray-200 bg-white"}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-gray-900">{worker.full_name}</p>
-                          <p className="text-xs text-gray-400">{rate > 0 ? `${rate.toFixed(2)} lei/zi` : "Rată nesetată"}</p>
-                          {hasValue && (
-                            <p className="mt-1 text-sm font-bold text-orange-700">{value.toFixed(2)} lei</p>
-                          )}
-                        </div>
-                        <div className="flex shrink-0 flex-col gap-2">
-                          <label className="flex cursor-pointer items-center gap-2">
-                            <input type="checkbox" checked={entry.is_saturday}
-                              onChange={(e) => updateEntry(worker.id, "is_saturday", e.target.checked)}
-                              className="h-5 w-5 accent-orange-500" />
-                            <span className="text-sm font-medium text-gray-700">Sâmbătă</span>
-                          </label>
-                          <label className="flex cursor-pointer items-center gap-2">
-                            <input type="checkbox" checked={entry.is_sunday}
-                              onChange={(e) => updateEntry(worker.id, "is_sunday", e.target.checked)}
-                              className="h-5 w-5 accent-orange-500" />
-                            <span className="text-sm font-medium text-gray-700">Duminică</span>
-                          </label>
-                        </div>
+                    <label key={worker.id} className={`flex cursor-pointer items-center justify-between gap-3 rounded-2xl border p-4 transition ${hasValue ? "border-orange-200 bg-orange-50/40" : "border-gray-200 bg-white hover:bg-gray-50"}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-gray-900">{worker.full_name}</p>
+                        <p className="text-xs text-gray-400">{rate > 0 ? `${rate.toFixed(2)} lei/zi` : "Rată nesetată"}</p>
+                        {hasValue && (
+                          <p className="mt-1 text-sm font-bold text-orange-700">{rate.toFixed(2)} lei</p>
+                        )}
                       </div>
-                    </div>
+                      <input type="checkbox" checked={entry.worked}
+                        onChange={(e) => updateEntry(worker.id, "worked", e.target.checked)}
+                        className="h-6 w-6 shrink-0 accent-orange-500" />
+                    </label>
                   );
                 })
               )}
