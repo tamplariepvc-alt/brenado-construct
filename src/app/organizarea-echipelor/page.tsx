@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import BottomNav from "@/components/BottomNav";
 
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 
@@ -69,6 +68,8 @@ export default function OrganizareaEchipelorPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const [teams, setTeams] = useState<Team[]>([]);
+  const [activeTab, setActiveTab] = useState<"active" | "istoric">("active");
+  const [userRole, setUserRole] = useState<string>("");
   const [projects, setProjects] = useState<Project[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -144,13 +145,13 @@ export default function OrganizareaEchipelorPage() {
 
     const role = profileData.role as Role;
     setProfile(profileData as Profile);
+    setUserRole(profileData.role);
 
     const [projectsRes, vehiclesRes, workersRes, teamVehiclesRes, teamWorkersRes] =
       await Promise.all([
         supabase
           .from("projects")
           .select("id, name, status, beneficiary, project_location")
-          .eq("status", "in_lucru")
           .order("name", { ascending: true }),
         supabase
           .from("vehicles")
@@ -510,6 +511,18 @@ export default function OrganizareaEchipelorPage() {
   const getProjectById = (projectId: string) =>
     projects.find((project) => project.id === projectId) || null;
 
+  // Echipe active = proiect nu e finalizat; echipe istorice = proiect finalizat
+  const activeTeams = teams.filter((t) => {
+    const p = getProjectById(t.project_id);
+    return !p || p.status !== "finalizat";
+  });
+  const historicTeams = teams.filter((t) => {
+    const p = getProjectById(t.project_id);
+    return p?.status === "finalizat";
+  });
+  const canSeeHistoric = userRole === "administrator" || userRole === "project_manager";
+  const displayedTeams = activeTab === "istoric" && canSeeHistoric ? historicTeams : activeTeams;
+
   const getTeamVehicleIds = (teamId: string) =>
     teamVehicles.filter((item) => item.daily_team_id === teamId).map((item) => item.vehicle_id);
 
@@ -584,7 +597,7 @@ export default function OrganizareaEchipelorPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-6xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -620,24 +633,46 @@ export default function OrganizareaEchipelorPage() {
         </section>
 
         <section className="mt-6">
-          <div className="mb-3 flex items-center gap-3 px-1">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
-              {isAdmin ? "Echipe active" : "Echipa mea"}
-            </p>
-            <div className="h-px flex-1 bg-[#E8E5DE]" />
-          </div>
+          {/* Tabs active/istoric — doar admin + project_manager */}
+          {canSeeHistoric && (
+            <div className="mb-4 flex gap-2">
+              <button type="button" onClick={() => setActiveTab("active")}
+                className={`rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${activeTab === "active" ? "bg-[#0196ff] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                Echipe active
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === "active" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>
+                  {activeTeams.length}
+                </span>
+              </button>
+              <button type="button" onClick={() => setActiveTab("istoric")}
+                className={`rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${activeTab === "istoric" ? "bg-gray-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                Istoric echipe
+                <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === "istoric" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>
+                  {historicTeams.length}
+                </span>
+              </button>
+            </div>
+          )}
 
-          {teams.length === 0 ? (
+          {!canSeeHistoric && (
+            <div className="mb-3 flex items-center gap-3 px-1">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Echipa mea</p>
+              <div className="h-px flex-1 bg-[#E8E5DE]" />
+            </div>
+          )}
+
+          {displayedTeams.length === 0 ? (
             <div className="rounded-[22px] border border-[#E8E5DE] bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-500">
-                {isAdmin
-                  ? "Nu există echipe create. Apasă &bdquo;Creează echipă&rdquo; pentru a adăuga una."
+                {activeTab === "istoric"
+                  ? "Nu există echipe în istoric (niciun proiect finalizat)."
+                  : isAdmin
+                  ? "Nu există echipe active. Apasă „Creează echipă” pentru a adăuga una."
                   : "Nu ești atribuit niciunei echipe. Contactează administratorul."}
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {teams.map((team, index) => {
+              {displayedTeams.map((team, index) => {
                 const project = getProjectById(team.project_id);
                 const workerIds = getTeamWorkerIds(team.id);
                 const workerCount = workerIds.length;
@@ -1052,7 +1087,6 @@ export default function OrganizareaEchipelorPage() {
           </div>
         </div>
       )}
-	 <BottomNav />
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import BottomNav from "@/components/BottomNav";
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -149,7 +148,7 @@ export default function DetaliuEchipaPage() {
 
     const [projectsRes, vehiclesRes, workersRes, teamVehiclesRes, teamWorkersRes] =
       await Promise.all([
-        supabase.from("projects").select("id, name, status, beneficiary, project_location").eq("status", "in_lucru"),
+        supabase.from("projects").select("id, name, status, beneficiary, project_location"),
         supabase.from("vehicles").select("id, brand, model, registration_number, status, rca_valid_until, itp_valid_until").order("registration_number", { ascending: true }),
         supabase.from("workers").select("id, full_name, is_active").eq("is_active", true).eq("worker_type", "executie").order("full_name", { ascending: true }),
         supabase.from("daily_team_vehicles").select("id, daily_team_id, vehicle_id").eq("daily_team_id", teamId),
@@ -194,12 +193,12 @@ export default function DetaliuEchipaPage() {
 
     doc.setFontSize(17);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Echipa – ${project.name}`, 14, 38);
+    doc.text(`Echipă – ${project.name}`, 14, 38);
 
     doc.setFontSize(9);
     doc.setTextColor(90);
     doc.text(`Beneficiar: ${project.beneficiary || "-"}`, 14, 45);
-    doc.text(`Locatie: ${project.project_location || "-"}`, 14, 50);
+    doc.text(`Locație: ${project.project_location || "-"}`, 14, 50);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
 
     doc.setFontSize(12);
@@ -208,14 +207,14 @@ export default function DetaliuEchipaPage() {
 
     autoTable(doc, {
       startY: 69,
-      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA pana la", "ITP pana la"]],
+      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA până la", "ITP până la"]],
       body: currentVehicles.length > 0
         ? currentVehicles.map((v, i) => [
             String(i + 1), v.registration_number, `${v.brand} ${v.model}`,
             v.rca_valid_until ? new Date(`${v.rca_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
             v.itp_valid_until ? new Date(`${v.itp_valid_until}T00:00:00`).toLocaleDateString("ro-RO") : "-",
           ])
-        : [["", "Nu exista auto atribuite.", "", "", ""]],
+        : [["", "Nu există auto atribuite.", "", "", ""]],
       styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
       headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -226,14 +225,14 @@ export default function DetaliuEchipaPage() {
 
     doc.setFontSize(12);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Personal de executie (${currentWorkers.length})`, 14, afterVehicles);
+    doc.text(`Personal de execuție (${currentWorkers.length})`, 14, afterVehicles);
 
     autoTable(doc, {
       startY: afterVehicles + 4,
       head: [["Nr.", "Nume complet"]],
       body: currentWorkers.length > 0
         ? currentWorkers.map((w, i) => [String(i + 1), w.full_name])
-        : [["", "Nu exista muncitori in echipa."]],
+        : [["", "Nu există muncitori în echipă."]],
       styles: { fontSize: 9, cellPadding: 3, lineColor: [210, 210, 210], lineWidth: 0.2 },
       headStyles: { fillColor: [30, 64, 175], textColor: [255, 255, 255], fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 250, 252] },
@@ -242,7 +241,7 @@ export default function DetaliuEchipaPage() {
 
     doc.setFontSize(8);
     doc.setTextColor(120);
-    doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
+    doc.text("Document generat automat din aplicația Brenado Construct.", 14, 287);
 
     doc.save(`echipa_${project.name.replace(/\s+/g, "_")}.pdf`);
   };
@@ -325,7 +324,7 @@ export default function DetaliuEchipaPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-5xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
@@ -339,6 +338,11 @@ export default function DetaliuEchipaPage() {
               <p className="mt-2 text-sm text-gray-500">
                 Echipă permanentă · valabilă zilnic
               </p>
+              {project?.status === "finalizat" && (
+                <span className="mt-2 inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-600">
+                  Proiect finalizat · Echipă în istoric
+                </span>
+              )}
             </div>
           </div>
 
@@ -502,7 +506,6 @@ export default function DetaliuEchipaPage() {
           </div>
         </div>
       )}
-      <BottomNav />
     </div>
   );
 }
