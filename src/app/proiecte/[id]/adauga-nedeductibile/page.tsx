@@ -48,14 +48,17 @@ export default function AdaugaNedeductibilePage() {
 
     setSaving(true);
 
-    const { error } = await supabase.from("project_nondeductible_expenses").insert({
-      project_id: projectId,
-      added_by: user.id,
-      expense_date: expenseDate,
-      service_name: serviceName.trim(),
-      cost_ron: Number(costRon),
-      notes: notes.trim() || null,
-    });
+    const { data: insertedExpense, error } = await supabase
+      .from("project_nondeductible_expenses").insert({
+        project_id: projectId,
+        added_by: user.id,
+        expense_date: expenseDate,
+        service_name: serviceName.trim(),
+        cost_ron: Number(costRon),
+        notes: notes.trim() || null,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       alert(`A aparut o eroare la salvare: ${error.message}`);
@@ -69,11 +72,13 @@ export default function AdaugaNedeductibilePage() {
         .from("profiles").select("full_name").eq("id", user.id).single();
       const uploaderName = (uploaderProfile as any)?.full_name || "Șef de echipă";
       const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "admin_limitat"]);
+      const expenseId = (insertedExpense as any)?.id;
+      const linkUrl = expenseId ? `/proiecte?openDoc=nedeductibila:${expenseId}` : `/proiecte`;
       await createNotificationForMany(recipientIds, {
         title: "Nedeductibilă adăugată",
         message: `${uploaderName} a adăugat o cheltuială nedeductibilă în șantierul ${project.name}.`,
         type: "info",
-        link: `/proiecte`,
+        link: linkUrl,
       });
     }
 

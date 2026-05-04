@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -279,6 +279,7 @@ function PhotoLightbox({
 
 export default function ProiectePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const bonInputRef = useRef<HTMLInputElement | null>(null);
   const facturaInputRef = useRef<HTMLInputElement | null>(null);
@@ -679,6 +680,33 @@ export default function ProiectePage() {
     loadData();
   }, [router]);
 
+  // Auto-open document modal from notification link
+  useEffect(() => {
+    if (loading) return;
+    const openDoc = searchParams.get("openDoc");
+    if (!openDoc) return;
+    const [kind, id] = openDoc.split(":");
+    if (!kind || !id) return;
+
+    let doc: FinancialDoc | null = null;
+    if (kind === "bon") {
+      const found = receipts.find((r) => r.id === id);
+      if (found) doc = { kind: "bon", data: found };
+    } else if (kind === "factura") {
+      const found = invoices.find((r) => r.id === id);
+      if (found) doc = { kind: "factura", data: found };
+    } else if (kind === "nedeductibila") {
+      const found = nondeductibles.find((r) => r.id === id);
+      if (found) doc = { kind: "nedeductibila", data: found };
+    }
+
+    if (doc) {
+      const projectId = (doc as any).data.project_id;
+      if (projectId) setProjectTab(projectId, "financiar");
+      setFinancialDocModal(doc);
+    }
+  }, [loading, searchParams, receipts, invoices, nondeductibles]);
+
   const getProjectTab = (id: string): ProjectTab => projectTabs[id] || "financiar";
   const getTehnicTab = (id: string): TehnicTab => tehnicTabs[id] || "poze";
 
@@ -970,6 +998,8 @@ export default function ProiectePage() {
 
     setSavingInline(true);
 
+    let insertedDocId: string | null = null;
+
     if (activeInlineType === "bon") {
       const { data: receiptData, error } = await supabase
         .from("fiscal_receipts")
@@ -992,6 +1022,8 @@ export default function ProiectePage() {
         setSavingInline(false);
         return;
       }
+
+      insertedDocId = receiptData.id;
 
       await supabase.from("fiscal_receipt_items").insert(
         validItems.map((item) => ({
@@ -1025,6 +1057,8 @@ export default function ProiectePage() {
         return;
       }
 
+      insertedDocId = invoiceData.id;
+
       await supabase.from("project_invoice_items").insert(
         validItems.map((item) => ({
           invoice_id: invoiceData.id,
@@ -1043,11 +1077,13 @@ export default function ProiectePage() {
       const uploaderName = uploaderProfile.full_name;
       const docLabel = activeInlineType === "bon" ? "bon fiscal" : "factură";
       const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "admin_limitat"]);
+      const docKind = activeInlineType === "bon" ? "bon" : "factura";
+      const linkUrl = insertedDocId ? `/proiecte?openDoc=${docKind}:${insertedDocId}` : `/proiecte`;
       await createNotificationForMany(recipientIds, {
         title: `${activeInlineType === "bon" ? "Bon fiscal" : "Factură"} încărcat`,
         message: `${uploaderName} a încărcat un ${docLabel} în șantierul ${projectName}.`,
         type: "info",
-        link: `/proiecte`,
+        link: linkUrl,
       });
     }
 
