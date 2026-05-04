@@ -253,7 +253,10 @@ export default function OreExtraWeekendSefPage() {
       }
     });
 
-    const { error } = await supabase.from("extra_work").insert(rows);
+    const { error } = await supabase.from("extra_work").upsert(rows, {
+      onConflict: "worker_id,project_id,work_date",
+      ignoreDuplicates: false,
+    });
 
     if (error) {
       alert(`Eroare la salvare: ${error.message}`);
