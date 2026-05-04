@@ -172,26 +172,26 @@ export default function AdaugaProiectPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Nume proiect *</label>
-                <input type="text" value={nume} onChange={(e) => setNume(e.target.value)}
-                  placeholder="Introdu numele proiectului"
+                <input type="text" value={nume} onChange={(e) => setNume(e.target.value.toUpperCase())}
+                  autoCapitalize="characters" placeholder="Introdu numele proiectului"
                   className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Beneficiar *</label>
-                <input type="text" value={beneficiar} onChange={(e) => setBeneficiar(e.target.value)}
-                  placeholder="Introdu beneficiarul"
+                <input type="text" value={beneficiar} onChange={(e) => setBeneficiar(e.target.value.toUpperCase())}
+                  autoCapitalize="characters" placeholder="Introdu beneficiarul"
                   className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Locație proiect *</label>
-                <input type="text" value={locatie} onChange={(e) => setLocatie(e.target.value)}
-                  placeholder="Introdu locația proiectului"
+                <input type="text" value={locatie} onChange={(e) => setLocatie(e.target.value.toUpperCase())}
+                  autoCapitalize="characters" placeholder="Introdu locația proiectului"
                   className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black" />
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">Tip proiect *</label>
-                <input type="text" value={tip} onChange={(e) => setTip(e.target.value)}
-                  placeholder="Introdu tipul proiectului"
+                <input type="text" value={tip} onChange={(e) => setTip(e.target.value.toUpperCase())}
+                  autoCapitalize="characters" placeholder="Introdu tipul proiectului"
                   className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black" />
               </div>
               <div>
