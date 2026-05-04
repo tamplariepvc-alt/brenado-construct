@@ -224,7 +224,7 @@ export default function AlimentariPage() {
 
           <div className="mt-5 flex gap-2">
             <button type="button" onClick={() => setActiveTab("alimentari")}
-              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${activeTab === "alimentari" ? "bg-[#0196ff] text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+              className={`flex items-center gap-2 rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${activeTab === "alimentari" ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
               Alimentări
               <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${activeTab === "alimentari" ? "bg-white/20 text-white" : "bg-gray-200 text-gray-600"}`}>{fundings.length}</span>
             </button>
@@ -259,7 +259,7 @@ export default function AlimentariPage() {
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Total alimentări</p>
                 <p className="mt-1 text-2xl font-extrabold text-gray-900">{totals.count}</p>
               </div>
-              <div className="rounded-[20px] bg-[#0196ff] p-4 shadow-sm">
+              <div className="rounded-[20px] bg-green-600 p-4 shadow-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Valoare totală</p>
                 <p className="mt-1 text-2xl font-extrabold text-white">{totals.total.toFixed(2)} lei</p>
               </div>
@@ -297,7 +297,10 @@ export default function AlimentariPage() {
                         </div>
                         <div className="col-span-2 text-sm text-gray-600">{funding.team_lead_name}</div>
                         <div className="col-span-2 text-sm text-gray-600">{funding.added_by_name}</div>
-                        <div className="col-span-2 text-sm font-bold text-gray-900">{Number(funding.amount_ron || 0).toFixed(2)} lei</div>
+                        <div className="col-span-2">
+                          <p className="text-sm font-bold text-gray-900">{Number(funding.amount_ron || 0).toFixed(2)} lei</p>
+                          <span className="mt-0.5 inline-block rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">Alimentat</span>
+                        </div>
                         <div className="col-span-1 text-sm text-gray-500">
                           {funding.funding_date ? new Date(funding.funding_date).toLocaleDateString("ro-RO") : "-"}
                         </div>
@@ -318,7 +321,10 @@ export default function AlimentariPage() {
                               <p className="mt-0.5 text-sm text-gray-500">{funding.project_beneficiary || "-"}</p>
                             </div>
                           </div>
-                          <p className="shrink-0 text-base font-bold text-gray-900">{Number(funding.amount_ron || 0).toFixed(2)} lei</p>
+                          <div className="flex shrink-0 flex-col items-end gap-1.5">
+                            <p className="text-base font-bold text-gray-900">{Number(funding.amount_ron || 0).toFixed(2)} lei</p>
+                            <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-semibold text-green-700">Alimentat</span>
+                          </div>
                         </div>
                         <div className="mt-4 grid grid-cols-2 gap-3 pr-8">
                           <div>
