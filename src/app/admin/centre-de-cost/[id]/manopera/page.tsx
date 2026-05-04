@@ -159,6 +159,18 @@ const getWorkingDaysAndHolidaysInRangeRomania = (
   };
 };
 
+// Calculeaza rata orara pentru o luna specifica (YYYY-MM)
+// Rata = salariu_lunar / (zile_lucratoare_luna * 8)
+const getHourlyRateForMonth = (
+  monthlySalary: number,
+  yearMonth: string // "YYYY-MM"
+): number => {
+  const [year, month] = yearMonth.split("-").map(Number);
+  const workingDays = getWorkingDaysInMonthRomania(year, month - 1);
+  const normHours = workingDays * 8;
+  return normHours > 0 ? monthlySalary / normHours : 0;
+};
+
 export default function CentruDeCostManoperaPage() {
   const router = useRouter();
   const params = useParams();
@@ -479,8 +491,9 @@ export default function CentruDeCostManoperaPage() {
       const worker = workerMap.get(workerId);
 
       const monthlySalary = Number(worker?.monthly_salary || 0);
-      const hourlyRate =
-        displayMeta.normHours > 0 ? monthlySalary / displayMeta.normHours : 0;
+      // Rata orara calculata pe norma LUNII in care s-a lucrat (nu a intregii perioade)
+      const entryMonth = workDate.substring(0, 7); // "YYYY-MM"
+      const hourlyRate = getHourlyRateForMonth(monthlySalary, entryMonth);
 
       const normalHours = Number(normal?.normal_hours || 0);
       const normalCost = normalHours * hourlyRate;
@@ -521,7 +534,6 @@ export default function CentruDeCostManoperaPage() {
     extraWorkRows,
     workerMap,
     selectedWorkerId,
-    displayMeta.normHours,
     now,
   ]);
 
@@ -530,8 +542,8 @@ export default function CentruDeCostManoperaPage() {
 
     workers.forEach((worker) => {
       const monthlySalary = Number(worker.monthly_salary || 0);
-      const hourlyRate =
-        displayMeta.normHours > 0 ? monthlySalary / displayMeta.normHours : 0;
+      // Rata orara medie — se va recalcula dupa ce adunam orele reale
+      const hourlyRate = 0; // calculat dinamic din dailyDetailRows
 
       map.set(worker.id, {
         worker_id: worker.id,
@@ -565,6 +577,13 @@ export default function CentruDeCostManoperaPage() {
       current.total_cost += row.total_cost;
 
       map.set(row.worker_id, current);
+    });
+
+    // Calculeaza rata orara medie ponderata per muncitor
+    map.forEach((row) => {
+      if (row.normal_hours > 0) {
+        row.hourly_rate = row.normal_cost / row.normal_hours;
+      }
     });
 
     return Array.from(map.values())
