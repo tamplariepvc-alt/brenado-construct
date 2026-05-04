@@ -6,9 +6,15 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 if (!supabaseUrl) {
   throw new Error("Lipsește NEXT_PUBLIC_SUPABASE_URL din .env.local");
 }
-
 if (!supabaseAnonKey) {
   throw new Error("Lipsește NEXT_PUBLIC_SUPABASE_ANON_KEY din .env.local");
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: "brenado-auth",
+  },
+});
