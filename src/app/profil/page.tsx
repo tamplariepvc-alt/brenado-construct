@@ -118,6 +118,11 @@ export default function ProfilPage() {
   const [submitting, setSubmitting] = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
 
+  // Invitatie — doar administrator
+  const [generatingInvite, setGeneratingInvite] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+
   const currentYear = new Date().getFullYear();
 
   const showToast = (type: "success" | "error" | "warning", message: string) => {
@@ -256,6 +261,43 @@ export default function ProfilPage() {
     doc.save(`cerere_concediu_${profile.full_name.replace(/\s+/g, "_")}_${request.start_date}.pdf`);
   };
 
+  const handleGenerateInvite = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    setGeneratingInvite(true);
+
+    const { data, error } = await supabase
+      .from("invite_tokens")
+      .insert({ created_by: user.id })
+      .select("token")
+      .single();
+
+    if (error || !data) {
+      showToast("error", "Eroare la generarea invitației.");
+      setGeneratingInvite(false);
+      return;
+    }
+
+    const link = `${window.location.origin}/register?token=${data.token}`;
+    setInviteLink(link);
+    setShowInviteModal(true);
+    setGeneratingInvite(false);
+  };
+
+  const handleShareInvite = () => {
+    if (!inviteLink) return;
+    if (navigator.share) {
+      navigator.share({
+        title: "Invitație Brenado Construct",
+        text: "Ai fost invitat să creezi un cont în aplicația Brenado Construct.",
+        url: inviteLink,
+      });
+    } else {
+      navigator.clipboard.writeText(inviteLink);
+      showToast("success", "Link copiat în clipboard!");
+    }
+  };
+
   const daysRemaining = workerLeave
     ? workerLeave.days_total - workerLeave.days_taken
     : null;
@@ -387,6 +429,21 @@ export default function ProfilPage() {
               </span>
             </div>
           </div>
+
+          {/* Buton Invită — doar administrator */}
+          {profile?.role === "administrator" && (
+            <div className="mt-4">
+              <button type="button" onClick={handleGenerateInvite} disabled={generatingInvite}
+                className="flex items-center gap-2 rounded-xl bg-[#0196ff] px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" strokeLinecap="round" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M19 8v6M22 11h-6" strokeLinecap="round" />
+                </svg>
+                {generatingInvite ? "Se generează..." : "Invită utilizator nou"}
+              </button>
+            </div>
+          )}
 
           <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
@@ -568,6 +625,39 @@ export default function ProfilPage() {
           </section>
         )}
       </main>
+      {/* MODAL INVITATIE */}
+      {showInviteModal && inviteLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
+            <div className="p-6">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[#0196ff]/10">
+                <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-[#0196ff]" stroke="currentColor" strokeWidth="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" strokeLinecap="round" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M19 8v6M22 11h-6" strokeLinecap="round" />
+                </svg>
+              </div>
+              <h3 className="text-center text-lg font-bold text-gray-900">Link de invitație generat</h3>
+              <p className="mt-2 text-center text-sm text-gray-500">
+                Trimite acest link prin WhatsApp, Messenger sau orice altă aplicație. Link-ul expiră în 7 zile.
+              </p>
+              <div className="mt-4 rounded-2xl border border-gray-200 bg-[#F8F7F3] px-4 py-3">
+                <p className="break-all text-xs font-medium text-gray-600">{inviteLink}</p>
+              </div>
+              <div className="mt-5 flex flex-col gap-3">
+                <button type="button" onClick={handleShareInvite}
+                  className="w-full rounded-xl bg-[#0196ff] px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
+                  Trimite / Copiază link
+                </button>
+                <button type="button" onClick={() => { setShowInviteModal(false); setInviteLink(null); }}
+                  className="w-full rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                  Închide
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
  <BottomNav />
     </div>
   );
