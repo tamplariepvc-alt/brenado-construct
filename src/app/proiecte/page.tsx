@@ -16,6 +16,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import BottomNav from "@/components/BottomNav";
 
+
 type Role = "administrator" | "cont_tehnic" | "project_manager" | "admin_limitat" | "sef_echipa" | "user";
 type Profile = { id: string; full_name: string; role: Role };
 
@@ -566,6 +567,7 @@ export default function ProiectePage() {
           .from("projects")
           .select("id, name, beneficiary, status, created_at")
           .in("id", ids)
+          .eq("status", "in_lucru")
           .order("created_at", { ascending: true });
 
         visibleProjects = (data as Project[]) || [];
@@ -670,9 +672,10 @@ export default function ProiectePage() {
 
   const filteredProjects = useMemo(() => {
     const q = searchName.toLowerCase();
-    return projects.filter((p) =>
-      p.name.toLowerCase().includes(q) || (p.beneficiary || "").toLowerCase().includes(q)
-    );
+    const statusOrder: Record<string, number> = { "in_lucru": 0, "in_asteptare": 1, "finalizat": 2 };
+    return projects
+      .filter((p) => p.name.toLowerCase().includes(q) || (p.beneficiary || "").toLowerCase().includes(q))
+      .sort((a, b) => (statusOrder[a.status || ""] ?? 1) - (statusOrder[b.status || ""] ?? 1));
   }, [projects, searchName]);
 
   const fundingTotalsByProject = useMemo(() => {
@@ -2028,7 +2031,7 @@ export default function ProiectePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg-pb-10">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
             <p className="text-sm text-gray-500">{canManageProjects ? "Administrare proiecte" : "Proiectele mele"}</p>
