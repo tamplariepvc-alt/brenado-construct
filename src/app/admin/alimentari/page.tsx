@@ -254,7 +254,7 @@ export default function AlimentariPage() {
 
         {activeTab === "alimentari" && (
           <>
-            <section className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <section className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded-[20px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Total alimentări</p>
                 <p className="mt-1 text-2xl font-extrabold text-gray-900">{totals.count}</p>
@@ -262,10 +262,6 @@ export default function AlimentariPage() {
               <div className="rounded-[20px] bg-[#0196ff] p-4 shadow-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-white/70">Valoare totală</p>
                 <p className="mt-1 text-2xl font-extrabold text-white">{totals.total.toFixed(2)} lei</p>
-              </div>
-              <div className="rounded-[20px] border border-[#E8E5DE] bg-white p-4 shadow-sm">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Total card</p>
-                <p className="mt-1 text-2xl font-extrabold text-green-700">{cardTotal.toFixed(2)} lei</p>
               </div>
             </section>
 
