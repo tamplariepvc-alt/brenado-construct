@@ -43,7 +43,6 @@ export default function DashboardPage() {
       }
       setProfile(profileData as Profile);
 
-      // Notificari doar pentru admin_limitat
       if (profileData.role === "admin_limitat") {
         const [extraRes, reqRes] = await Promise.all([
           supabase.from("extra_work").select("id, extra_hours, weekend_days_count, extra_hours_paid, weekend_paid"),
@@ -132,8 +131,6 @@ export default function DashboardPage() {
     : profile?.role === "sef_echipa" ? teamLeadActions
     : userActions;
 
-  // Ordonare de jos in sus: finalizate → in_asteptare → in_lucru
-  // In UI se afiseaza in ordine normala dar cu finalizatele la inceput (jos)
   const activeProjects = useMemo(() => {
     const order: Record<string, number> = { "finalizat": 0, "in_asteptare": 1, "in_lucru": 2 };
     return [...projects].sort((a, b) => (order[a.status || ""] ?? 1) - (order[b.status || ""] ?? 1));
@@ -143,23 +140,20 @@ export default function DashboardPage() {
 
   const getProjectStatusLabel = (s: string | null) => s === "in_asteptare" ? "În așteptare" : s === "in_lucru" ? "Activ" : s === "finalizat" ? "Final" : "-";
 
-  // Calculeaza progresul real bazat pe datele de inceput si sfarsit
   const getProjectProgress = (p: ActiveProject): number => {
     if (p.status === "finalizat") return 100;
     if (p.status === "in_asteptare") return 0;
-    // in_lucru — calcul proportional
-    if (!p.start_date || !p.execution_deadline) return 50; // fallback daca lipsesc datele
+    if (!p.start_date || !p.execution_deadline) return 50;
     const start = new Date(p.start_date).getTime();
     const end = new Date(p.execution_deadline).getTime();
     const now = new Date().getTime();
     if (now <= start) return 0;
-    if (now >= end) return 99; // nu ajunge la 100 pana nu e finalizat manual
+    if (now >= end) return 99;
     const total = end - start;
     if (total <= 0) return 50;
     return Math.round(((now - start) / total) * 100);
   };
 
-  // Culoarea barei pentru proiecte in lucru: rosu → galben → verde
   const getBarColor = (percent: number): string => {
     if (percent < 30) return "from-red-500 to-red-400";
     if (percent < 60) return "from-orange-500 to-yellow-400";
@@ -170,21 +164,8 @@ export default function DashboardPage() {
   const getProjectTheme = (p: ActiveProject) => {
     const s = p.status;
     const percent = getProjectProgress(p);
-    if (s === "in_asteptare") return {
-      dot: "bg-blue-500",
-      text: "text-blue-600",
-      badge: "bg-blue-50 text-blue-700",
-      bar: "from-blue-400 to-blue-300",
-      percent: 0,
-    };
-    if (s === "finalizat") return {
-      dot: "bg-green-600",
-      text: "text-green-700",
-      badge: "bg-green-100 text-green-700",
-      bar: "from-green-500 to-green-400",
-      percent: 100,
-    };
-    // in_lucru
+    if (s === "in_asteptare") return { dot: "bg-blue-500", text: "text-blue-600", badge: "bg-blue-50 text-blue-700", bar: "from-blue-400 to-blue-300", percent: 0 };
+    if (s === "finalizat") return { dot: "bg-green-600", text: "text-green-700", badge: "bg-green-100 text-green-700", bar: "from-green-500 to-green-400", percent: 100 };
     return {
       dot: percent >= 85 ? "bg-green-500" : percent >= 60 ? "bg-yellow-500" : percent >= 30 ? "bg-orange-500" : "bg-red-500",
       text: percent >= 85 ? "text-green-600" : percent >= 60 ? "text-yellow-600" : percent >= 30 ? "text-orange-500" : "text-red-500",
@@ -283,13 +264,11 @@ export default function DashboardPage() {
       className={`relative overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${minH} ${
         action.dark ? "border-slate-800 bg-slate-800 text-white" : "border-[#E8E5DE] bg-white text-gray-900"
       }`}>
-      {/* Badge notificari ore extra — admin_limitat */}
       {action.label.includes("Ore Extra") && unpaidOreCount > 0 && (
         <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
           {unpaidOreCount > 9 ? "9+" : unpaidOreCount}
         </span>
       )}
-      {/* Badge notificari alimentare — admin_limitat */}
       {action.label.includes("Alimentare") && pendingAlimentariCount > 0 && (
         <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
           {pendingAlimentariCount > 9 ? "9+" : pendingAlimentariCount}
@@ -408,7 +387,6 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      {/* MODAL CONFIRMARE DECONECTARE */}
       {showLogoutModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-sm overflow-hidden rounded-[24px] border border-[#E8E5DE] bg-white shadow-2xl">
@@ -421,9 +399,7 @@ export default function DashboardPage() {
                 </svg>
               </div>
               <h3 className="text-center text-lg font-bold text-gray-900">Ieși din cont?</h3>
-              <p className="mt-2 text-center text-sm text-gray-500">
-                Vei fi deconectat și redirecționat către pagina de autentificare.
-              </p>
+              <p className="mt-2 text-center text-sm text-gray-500">Vei fi deconectat și redirecționat către pagina de autentificare.</p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <button type="button" onClick={handleLogout}
                   className="flex-1 rounded-xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:opacity-90">
@@ -454,7 +430,7 @@ export default function DashboardPage() {
             </svg>
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Proiecte</span>
           </button>
-          <button className="flex flex-col items-center gap-1 py-1 text-gray-400">
+          <button onClick={() => router.push("/notificari")} className="flex flex-col items-center gap-1 py-1 text-gray-400 transition hover:text-[#0196ff]">
             <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" />
             </svg>

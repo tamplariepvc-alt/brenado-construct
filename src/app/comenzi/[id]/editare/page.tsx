@@ -266,7 +266,8 @@ export default function EditareComandaPage() {
         .eq("id", orderId)
         .single();
       const orderNum = (orderData as any)?.order_number || "fără număr";
-      const projectName = (orderData as any)?.projects?.[0]?.name || (orderData as any)?.projects?.name || selectedProjectId;
+      const proj = (orderData as any)?.projects;
+      const projectName = (Array.isArray(proj) ? proj[0]?.name : proj?.name) || selectedProjectId;
       const creatorName = profile.full_name;
 
       const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "project_manager"]);

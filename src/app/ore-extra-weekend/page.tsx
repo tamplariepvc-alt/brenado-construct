@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BottomNav from "@/components/BottomNav";
+import { createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type Worker = {
   id: string;
@@ -262,6 +263,20 @@ export default function OreExtraWeekendSefPage() {
       alert(`Eroare la salvare: ${error.message}`);
       setSaving(false);
       return;
+    }
+
+    // Notificare catre admin + cont_tehnic + admin_limitat
+    if (project) {
+      const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "admin_limitat"]);
+      const isWeekend = entryType === "weekend";
+      await createNotificationForMany(recipientIds, {
+        title: isWeekend ? "Zile weekend adăugate" : "Ore extra adăugate",
+        message: isWeekend
+          ? `Au fost adăugate zile lucrate în weekend în șantierul ${project.name}.`
+          : `Au fost adăugate ore suplimentare în șantierul ${project.name}.`,
+        type: "info",
+        link: `/admin/ore-extra`,
+      });
     }
 
     // Reset form
