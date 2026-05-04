@@ -4,6 +4,7 @@ import Image from "next/image";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
+import { createNotificationForMany, getUserIdsByRoles } from "@/lib/notifications";
 
 type Role = "administrator" | "sef_echipa" | "user";
 
@@ -303,6 +304,20 @@ export default function AdaugaComandaPage() {
       showToast("warning", "Comanda a fost creată, dar articolele nu au putut fi salvate.");
       isSubmittingRef.current = false;
       return;
+    }
+
+    // Notificare la trimitere comandă (nu draft)
+    if (status === "asteapta_confirmare" && profile) {
+      const projectName = projects.find((p) => p.id === selectedProjectId)?.name || selectedProjectId;
+      const creatorName = profile.full_name;
+      const orderNum = (orderData as any)?.order_number || "fără număr";
+      const recipientIds = await getUserIdsByRoles(["administrator", "cont_tehnic", "project_manager"]);
+      await createNotificationForMany(recipientIds, {
+        title: "Comandă nouă de aprobare",
+        message: `${creatorName} a creat comanda ${orderNum} din șantierul ${projectName}. Aprobă sau respinge comanda.`,
+        type: "warning",
+        link: `/comenzi/${(orderData as any)?.id}`,
+      });
     }
 
     showToast(

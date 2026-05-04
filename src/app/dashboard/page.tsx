@@ -21,6 +21,7 @@ export default function DashboardPage() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [unpaidOreCount, setUnpaidOreCount] = useState(0);
   const [pendingAlimentariCount, setPendingAlimentariCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<ProjectStats>({ total: 0, inCurs: 0, finalizate: 0 });
   const [projects, setProjects] = useState<ActiveProject[]>([]);
@@ -62,6 +63,47 @@ export default function DashboardPage() {
     };
     loadDashboard();
   }, [router]);
+
+  // Unread notifications count + real-time
+  useEffect(() => {
+    let userId: string | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      userId = user.id;
+
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_read", false);
+      setUnreadCount(count || 0);
+
+      channel = supabase
+        .channel(`dashboard-nav:${userId}`)
+        .on("postgres_changes", {
+          event: "INSERT", schema: "public", table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        }, () => setUnreadCount((prev) => prev + 1))
+        .on("postgres_changes", {
+          event: "UPDATE", schema: "public", table: "notifications",
+          filter: `user_id=eq.${userId}`,
+        }, () => {
+          supabase
+            .from("notifications")
+            .select("*", { count: "exact", head: true })
+            .eq("user_id", userId!)
+            .eq("is_read", false)
+            .then(({ count }) => setUnreadCount(count || 0));
+        })
+        .subscribe();
+    };
+
+    init();
+    return () => { if (channel) supabase.removeChannel(channel); };
+  }, []);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -431,9 +473,16 @@ export default function DashboardPage() {
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Proiecte</span>
           </button>
           <button onClick={() => router.push("/notificari")} className="flex flex-col items-center gap-1 py-1 text-gray-400 transition hover:text-[#0196ff]">
-            <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" />
-            </svg>
+            <div className="relative">
+              <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" stroke="currentColor" strokeWidth="2">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" />
+              </svg>
+              {unreadCount > 0 && (
+                <span className="absolute -right-2 -top-1.5 flex min-w-[16px] items-center justify-center rounded-full bg-red-600 px-1 py-px text-[9px] font-bold text-white leading-none">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </div>
             <span className="text-[10px] font-semibold uppercase tracking-[0.1em]">Notificări</span>
           </button>
           <button onClick={() => router.push("/profil")} className="flex flex-col items-center gap-1 py-1 text-gray-400 transition hover:text-[#0196ff]">
