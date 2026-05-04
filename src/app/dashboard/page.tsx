@@ -128,16 +128,66 @@ export default function DashboardPage() {
     : profile?.role === "sef_echipa" ? teamLeadActions
     : userActions;
 
-  const activeProjects = useMemo(() => projects.filter((p) => p.status !== "finalizat"), [projects]);
+  // Ordonare de jos in sus: finalizate → in_asteptare → in_lucru
+  // In UI se afiseaza in ordine normala dar cu finalizatele la inceput (jos)
+  const activeProjects = useMemo(() => {
+    const order: Record<string, number> = { "finalizat": 0, "in_asteptare": 1, "in_lucru": 2 };
+    return [...projects].sort((a, b) => (order[a.status || ""] ?? 1) - (order[b.status || ""] ?? 1));
+  }, [projects]);
   const desktopProjects = useMemo(() => activeProjects.slice(0, 4), [activeProjects]);
   const mobileProjects = useMemo(() => activeProjects.slice(0, 6), [activeProjects]);
 
-  const getProjectPercent = (p: ActiveProject) => p.status === "finalizat" ? 100 : p.status === "in_asteptare" ? 15 : p.status === "in_lucru" ? 72 : 20;
   const getProjectStatusLabel = (s: string | null) => s === "in_asteptare" ? "În așteptare" : s === "in_lucru" ? "Activ" : s === "finalizat" ? "Final" : "-";
-  const getProjectTheme = (s: string | null) => {
-    if (s === "in_asteptare") return { dot: "bg-amber-600", text: "text-amber-700", badge: "bg-amber-50 text-amber-700", bar: "from-amber-500 to-yellow-300" };
-    if (s === "in_lucru") return { dot: "bg-blue-600", text: "text-blue-700", badge: "bg-blue-50 text-blue-700", bar: "from-blue-600 to-blue-300" };
-    return { dot: "bg-green-600", text: "text-green-700", badge: "bg-green-50 text-green-700", bar: "from-green-600 to-green-300" };
+
+  // Calculeaza progresul real bazat pe datele de inceput si sfarsit
+  const getProjectProgress = (p: ActiveProject): number => {
+    if (p.status === "finalizat") return 100;
+    if (p.status === "in_asteptare") return 0;
+    // in_lucru — calcul proportional
+    if (!p.start_date || !p.execution_deadline) return 50; // fallback daca lipsesc datele
+    const start = new Date(p.start_date).getTime();
+    const end = new Date(p.execution_deadline).getTime();
+    const now = new Date().getTime();
+    if (now <= start) return 0;
+    if (now >= end) return 99; // nu ajunge la 100 pana nu e finalizat manual
+    const total = end - start;
+    if (total <= 0) return 50;
+    return Math.round(((now - start) / total) * 100);
+  };
+
+  // Culoarea barei pentru proiecte in lucru: rosu → galben → verde
+  const getBarColor = (percent: number): string => {
+    if (percent < 30) return "from-red-500 to-red-400";
+    if (percent < 60) return "from-orange-500 to-yellow-400";
+    if (percent < 85) return "from-yellow-400 to-lime-400";
+    return "from-lime-500 to-green-400";
+  };
+
+  const getProjectTheme = (p: ActiveProject) => {
+    const s = p.status;
+    const percent = getProjectProgress(p);
+    if (s === "in_asteptare") return {
+      dot: "bg-blue-500",
+      text: "text-blue-600",
+      badge: "bg-blue-50 text-blue-700",
+      bar: "from-blue-400 to-blue-300",
+      percent: 0,
+    };
+    if (s === "finalizat") return {
+      dot: "bg-green-600",
+      text: "text-green-700",
+      badge: "bg-green-100 text-green-700",
+      bar: "from-green-500 to-green-400",
+      percent: 100,
+    };
+    // in_lucru
+    return {
+      dot: percent >= 85 ? "bg-green-500" : percent >= 60 ? "bg-yellow-500" : percent >= 30 ? "bg-orange-500" : "bg-red-500",
+      text: percent >= 85 ? "text-green-600" : percent >= 60 ? "text-yellow-600" : percent >= 30 ? "text-orange-500" : "text-red-500",
+      badge: "bg-blue-50 text-blue-700",
+      bar: getBarColor(percent),
+      percent,
+    };
   };
 
   const getActionBg = (label: string, dark?: boolean) => {
@@ -191,8 +241,8 @@ export default function DashboardPage() {
   );
 
   const ProjectCard = ({ project }: { project: ActiveProject }) => {
-    const percent = getProjectPercent(project);
-    const theme = getProjectTheme(project.status);
+    const theme = getProjectTheme(project);
+    const percent = theme.percent;
     return (
       <button type="button" onClick={() => router.push("/proiecte")}
         className="w-full rounded-2xl border border-[#E8E5DE] bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -202,7 +252,9 @@ export default function DashboardPage() {
             <p className="text-sm font-semibold text-gray-900 sm:text-base">{project.name}</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className={`text-xs font-semibold ${theme.text}`}>{percent}%</span>
+            {project.status === "in_lucru" && (
+              <span className={`text-xs font-semibold ${theme.text}`}>{percent}%</span>
+            )}
             <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] ${theme.badge}`}>
               {getProjectStatusLabel(project.status)}
             </span>
@@ -210,8 +262,14 @@ export default function DashboardPage() {
         </div>
         <p className="mb-3 text-xs text-gray-500 sm:text-sm">{project.beneficiary || "-"}</p>
         <div className="h-1.5 overflow-hidden rounded-full bg-[#F0EEE9]">
-          <div className={`h-full rounded-full bg-gradient-to-r ${theme.bar}`} style={{ width: `${percent}%` }} />
+          <div className={`h-full rounded-full bg-gradient-to-r transition-all duration-500 ${theme.bar}`}
+            style={{ width: `${percent}%` }} />
         </div>
+        {project.status === "in_lucru" && project.execution_deadline && (
+          <p className="mt-2 text-[10px] text-gray-400">
+            Termen: {new Date(project.execution_deadline).toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" })}
+          </p>
+        )}
       </button>
     );
   };
