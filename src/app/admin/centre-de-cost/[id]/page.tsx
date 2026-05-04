@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { getRomanianLegalHolidays } from "@/lib/romanian-working-days";
+import { getRomanianLegalHolidays, getWorkingDaysInMonthRomania } from "@/lib/romanian-working-days";
 import BottomNav from "@/components/BottomNav";
 
 type ProjectDetails = {
@@ -236,11 +236,18 @@ export default function CentruDeCostDetaliuPage() {
   }, [timeEntries, extraWorkRows]);
 
   const manoperaSummary = useMemo<ManoperaSummary>(() => {
-    const workerSalaryMap = new Map<string, { monthlySalary: number; hourlyRate: number }>();
+    // Rata orara calculata per luna calendaristica a fiecarei zile lucrate
+    const getHourlyRateForMonth = (monthlySalary: number, yearMonth: string) => {
+      const [y, m] = yearMonth.split("-").map(Number);
+      const workingDays = getWorkingDaysInMonthRomania(y, m - 1);
+      const normHours = workingDays * 8;
+      return normHours > 0 ? monthlySalary / normHours : 0;
+    };
+
+    const workerSalaryMap = new Map<string, { monthlySalary: number }>();
     workers.forEach((worker) => {
       const monthlySalary = Number(worker.monthly_salary || 0);
-      const hourlyRate = projectMeta.normHours > 0 ? monthlySalary / projectMeta.normHours : 0;
-      workerSalaryMap.set(worker.id, { monthlySalary, hourlyRate });
+      workerSalaryMap.set(worker.id, { monthlySalary });
     });
     let normalHours = 0; let normalCost = 0;
     const involvedWorkers = new Set<string>();
@@ -250,8 +257,10 @@ export default function CentruDeCostDetaliuPage() {
       const workedHours = workedMs / (1000 * 60 * 60);
       if (workedHours <= 0) return;
       const salaryInfo = workerSalaryMap.get(entry.worker_id);
+      const entryMonth = entry.work_date.substring(0, 7);
+      const hourlyRate = getHourlyRateForMonth(Number(salaryInfo?.monthlySalary || 0), entryMonth);
       normalHours += workedHours;
-      normalCost += workedHours * Number(salaryInfo?.hourlyRate || 0);
+      normalCost += workedHours * hourlyRate;
       involvedWorkers.add(entry.worker_id);
     });
     let extraHours = 0; let extraCost = 0; let weekendDays = 0; let weekendCost = 0;

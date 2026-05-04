@@ -4,7 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
-import { getRomanianLegalHolidays } from "@/lib/romanian-working-days";
+import { getRomanianLegalHolidays, getWorkingDaysInMonthRomania } from "@/lib/romanian-working-days";
 import BottomNav from "@/components/BottomNav";
 
 type CostCenter = {
@@ -346,28 +346,27 @@ export default function CentreDeCostPage() {
         let projectManoperaTotal = 0;
 
         if (allProjectDates.length > 0) {
-          const startDate = new Date(`${allProjectDates[0]}T00:00:00`);
-          const endDate = new Date(
-            `${allProjectDates[allProjectDates.length - 1]}T00:00:00`
-          );
+          // Rata orara per luna calendaristica a fiecarei zile lucrate
+          const getHourlyRateForMonth = (monthlySalary: number, yearMonth: string) => {
+            const [y, m] = yearMonth.split("-").map(Number);
+            const workingDays = getWorkingDaysInMonthRomania(y, m - 1);
+            const normHours = workingDays * 8;
+            return normHours > 0 ? monthlySalary / normHours : 0;
+          };
 
-          const meta = getWorkingDaysAndHolidaysInRangeRomania(startDate, endDate);
-
-          const hourlyRateMap = new Map<string, number>();
-
+          const workerSalaryMap = new Map<string, number>();
           workers.forEach((worker) => {
-            const monthlySalary = Number(worker.monthly_salary || 0);
-            const hourlyRate = meta.normHours > 0 ? monthlySalary / meta.normHours : 0;
-            hourlyRateMap.set(worker.id, hourlyRate);
+            workerSalaryMap.set(worker.id, Number(worker.monthly_salary || 0));
           });
 
           const normalCost = projectTimeEntries.reduce((sum, entry) => {
             if (!entry.end_time) return sum;
-
             const workedMs = getWorkedMsWithoutPause(entry.start_time, entry.end_time);
             const workedHours = workedMs / (1000 * 60 * 60);
-            const hourlyRate = Number(hourlyRateMap.get(entry.worker_id) || 0);
-
+            if (workedHours <= 0) return sum;
+            const monthlySalary = workerSalaryMap.get(entry.worker_id) || 0;
+            const entryMonth = entry.work_date.substring(0, 7); // "YYYY-MM"
+            const hourlyRate = getHourlyRateForMonth(monthlySalary, entryMonth);
             return sum + workedHours * hourlyRate;
           }, 0);
 
