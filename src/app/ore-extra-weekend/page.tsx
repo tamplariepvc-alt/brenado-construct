@@ -6,20 +6,6 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import BottomNav from "@/components/BottomNav";
 
-type Role = "administrator" | "sef_echipa" | "user";
-
-type Profile = {
-  id: string;
-  full_name: string;
-  role: Role;
-};
-
-type Project = {
-  id: string;
-  name: string;
-  beneficiary: string | null;
-};
-
 type Worker = {
   id: string;
   full_name: string;
@@ -27,24 +13,12 @@ type Worker = {
   weekend_day_rate: number | null;
 };
 
-type TimeEntryWorkerJoin = {
-  worker_id: string;
-  workers?: {
-    id: string;
-    full_name: string;
-    extra_hour_rate?: number | null;
-    weekend_day_rate?: number | null;
-  }[] | null;
-};
-
-type ActiveEntry = {
+type Project = {
   id: string;
-  worker_id: string;
-  status: string;
-  end_time: string | null;
+  name: string;
 };
 
-type ExtraWorkHistoryRow = {
+type ExtraWorkRow = {
   id: string;
   project_id: string;
   worker_id: string;
@@ -52,588 +26,287 @@ type ExtraWorkHistoryRow = {
   extra_hours: number | null;
   is_saturday: boolean | null;
   is_sunday: boolean | null;
-  extra_hours_paid: boolean | null;
-  weekend_paid: boolean | null;
   extra_hours_value: number | null;
   weekend_days_count: number | null;
   weekend_value: number | null;
   total_value: number | null;
+  extra_hours_paid: boolean | null;
+  weekend_paid: boolean | null;
+  notes: string | null;
+  created_at: string;
 };
 
-type WorkerExtraRow = {
+type EntryType = "extra" | "weekend";
+
+type WorkerEntry = {
   worker_id: string;
-  full_name: string;
-  extra_hour_rate: number;
-  weekend_day_rate: number;
+  // ore extra
   extra_hours: string;
+  // weekend
+  is_saturday: boolean;
+  is_sunday: boolean;
 };
 
-type WorkerWeekendRow = {
-  worker_id: string;
-  full_name: string;
-  weekend_day_rate: number;
-  saturday: boolean;
-  sunday: boolean;
-};
+const getTodayDate = () => new Date().toISOString().split("T")[0];
 
-type HistoryWorkerRow = ExtraWorkHistoryRow & {
-  full_name: string;
-};
-
-type PageMode = "extra" | "weekend" | "istoric";
-
-const getToday = () => new Date().toISOString().split("T")[0];
-
-const formatDateRO = (value: string) =>
-  new Date(`${value}T00:00:00`).toLocaleDateString("ro-RO");
-
-const getLast7DaysDateStrings = () => {
-  const dates: string[] = [];
-  const now = new Date();
-
-  for (let i = 0; i < 7; i += 1) {
-    const d = new Date(now);
-    d.setDate(now.getDate() - i);
-    dates.push(d.toISOString().split("T")[0]);
-  }
-
-  return dates;
-};
-
-export default function OreExtraWeekendPage() {
+export default function OreExtraWeekendSefPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState("");
-  const [selectedDate, setSelectedDate] = useState(getToday());
-  const [mode, setMode] = useState<PageMode>("extra");
+  const [project, setProject] = useState<Project | null>(null);
+  const [workers, setWorkers] = useState<Worker[]>([]);
+  const [history, setHistory] = useState<ExtraWorkRow[]>([]);
+  const [workerMap, setWorkerMap] = useState<Map<string, Worker>>(new Map());
 
-  const [activeEntriesCount, setActiveEntriesCount] = useState(0);
+  // Form state
+  const [entryType, setEntryType] = useState<EntryType>("extra");
+  const [workDate, setWorkDate] = useState(getTodayDate());
+  const [notes, setNotes] = useState("");
+  const [workerEntries, setWorkerEntries] = useState<WorkerEntry[]>([]);
 
-  const [extraWorkers, setExtraWorkers] = useState<WorkerExtraRow[]>([]);
-  const [weekendWorkers, setWeekendWorkers] = useState<WorkerWeekendRow[]>([]);
-  const [historyRows, setHistoryRows] = useState<HistoryWorkerRow[]>([]);
+  // Istoric
+  const [historyType, setHistoryType] = useState<EntryType>("extra");
+  const [historyExpanded, setHistoryExpanded] = useState(false);
 
-  const selectedProject = useMemo(() => {
-    return projects.find((project) => project.id === selectedProjectId) || null;
-  }, [projects, selectedProjectId]);
+  const loadData = async () => {
+    setLoading(true);
 
-  const hasActiveEntries = activeEntriesCount > 0;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/login"); return; }
 
+    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+    if (!profile || profile.role !== "sef_echipa") { router.push("/dashboard"); return; }
+
+    // Gaseste worker-ul asociat userului
+    const { data: workerData } = await supabase.from("workers").select("id").eq("user_id", user.id).maybeSingle();
+    if (!workerData) { setLoading(false); return; }
+
+    // Gaseste echipa din care face parte
+    const { data: teamWorkerData } = await supabase
+      .from("daily_team_workers").select("daily_team_id").eq("worker_id", workerData.id).maybeSingle();
+    if (!teamWorkerData) { setLoading(false); return; }
+
+    // Gaseste proiectul echipei
+    const { data: teamData } = await supabase
+      .from("daily_teams").select("id, project_id").eq("id", teamWorkerData.daily_team_id).single();
+    if (!teamData) { setLoading(false); return; }
+
+    const { data: projectData } = await supabase
+      .from("projects").select("id, name").eq("id", teamData.project_id).single();
+    if (projectData) setProject(projectData as Project);
+
+    const projectId = teamData.project_id;
+
+    // Toti muncitorii care au lucrat pe santier (din time_entries) + cei din echipa curenta
+    const [{ data: teamWorkersData }, { data: timeEntryWorkersData }] = await Promise.all([
+      supabase.from("daily_team_workers")
+        .select("worker_id").eq("daily_team_id", teamData.id),
+      supabase.from("time_entries")
+        .select("worker_id").eq("project_id", projectId),
+    ]);
+
+    const allWorkerIds = Array.from(new Set([
+      ...(teamWorkersData || []).map((w: any) => w.worker_id),
+      ...(timeEntryWorkersData || []).map((w: any) => w.worker_id),
+    ]));
+
+    let workersPool: Worker[] = [];
+    if (allWorkerIds.length > 0) {
+      const { data: workersData } = await supabase
+        .from("workers")
+        .select("id, full_name, extra_hour_rate, weekend_day_rate")
+        .in("id", allWorkerIds)
+        .eq("is_active", true)
+        .order("full_name", { ascending: true });
+      workersPool = (workersData as Worker[]) || [];
+    }
+
+    setWorkers(workersPool);
+    const wMap = new Map(workersPool.map((w) => [w.id, w]));
+    setWorkerMap(wMap);
+
+    // Initializeaza entries cu toti muncitorii neselectati
+    setWorkerEntries(workersPool.map((w) => ({
+      worker_id: w.id,
+      extra_hours: "",
+      is_saturday: false,
+      is_sunday: false,
+    })));
+
+    // Istoric ore extra/weekend pentru acest proiect
+    const { data: historyData } = await supabase
+      .from("extra_work")
+      .select("id, project_id, worker_id, work_date, extra_hours, is_saturday, is_sunday, extra_hours_value, weekend_days_count, weekend_value, total_value, extra_hours_paid, weekend_paid, notes, created_at")
+      .eq("project_id", projectId)
+      .order("work_date", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    setHistory((historyData as ExtraWorkRow[]) || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { loadData(); }, []);
+
+  // Reset entries cand se schimba tipul
   useEffect(() => {
-    const loadBaseData = async () => {
-      setLoading(true);
+    setWorkerEntries((prev) => prev.map((e) => ({
+      ...e,
+      extra_hours: "",
+      is_saturday: false,
+      is_sunday: false,
+    })));
+  }, [entryType]);
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+  const updateEntry = (workerId: string, field: keyof Omit<WorkerEntry, "worker_id">, value: any) => {
+    setWorkerEntries((prev) => prev.map((e) =>
+      e.worker_id === workerId ? { ...e, [field]: value } : e
+    ));
+  };
 
-      if (!user) {
-        router.push("/login");
-        return;
-      }
+  // Calcul valori preview
+  const previewTotals = useMemo(() => {
+    let totalValue = 0;
+    let workerCount = 0;
 
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, full_name, role")
-        .eq("id", user.id)
-        .single();
+    workerEntries.forEach((entry) => {
+      const worker = workerMap.get(entry.worker_id);
+      if (!worker) return;
 
-      if (profileError || !profileData) {
-        router.push("/login");
-        return;
-      }
-
-      if (
-        profileData.role !== "administrator" &&
-        profileData.role !== "sef_echipa"
-      ) {
-        router.push("/dashboard");
-        return;
-      }
-
-      setProfile(profileData as Profile);
-
-      let visibleProjects: Project[] = [];
-
-      if (profileData.role === "administrator") {
-        const { data: projectsData } = await supabase
-          .from("projects")
-          .select("id, name, beneficiary")
-          .order("created_at", { ascending: false });
-
-        visibleProjects = (projectsData as Project[]) || [];
-      }
-
-      if (profileData.role === "sef_echipa") {
-        const { data: linkedProjects } = await supabase
-          .from("project_team_leads")
-          .select("project_id")
-          .eq("user_id", user.id);
-
-        const projectIds = (linkedProjects || []).map((item) => item.project_id);
-
-        if (projectIds.length > 0) {
-          const { data: projectsData } = await supabase
-            .from("projects")
-            .select("id, name, beneficiary")
-            .in("id", projectIds)
-            .order("created_at", { ascending: false });
-
-          visibleProjects = (projectsData as Project[]) || [];
-        }
-      }
-
-      setProjects(visibleProjects);
-
-      if (visibleProjects.length > 0) {
-        setSelectedProjectId(visibleProjects[0].id);
-      }
-
-      setLoading(false);
-    };
-
-    loadBaseData();
-  }, [router]);
-
-  useEffect(() => {
-    const loadProjectData = async () => {
-      if (!selectedProjectId) {
-        setExtraWorkers([]);
-        setWeekendWorkers([]);
-        setHistoryRows([]);
-        setActiveEntriesCount(0);
-        return;
-      }
-
-      setLoading(true);
-
-      const last7Days = getLast7DaysDateStrings();
-
-      const { data: activeEntriesData } = await supabase
-        .from("time_entries")
-        .select("id, worker_id, status, end_time")
-        .eq("project_id", selectedProjectId)
-        .eq("work_date", selectedDate)
-        .eq("status", "activ")
-        .is("end_time", null);
-
-      const parsedActiveEntries = (activeEntriesData as ActiveEntry[]) || [];
-      setActiveEntriesCount(parsedActiveEntries.length);
-
-      const { data: dayParticipantsData } = await supabase
-        .from("time_entries")
-        .select(`
-          worker_id,
-          workers:worker_id (
-            id,
-            full_name,
-            extra_hour_rate,
-            weekend_day_rate
-          )
-        `)
-        .eq("project_id", selectedProjectId)
-        .eq("work_date", selectedDate);
-
-      const participantMap = new Map<string, Worker>();
-
-      ((dayParticipantsData || []) as TimeEntryWorkerJoin[]).forEach((item) => {
-        const worker = item.workers?.[0];
-        if (!worker?.id) return;
-
-        participantMap.set(worker.id, {
-          id: worker.id,
-          full_name: worker.full_name,
-          extra_hour_rate: Number(worker.extra_hour_rate || 0),
-          weekend_day_rate: Number(worker.weekend_day_rate || 0),
-        });
-      });
-
-      const participantIds = Array.from(participantMap.keys());
-
-      let existingExtraMap = new Map<string, ExtraWorkHistoryRow>();
-
-      if (participantIds.length > 0) {
-        const { data: existingExtraData } = await supabase
-          .from("extra_work")
-          .select(`
-            id,
-            project_id,
-            worker_id,
-            work_date,
-            extra_hours,
-            is_saturday,
-            is_sunday,
-            extra_hours_paid,
-            weekend_paid,
-            extra_hours_value,
-            weekend_days_count,
-            weekend_value,
-            total_value
-          `)
-          .eq("project_id", selectedProjectId)
-          .eq("work_date", selectedDate)
-          .in("worker_id", participantIds);
-
-        ((existingExtraData || []) as ExtraWorkHistoryRow[]).forEach((row) => {
-          existingExtraMap.set(row.worker_id, row);
-        });
-      }
-
-      const parsedExtraWorkers: WorkerExtraRow[] = Array.from(
-        participantMap.values()
-      )
-        .sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"))
-        .map((worker) => {
-          const existing = existingExtraMap.get(worker.id);
-
-          return {
-            worker_id: worker.id,
-            full_name: worker.full_name,
-            extra_hour_rate: Number(worker.extra_hour_rate || 0),
-            weekend_day_rate: Number(worker.weekend_day_rate || 0),
-            extra_hours:
-              existing?.extra_hours !== null && existing?.extra_hours !== undefined
-                ? String(existing.extra_hours)
-                : "",
-          };
-        });
-
-      setExtraWorkers(parsedExtraWorkers);
-
-      const { data: last7ParticipantsData } = await supabase
-        .from("time_entries")
-        .select(`
-          worker_id,
-          workers:worker_id (
-            id,
-            full_name,
-            weekend_day_rate
-          )
-        `)
-        .eq("project_id", selectedProjectId)
-        .in("work_date", last7Days);
-
-      const weekendMap = new Map<string, WorkerWeekendRow>();
-
-      ((last7ParticipantsData || []) as TimeEntryWorkerJoin[]).forEach((item) => {
-        const worker = item.workers?.[0];
-        if (!worker?.id) return;
-
-        if (!weekendMap.has(worker.id)) {
-          weekendMap.set(worker.id, {
-            worker_id: worker.id,
-            full_name: worker.full_name,
-            weekend_day_rate: Number(worker.weekend_day_rate || 0),
-            saturday: false,
-            sunday: false,
-          });
-        }
-      });
-
-      const weekendIds = Array.from(weekendMap.keys());
-
-      if (weekendIds.length > 0) {
-        const { data: existingWeekendData } = await supabase
-          .from("extra_work")
-          .select(`
-            id,
-            project_id,
-            worker_id,
-            work_date,
-            extra_hours,
-            is_saturday,
-            is_sunday,
-            extra_hours_paid,
-            weekend_paid,
-            extra_hours_value,
-            weekend_days_count,
-            weekend_value,
-            total_value
-          `)
-          .eq("project_id", selectedProjectId)
-          .eq("work_date", selectedDate)
-          .in("worker_id", weekendIds);
-
-        const weekendExistingMap = new Map<string, ExtraWorkHistoryRow>();
-        ((existingWeekendData || []) as ExtraWorkHistoryRow[]).forEach((row) => {
-          weekendExistingMap.set(row.worker_id, row);
-        });
-
-        const parsedWeekendWorkers = Array.from(weekendMap.values())
-          .sort((a, b) => a.full_name.localeCompare(b.full_name, "ro"))
-          .map((worker) => {
-            const existing = weekendExistingMap.get(worker.worker_id);
-
-            return {
-              ...worker,
-              saturday: Boolean(existing?.is_saturday || false),
-              sunday: Boolean(existing?.is_sunday || false),
-            };
-          });
-
-        setWeekendWorkers(parsedWeekendWorkers);
+      if (entryType === "extra") {
+        const hours = Number(entry.extra_hours || 0);
+        if (hours <= 0) return;
+        const rate = Number(worker.extra_hour_rate || 0);
+        totalValue += hours * rate;
+        workerCount++;
       } else {
-        setWeekendWorkers([]);
+        const days = (entry.is_saturday ? 1 : 0) + (entry.is_sunday ? 1 : 0);
+        if (days === 0) return;
+        const rate = Number(worker.weekend_day_rate || 0);
+        totalValue += days * rate;
+        workerCount++;
       }
-
-      const { data: historyData } = await supabase
-        .from("extra_work")
-        .select(`
-          id,
-          project_id,
-          worker_id,
-          work_date,
-          extra_hours,
-          is_saturday,
-          is_sunday,
-          extra_hours_paid,
-          weekend_paid,
-          extra_hours_value,
-          weekend_days_count,
-          weekend_value,
-          total_value
-        `)
-        .eq("project_id", selectedProjectId)
-        .in("work_date", last7Days)
-        .order("work_date", { ascending: false });
-
-      const historyWorkerIds = Array.from(
-        new Set(((historyData || []) as ExtraWorkHistoryRow[]).map((row) => row.worker_id))
-      );
-
-      let historyWorkerMap = new Map<string, string>();
-
-      if (historyWorkerIds.length > 0) {
-        const { data: workersData } = await supabase
-          .from("workers")
-          .select("id, full_name")
-          .in("id", historyWorkerIds);
-
-        (workersData || []).forEach((worker: any) => {
-          historyWorkerMap.set(worker.id, worker.full_name);
-        });
-      }
-
-      const parsedHistory: HistoryWorkerRow[] = (
-        (historyData || []) as ExtraWorkHistoryRow[]
-      ).map((row) => ({
-        ...row,
-        full_name: historyWorkerMap.get(row.worker_id) || "-",
-      }));
-
-      setHistoryRows(parsedHistory);
-      setLoading(false);
-    };
-
-    loadProjectData();
-  }, [selectedProjectId, selectedDate]);
-
-  const updateExtraWorker = (workerId: string, value: string) => {
-    setExtraWorkers((prev) =>
-      prev.map((worker) =>
-        worker.worker_id === workerId
-          ? { ...worker, extra_hours: value }
-          : worker
-      )
-    );
-  };
-
-  const updateWeekendWorker = (
-    workerId: string,
-    field: "saturday" | "sunday",
-    value: boolean
-  ) => {
-    setWeekendWorkers((prev) =>
-      prev.map((worker) =>
-        worker.worker_id === workerId ? { ...worker, [field]: value } : worker
-      )
-    );
-  };
-
-  const extraTotalPreview = useMemo(() => {
-    return extraWorkers.reduce((sum, worker) => {
-      const hours = Number(worker.extra_hours || 0);
-      return sum + hours * Number(worker.extra_hour_rate || 0);
-    }, 0);
-  }, [extraWorkers]);
-
-  const weekendTotalPreview = useMemo(() => {
-    return weekendWorkers.reduce((sum, worker) => {
-      const weekendDays = (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
-      return sum + weekendDays * Number(worker.weekend_day_rate || 0);
-    }, 0);
-  }, [weekendWorkers]);
-
-  const groupedHistory = useMemo(() => {
-    const map = new Map<string, HistoryWorkerRow[]>();
-
-    historyRows.forEach((row) => {
-      if (!map.has(row.worker_id)) {
-        map.set(row.worker_id, []);
-      }
-      map.get(row.worker_id)!.push(row);
     });
 
-    return Array.from(map.entries()).map(([workerId, rows]) => ({
-      worker_id: workerId,
-      worker_name: rows[0]?.full_name || "-",
-      rows,
-    }));
-  }, [historyRows]);
+    return { totalValue, workerCount };
+  }, [workerEntries, workerMap, entryType]);
 
-  const handleSaveExtra = async () => {
-    if (!selectedProjectId) {
-      alert("Selectează șantierul.");
+  const handleSave = async () => {
+    if (!project) return;
+
+    // Filtreaza doar muncitorii cu valori introduse
+    const validEntries = workerEntries.filter((entry) => {
+      if (entryType === "extra") return Number(entry.extra_hours || 0) > 0;
+      return entry.is_saturday || entry.is_sunday;
+    });
+
+    if (validEntries.length === 0) {
+      alert("Selectează cel puțin un muncitor cu ore/zile completate.");
       return;
     }
 
-    if (!selectedDate) {
-      alert("Selectează data.");
-      return;
-    }
-
-    if (hasActiveEntries) {
-      alert("Nu poți adăuga ore cât timp echipa este pontată.");
-      return;
-    }
-
-    const validRows = extraWorkers.filter(
-      (worker) => Number(worker.extra_hours || 0) > 0
-    );
-
-    if (validRows.length === 0) {
-      alert("Completează cel puțin o valoare de ore extra.");
-      return;
-    }
+    if (!workDate) { alert("Selectează data."); return; }
 
     setSaving(true);
 
-    const rows = validRows.map((worker) => {
-      const extraHours = Number(worker.extra_hours || 0);
-      const extraValue = extraHours * Number(worker.extra_hour_rate || 0);
+    const rows = validEntries.map((entry) => {
+      const worker = workerMap.get(entry.worker_id);
+      const extraHourRate = Number(worker?.extra_hour_rate || 0);
+      const weekendDayRate = Number(worker?.weekend_day_rate || 0);
 
-      return {
-        project_id: selectedProjectId,
-        worker_id: worker.worker_id,
-        work_date: selectedDate,
-        extra_hours: extraHours,
-        is_saturday: false,
-        is_sunday: false,
-        extra_hours_paid: false,
-        weekend_paid: false,
-        extra_hours_value: extraValue,
-        weekend_days_count: 0,
-        weekend_value: 0,
-        total_value: extraValue,
-      };
+      if (entryType === "extra") {
+        const hours = Number(entry.extra_hours || 0);
+        const value = hours * extraHourRate;
+        return {
+          project_id: project.id,
+          worker_id: entry.worker_id,
+          work_date: workDate,
+          extra_hours: hours,
+          extra_hours_value: value,
+          is_saturday: false,
+          is_sunday: false,
+          weekend_days_count: 0,
+          weekend_value: 0,
+          total_value: value,
+          extra_hours_paid: false,
+          weekend_paid: false,
+          notes: notes.trim() || null,
+        };
+      } else {
+        const days = (entry.is_saturday ? 1 : 0) + (entry.is_sunday ? 1 : 0);
+        const value = days * weekendDayRate;
+        return {
+          project_id: project.id,
+          worker_id: entry.worker_id,
+          work_date: workDate,
+          extra_hours: 0,
+          extra_hours_value: 0,
+          is_saturday: entry.is_saturday,
+          is_sunday: entry.is_sunday,
+          weekend_days_count: days,
+          weekend_value: value,
+          total_value: value,
+          extra_hours_paid: false,
+          weekend_paid: false,
+          notes: notes.trim() || null,
+        };
+      }
     });
 
-    const { error } = await supabase.from("extra_work").upsert(rows, {
-      onConflict: "project_id,worker_id,work_date",
-      ignoreDuplicates: false,
-    });
+    const { error } = await supabase.from("extra_work").insert(rows);
 
     if (error) {
-      alert(`A apărut o eroare la salvare: ${error.message}`);
+      alert(`Eroare la salvare: ${error.message}`);
       setSaving(false);
       return;
     }
 
+    // Reset form
+    setWorkerEntries((prev) => prev.map((e) => ({
+      ...e, extra_hours: "", is_saturday: false, is_sunday: false,
+    })));
+    setNotes("");
+    setWorkDate(getTodayDate());
     setSaving(false);
-    alert("Orele extra au fost salvate.");
+    await loadData();
   };
 
-  const handleSaveWeekend = async () => {
-    if (!selectedProjectId) {
-      alert("Selectează șantierul.");
-      return;
-    }
-
-    if (!selectedDate) {
-      alert("Selectează data.");
-      return;
-    }
-
-    const validRows = weekendWorkers.filter(
-      (worker) => worker.saturday || worker.sunday
-    );
-
-    if (validRows.length === 0) {
-      alert("Bifează cel puțin o zi de weekend.");
-      return;
-    }
-
-    setSaving(true);
-
-    const rows = validRows.map((worker) => {
-      const weekendDays = (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
-      const weekendValue = weekendDays * Number(worker.weekend_day_rate || 0);
-
-      return {
-        project_id: selectedProjectId,
-        worker_id: worker.worker_id,
-        work_date: selectedDate,
-        extra_hours: 0,
-        is_saturday: worker.saturday,
-        is_sunday: worker.sunday,
-        extra_hours_paid: false,
-        weekend_paid: false,
-        extra_hours_value: 0,
-        weekend_days_count: weekendDays,
-        weekend_value: weekendValue,
-        total_value: weekendValue,
-      };
+  // Istoric filtrat
+  const filteredHistory = useMemo(() => {
+    return history.filter((row) => {
+      if (historyType === "extra") return Number(row.extra_hours || 0) > 0;
+      return Boolean(row.is_saturday) || Boolean(row.is_sunday) || Number(row.weekend_days_count || 0) > 0;
     });
+  }, [history, historyType]);
 
-    const { error } = await supabase.from("extra_work").upsert(rows, {
-      onConflict: "project_id,worker_id,work_date",
-      ignoreDuplicates: false,
-    });
+  const visibleHistory = historyExpanded ? filteredHistory : filteredHistory.slice(0, 5);
 
-    if (error) {
-      alert(`A apărut o eroare la salvare: ${error.message}`);
-      setSaving(false);
-      return;
-    }
-
-    setSaving(false);
-    alert("Zilele de weekend au fost salvate.");
-  };
-
-  const renderMoneyIcon = () => (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7"
-    >
-      <rect
-        x="3"
-        y="6"
-        width="18"
-        height="12"
-        rx="2"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <circle cx="12" cy="12" r="2.5" stroke="currentColor" strokeWidth="2" />
-      <path
-        d="M7 9h.01M17 15h.01"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
+  const renderIcon = () => (
+    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6 text-blue-600 sm:h-7 sm:w-7">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2" />
+      <path d="M12 7v5l3 3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F0EEE9] flex items-center justify-center">
-        <div className="h-14 w-14 animate-spin rounded-full border-4 border-white border-t-[#0196ff]" />
+      <div className="flex min-h-screen flex-col bg-[#F0EEE9]">
+        <header className="border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-7xl items-center px-4 py-4 sm:px-6 lg:px-8">
+            <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
+          </div>
+        </header>
+        <div className="flex flex-1 items-center justify-center px-4">
+          <div className="flex w-full max-w-xs flex-col items-center gap-5 rounded-[22px] border border-[#E8E5DE] bg-white px-10 py-12 shadow-sm">
+            <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-blue-50">{renderIcon()}</div>
+            <div className="h-11 w-11 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
+            <div className="text-center">
+              <p className="text-[15px] font-semibold text-gray-900">Se încarcă datele...</p>
+              <p className="mt-1 text-sm text-gray-400">Așteptați câteva momente</p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -642,445 +315,262 @@ export default function OreExtraWeekendPage() {
     <div className="min-h-screen bg-[#F0EEE9]">
       <header className="sticky top-0 z-20 border-b border-[#E8E5DE] bg-white/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 lg:px-8">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-          >
+          <Image src="/logo.png" alt="Logo" width={140} height={44} className="h-10 w-auto object-contain sm:h-11" />
+          <button onClick={() => router.push("/dashboard")}
+            className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
             Înapoi
           </button>
-
-          <Image
-            src="/logo.png"
-            alt="Logo"
-            width={140}
-            height={44}
-            className="h-10 w-auto object-contain sm:h-11"
-          />
-
-          <div className="w-[88px]" />
         </div>
       </header>
 
       <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
+
+        {/* Header */}
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50 sm:h-14 sm:w-14">
-              {renderMoneyIcon()}
+              {renderIcon()}
             </div>
-
             <div>
-              <p className="text-sm text-gray-500">Financiar echipă</p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-                Ore Extra / Weekend
-              </h1>
-              <p className="mt-3 text-sm text-gray-500 sm:text-base">
-                Completezi ore extra, weekend și vezi istoricul echipei pe șantier.
-              </p>
+              <p className="text-sm text-gray-500">Șantier: <span className="font-semibold text-gray-700">{project?.name || "-"}</span></p>
+              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-gray-900 sm:text-3xl">Ore extra & Weekend</h1>
+              <p className="mt-2 text-sm text-gray-500">Adaugă ore suplimentare sau zile de weekend lucrate pentru echipa ta.</p>
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Șantier
-              </label>
-              <select
-                value={selectedProjectId}
-                onChange={(e) => setSelectedProjectId(e.target.value)}
-                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
-              >
-                <option value="">Selectează șantier</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Data
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 outline-none transition focus:border-black"
-              />
-            </div>
-          </div>
-
-          {selectedProject && (
-            <div className="mt-4 rounded-2xl border border-[#E8E5DE] bg-[#F8F7F3] p-4">
-              <p className="text-sm font-semibold text-gray-900">
-                {selectedProject.name}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">
-                {selectedProject.beneficiary || "-"}
-              </p>
-            </div>
-          )}
-
-          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <button
-              type="button"
-              onClick={() => setMode("extra")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                mode === "extra"
-                  ? "bg-[#0196ff] text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Ore Extra
+          {/* Tip intrare */}
+          <div className="mt-5 flex gap-2">
+            <button type="button" onClick={() => setEntryType("extra")}
+              className={`flex-1 rounded-2xl py-3 text-sm font-semibold transition ${entryType === "extra" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+              ⏱ Ore extra
             </button>
-
-            <button
-              type="button"
-              onClick={() => setMode("weekend")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                mode === "weekend"
-                  ? "bg-orange-600 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Zi de weekend
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setMode("istoric")}
-              className={`rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                mode === "istoric"
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-700"
-              }`}
-            >
-              Istoric ore / weekend
+            <button type="button" onClick={() => setEntryType("weekend")}
+              className={`flex-1 rounded-2xl py-3 text-sm font-semibold transition ${entryType === "weekend" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+              📅 Zile weekend
             </button>
           </div>
         </section>
 
-        {mode === "extra" && (
-          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Ore extra pe data selectată
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Orele extra pot fi adăugate doar după oprirea pontajelor.
-                </p>
-              </div>
+        {/* Formular adaugare */}
+        <section className="mt-4 rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
+          <div className="mb-4 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">
+              {entryType === "extra" ? "Adaugă ore extra" : "Adaugă zile weekend"}
+            </p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
 
-              <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-                {extraWorkers.length} muncitori
-              </div>
+          {/* Data */}
+          <div className="mb-4">
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Data</label>
+            <input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)}
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500 sm:max-w-xs" />
+          </div>
+
+          {/* Lista muncitori */}
+          {workers.length === 0 ? (
+            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 px-4 py-3">
+              <p className="text-sm text-yellow-800">Nu există muncitori asociați acestui șantier.</p>
             </div>
-
-            {hasActiveEntries ? (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-4">
-                <p className="text-sm font-semibold text-red-800">
-                  Nu poți adăuga ore, echipa este pontată în acest moment!
-                </p>
-              </div>
-            ) : extraWorkers.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există muncitori participanți pe șantier în data selectată.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {extraWorkers.map((worker) => {
-                  const extraValue =
-                    Number(worker.extra_hours || 0) *
-                    Number(worker.extra_hour_rate || 0);
+          ) : (
+            <div className="space-y-3">
+              {entryType === "extra" ? (
+                // ORE EXTRA — input ore per muncitor
+                workers.map((worker) => {
+                  const entry = workerEntries.find((e) => e.worker_id === worker.id);
+                  if (!entry) return null;
+                  const hours = Number(entry.extra_hours || 0);
+                  const rate = Number(worker.extra_hour_rate || 0);
+                  const value = hours * rate;
+                  const hasValue = hours > 0;
 
                   return (
-                    <div
-                      key={worker.worker_id}
-                      className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="text-base font-semibold text-gray-900">
-                            {worker.full_name}
-                          </p>
-                          <p className="mt-1 text-sm text-gray-500">
-                            Tarif ore extra: {worker.extra_hour_rate.toFixed(2)} lei/oră
-                          </p>
+                    <div key={worker.id}
+                      className={`rounded-2xl border p-4 transition ${hasValue ? "border-purple-200 bg-purple-50/40" : "border-gray-200 bg-white"}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">{worker.full_name}</p>
+                          <p className="text-xs text-gray-400">{rate > 0 ? `${rate.toFixed(2)} lei/oră` : "Rată nesetată"}</p>
                         </div>
-
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                          <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
-                              Ore extra
-                            </label>
+                        <div className="flex shrink-0 items-center gap-3">
+                          {hasValue && (
+                            <span className="text-sm font-bold text-purple-700">{value.toFixed(2)} lei</span>
+                          )}
+                          <div className="flex items-center gap-2">
                             <input
-                              type="number"
-                              min="0"
-                              step="0.5"
-                              value={worker.extra_hours}
-                              onChange={(e) =>
-                                updateExtraWorker(worker.worker_id, e.target.value)
-                              }
-                              className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black"
+                              type="text"
+                              inputMode="decimal"
+                              pattern="[0-9]*[.,]?[0-9]*"
+                              value={entry.extra_hours}
+                              onBlur={(e) => updateEntry(worker.id, "extra_hours", e.target.value)}
+                              onChange={(e) => updateEntry(worker.id, "extra_hours", e.target.value)}
+                              placeholder="0"
+                              className={`w-20 rounded-xl border px-3 py-2 text-center text-sm font-semibold outline-none transition ${hasValue ? "border-purple-300 bg-white focus:border-purple-500" : "border-gray-200 focus:border-gray-500"}`}
                             />
+                            <span className="text-xs text-gray-400">ore</span>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                // WEEKEND — checkbox sambata/duminica per muncitor
+                workers.map((worker) => {
+                  const entry = workerEntries.find((e) => e.worker_id === worker.id);
+                  if (!entry) return null;
+                  const days = (entry.is_saturday ? 1 : 0) + (entry.is_sunday ? 1 : 0);
+                  const rate = Number(worker.weekend_day_rate || 0);
+                  const value = days * rate;
+                  const hasValue = days > 0;
 
-                          <div className="rounded-xl bg-purple-50 px-4 py-3">
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-purple-400">
-                              Valoare
-                            </p>
-                            <p className="mt-1 text-sm font-bold text-purple-700">
-                              {extraValue.toFixed(2)} lei
-                            </p>
-                          </div>
+                  return (
+                    <div key={worker.id}
+                      className={`rounded-2xl border p-4 transition ${hasValue ? "border-orange-200 bg-orange-50/40" : "border-gray-200 bg-white"}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">{worker.full_name}</p>
+                          <p className="text-xs text-gray-400">{rate > 0 ? `${rate.toFixed(2)} lei/zi` : "Rată nesetată"}</p>
+                          {hasValue && (
+                            <p className="mt-1 text-sm font-bold text-orange-700">{value.toFixed(2)} lei</p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2">
+                          <label className="flex cursor-pointer items-center gap-2">
+                            <input type="checkbox" checked={entry.is_saturday}
+                              onChange={(e) => updateEntry(worker.id, "is_saturday", e.target.checked)}
+                              className="h-5 w-5 accent-orange-500" />
+                            <span className="text-sm font-medium text-gray-700">Sâmbătă</span>
+                          </label>
+                          <label className="flex cursor-pointer items-center gap-2">
+                            <input type="checkbox" checked={entry.is_sunday}
+                              onChange={(e) => updateEntry(worker.id, "is_sunday", e.target.checked)}
+                              className="h-5 w-5 accent-orange-500" />
+                            <span className="text-sm font-medium text-gray-700">Duminică</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {/* Observatii */}
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-semibold text-gray-700">Observații (opțional)</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
+              placeholder="Ex: Urgență șantier, depășire program..."
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-gray-500" />
+          </div>
+
+          {/* Preview total */}
+          {previewTotals.workerCount > 0 && (
+            <div className={`mt-4 rounded-2xl border p-4 ${entryType === "extra" ? "border-purple-200 bg-purple-50" : "border-orange-200 bg-orange-50"}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-xs font-semibold uppercase tracking-wider ${entryType === "extra" ? "text-purple-600" : "text-orange-600"}`}>
+                    Total de salvat
+                  </p>
+                  <p className={`mt-1 text-sm text-gray-600`}>
+                    {previewTotals.workerCount} {previewTotals.workerCount === 1 ? "muncitor" : "muncitori"}
+                  </p>
+                </div>
+                <p className={`text-2xl font-extrabold ${entryType === "extra" ? "text-purple-700" : "text-orange-700"}`}>
+                  {previewTotals.totalValue.toFixed(2)} lei
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Buton salvare */}
+          <button type="button" onClick={handleSave} disabled={saving || previewTotals.workerCount === 0}
+            className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50 ${entryType === "extra" ? "bg-purple-600" : "bg-orange-500"}`}>
+            {saving ? "Se salvează..." : `Salvează ${entryType === "extra" ? "ore extra" : "zile weekend"}`}
+          </button>
+        </section>
+
+        {/* Istoric */}
+        <section className="mt-6">
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Istoric înregistrări</p>
+            <div className="h-px flex-1 bg-[#E8E5DE]" />
+          </div>
+
+          <div className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+            {/* Tabs istoric */}
+            <div className="flex gap-2 border-b border-[#E8E5DE] p-4">
+              <button type="button" onClick={() => { setHistoryType("extra"); setHistoryExpanded(false); }}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${historyType === "extra" ? "bg-purple-600 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+                Ore extra
+              </button>
+              <button type="button" onClick={() => { setHistoryType("weekend"); setHistoryExpanded(false); }}
+                className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${historyType === "weekend" ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}>
+                Weekend
+              </button>
+            </div>
+
+            {filteredHistory.length === 0 ? (
+              <div className="px-5 py-6">
+                <p className="text-sm text-gray-400">Nu există înregistrări {historyType === "extra" ? "de ore extra" : "de weekend"}.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-[#E8E5DE]">
+                {visibleHistory.map((row) => {
+                  const worker = workerMap.get(row.worker_id);
+                  const isPaid = historyType === "extra" ? Boolean(row.extra_hours_paid) : Boolean(row.weekend_paid);
+
+                  return (
+                    <div key={row.id} className="px-5 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">
+                            {worker?.full_name || "-"}
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            {new Date(`${row.work_date}T00:00:00`).toLocaleDateString("ro-RO", {
+                              weekday: "short", day: "numeric", month: "short", year: "numeric"
+                            })}
+                          </p>
+                          {row.notes && (
+                            <p className="mt-1 text-xs italic text-gray-500">{row.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${isPaid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                            {isPaid ? "Achitat" : "Neachitat"}
+                          </span>
+                          {historyType === "extra" ? (
+                            <span className="text-sm font-bold text-purple-700">
+                              {Number(row.extra_hours || 0).toFixed(1)} h · {Number(row.extra_hours_value || 0).toFixed(2)} lei
+                            </span>
+                          ) : (
+                            <span className="text-sm font-bold text-orange-700">
+                              {row.is_saturday && "Sâm"}{row.is_saturday && row.is_sunday && " + "}{row.is_sunday && "Dum"} · {Number(row.weekend_value || 0).toFixed(2)} lei
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                   );
                 })}
 
-                <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-                  <p className="text-sm font-medium text-green-800">
-                    Total ore extra
-                  </p>
-                  <p className="mt-1 text-2xl font-extrabold tracking-tight text-green-900">
-                    {extraTotalPreview.toFixed(2)} lei
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveExtra}
-                  disabled={saving}
-                  className="w-full rounded-2xl bg-[#0196ff] px-5 py-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                >
-                  {saving ? "Se salvează..." : "Salvează ore extra"}
-                </button>
-              </div>
-            )}
-          </section>
-        )}
-
-        {mode === "weekend" && (
-          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Zi de weekend
-                </h2>
-                <p className="text-sm text-gray-500">
-                  Apar muncitorii care au participat pe șantier în ultimele 7 zile.
-                </p>
-              </div>
-
-              <div className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
-                {weekendWorkers.length} muncitori
-              </div>
-            </div>
-
-            {weekendWorkers.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există muncitori participanți pe acest șantier în ultimele 7 zile.
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {weekendWorkers.map((worker) => {
-                  const weekendDays =
-                    (worker.saturday ? 1 : 0) + (worker.sunday ? 1 : 0);
-                  const weekendValue =
-                    weekendDays * Number(worker.weekend_day_rate || 0);
-
-                  return (
-                    <div
-                      key={worker.worker_id}
-                      className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
-                    >
-                      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="text-base font-semibold text-gray-900">
-                            {worker.full_name}
-                          </p>
-                          <p className="mt-1 text-sm text-gray-500">
-                            Tarif weekend: {worker.weekend_day_rate.toFixed(2)} lei/zi
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={worker.saturday}
-                              onChange={(e) =>
-                                updateWeekendWorker(
-                                  worker.worker_id,
-                                  "saturday",
-                                  e.target.checked
-                                )
-                              }
-                              className="h-5 w-5"
-                            />
-                            <span className="text-sm font-medium text-gray-800">
-                              Sâmbătă
-                            </span>
-                          </label>
-
-                          <label className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3">
-                            <input
-                              type="checkbox"
-                              checked={worker.sunday}
-                              onChange={(e) =>
-                                updateWeekendWorker(
-                                  worker.worker_id,
-                                  "sunday",
-                                  e.target.checked
-                                )
-                              }
-                              className="h-5 w-5"
-                            />
-                            <span className="text-sm font-medium text-gray-800">
-                              Duminică
-                            </span>
-                          </label>
-
-                          <div className="rounded-xl bg-orange-50 px-4 py-3">
-                            <p className="text-[11px] uppercase tracking-[0.12em] text-orange-400">
-                              Valoare
-                            </p>
-                            <p className="mt-1 text-sm font-bold text-orange-700">
-                              {weekendValue.toFixed(2)} lei
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-
-                <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-                  <p className="text-sm font-medium text-green-800">
-                    Total weekend
-                  </p>
-                  <p className="mt-1 text-2xl font-extrabold tracking-tight text-green-900">
-                    {weekendTotalPreview.toFixed(2)} lei
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleSaveWeekend}
-                  disabled={saving}
-                  className="w-full rounded-2xl bg-orange-600 px-5 py-4 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-                >
-                  {saving ? "Se salvează..." : "Salvează zi de weekend"}
-                </button>
-              </div>
-            )}
-          </section>
-        )}
-
-        {mode === "istoric" && (
-          <section className="mt-6 rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
-            <div className="mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Istoric ore și weekend echipă
-              </h2>
-              <p className="text-sm text-gray-500">
-                Se afișează istoricul muncitorilor care au participat pe șantier în ultimele 7 zile.
-              </p>
-            </div>
-
-            {groupedHistory.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                Nu există istoric pentru șantierul selectat.
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {groupedHistory.map((group) => (
-                  <div
-                    key={group.worker_id}
-                    className="rounded-2xl border border-[#E8E5DE] bg-[#FCFBF8] p-4"
-                  >
-                    <p className="text-base font-semibold text-gray-900">
-                      {group.worker_name}
-                    </p>
-
-                    <div className="mt-4 space-y-3">
-                      {group.rows.map((row) => (
-                        <div
-                          key={row.id}
-                          className="rounded-xl border border-gray-200 bg-white px-4 py-3"
-                        >
-                          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                                Data
-                              </p>
-                              <p className="mt-1 text-sm font-medium text-gray-900">
-                                {formatDateRO(row.work_date)}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                                Ore extra
-                              </p>
-                              <p className="mt-1 text-sm font-medium text-gray-900">
-                                {Number(row.extra_hours || 0).toFixed(2)}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                                Weekend
-                              </p>
-                              <p className="mt-1 text-sm font-medium text-gray-900">
-                                {[
-                                  row.is_saturday ? "Sâmbătă" : null,
-                                  row.is_sunday ? "Duminică" : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(", ") || "-"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                                Total
-                              </p>
-                              <p className="mt-1 text-sm font-semibold text-gray-900">
-                                {Number(row.total_value || 0).toFixed(2)} lei
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                                Extra
-                              </p>
-                              <p className="mt-1 text-sm font-medium text-gray-900">
-                                {row.extra_hours_paid ? "Achitat" : "Neachitat"}
-                              </p>
-                            </div>
-
-                            <div>
-                              <p className="text-[11px] uppercase tracking-[0.12em] text-gray-400">
-                                Weekend
-                              </p>
-                              <p className="mt-1 text-sm font-medium text-gray-900">
-                                {row.weekend_paid ? "Achitat" : "Neachitat"}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                {filteredHistory.length > 5 && (
+                  <div className="px-5 py-3">
+                    <button type="button"
+                      onClick={() => setHistoryExpanded((p) => !p)}
+                      className="w-full rounded-xl border border-dashed border-gray-300 py-2.5 text-sm font-semibold text-gray-600 transition hover:bg-gray-50">
+                      {historyExpanded
+                        ? "Arată mai puțin"
+                        : `Arată mai mult (${filteredHistory.length - 5} înregistrări)`}
+                    </button>
                   </div>
-                ))}
+                )}
               </div>
             )}
-          </section>
-        )}
+          </div>
+        </section>
       </main>
       <BottomNav />
     </div>
