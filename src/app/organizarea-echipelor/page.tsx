@@ -456,12 +456,12 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(17);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Echipă – ${project?.name || "-"}`, 14, 38);
+    doc.text(`Echipa – ${project?.name || "-"}`, 14, 38);
 
     doc.setFontSize(9);
     doc.setTextColor(90);
     doc.text(`Beneficiar: ${project?.beneficiary || "-"}`, 14, 45);
-    doc.text(`Locație: ${project?.project_location || "-"}`, 14, 50);
+    doc.text(`Locatie: ${project?.project_location || "-"}`, 14, 50);
     doc.text(`Generat la: ${new Date().toLocaleString("ro-RO")}`, 14, 55);
 
     doc.setFontSize(12);
@@ -470,7 +470,7 @@ export default function OrganizareaEchipelorPage() {
 
     autoTable(doc, {
       startY: 69,
-      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA până la", "ITP până la"]],
+      head: [["Nr.", "Înmatriculare", "Vehicul", "RCA pana la", "ITP pana la"]],
       body: currentVehicles.length > 0
         ? currentVehicles.map((v, i) => [
             String(i + 1), v.registration_number, `${v.brand} ${v.model}`,
@@ -488,7 +488,7 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(12);
     doc.setTextColor(30, 64, 175);
-    doc.text(`Personal de execuție (${currentWorkers.length})`, 14, afterVehicles);
+    doc.text(`Personal de executie (${currentWorkers.length})`, 14, afterVehicles);
 
     autoTable(doc, {
       startY: afterVehicles + 4,
@@ -504,7 +504,7 @@ export default function OrganizareaEchipelorPage() {
 
     doc.setFontSize(8);
     doc.setTextColor(120);
-    doc.text("Document generat automat din aplicația Brenado Construct.", 14, 287);
+    doc.text("Document generat automat din aplicatia Brenado Construct.", 14, 287);
 
     doc.save(`echipa_${(project?.name || "export").replace(/\s+/g, "_")}.pdf`);
   };
