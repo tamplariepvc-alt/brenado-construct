@@ -3,6 +3,7 @@
 import Image from "next/image";
 import {
   ChangeEvent,
+  Suspense,
   TouchEvent,
   useCallback,
   useEffect,
@@ -277,7 +278,7 @@ function PhotoLightbox({
   );
 }
 
-export default function ProiectePage() {
+function ProiectePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -2102,7 +2103,7 @@ export default function ProiectePage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 pb-10 pt-4 sm:px-6 lg:px-8">
+      <main className="mx-auto w-full max-w-7xl px-4 pb-24 pt-4 sm:px-6 lg:px-8 lg:pb-10">
         <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-4 shadow-sm sm:rounded-[24px] sm:p-6">
           <div>
             <p className="text-sm text-gray-500">{canManageProjects ? "Administrare proiecte" : "Proiectele mele"}</p>
@@ -3421,5 +3422,17 @@ export default function ProiectePage() {
       )}
       <BottomNav />
     </div>
+  );
+}
+
+export default function ProiectePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-[#F0EEE9]">
+        <div className="h-10 w-10 animate-spin rounded-full border-[3px] border-[#E8E5DE] border-t-[#0196ff]" />
+      </div>
+    }>
+      <ProiectePageInner />
+    </Suspense>
   );
 }
