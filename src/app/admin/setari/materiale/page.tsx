@@ -48,10 +48,26 @@ export default function SetariMaterialePage() {
   };
 
   const loadArticles = async () => {
-    const { data } = await supabase.from("inventory_articles")
-      .select("id, article_number, article_code, name, unit, unit_price, vat_percent")
-      .order("name", { ascending: true });
-    setArticles((data as Article[]) || []);
+    // Supabase returneaza max 1000/request — fetch in bucla pana aducem toate
+    const PAGE_SIZE = 1000;
+    let allArticles: Article[] = [];
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("inventory_articles")
+        .select("id, article_number, article_code, name, unit, unit_price, vat_percent")
+        .order("name", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error || !data) break;
+      allArticles = [...allArticles, ...(data as Article[])];
+      hasMore = data.length === PAGE_SIZE;
+      from += PAGE_SIZE;
+    }
+
+    setArticles(allArticles);
   };
 
   useEffect(() => {
