@@ -18,6 +18,8 @@ type QuickAction = { label: string; sublabel: string; route?: string; dark?: boo
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [unpaidOreCount, setUnpaidOreCount] = useState(0);
+  const [pendingAlimentariCount, setPendingAlimentariCount] = useState(0);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [stats, setStats] = useState<ProjectStats>({ total: 0, inCurs: 0, finalizate: 0 });
   const [projects, setProjects] = useState<ActiveProject[]>([]);
@@ -39,6 +41,23 @@ export default function DashboardPage() {
         setProjects(p);
       }
       setProfile(profileData as Profile);
+
+      // Notificari doar pentru admin_limitat
+      if (profileData.role === "admin_limitat") {
+        const [extraRes, reqRes] = await Promise.all([
+          supabase.from("extra_work").select("id, extra_hours, weekend_days_count, extra_hours_paid, weekend_paid"),
+          supabase.from("funding_requests").select("id, status").eq("status", "pending"),
+        ]);
+        if (!extraRes.error && extraRes.data) {
+          setUnpaidOreCount(extraRes.data.filter((row) => {
+            const hasExtra = Number(row.extra_hours || 0) > 0;
+            const hasWeekend = Number(row.weekend_days_count || 0) > 0;
+            return (hasExtra && !row.extra_hours_paid) || (hasWeekend && !row.weekend_paid);
+          }).length);
+        }
+        setPendingAlimentariCount((reqRes.data || []).length);
+      }
+
       setLoading(false);
     };
     loadDashboard();
@@ -83,7 +102,7 @@ export default function DashboardPage() {
     { label: "Vezi\nProiecte", sublabel: `${stats.total} active`, route: "/proiecte" },
     { label: "Comenzi\nMateriale", sublabel: "Vizualizare", route: "/comenzi" },
     { label: "Ore Extra +\nWeekend", sublabel: "Pontaje speciale", route: "/admin/ore-extra" },
-    { label: "Alimentare\nCarduri", sublabel: "Trimite bani", route: "/admin/alimentari" },
+    { label: "Alimentare\nCarduri", sublabel: "Carduri / Conturi", route: "/admin/alimentari" },
     { label: "Modul\nAdministrativ", sublabel: "Setări limitate", route: "/admin", dark: true },
   ];
 
@@ -202,6 +221,18 @@ export default function DashboardPage() {
       className={`relative overflow-hidden rounded-[22px] border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${minH} ${
         action.dark ? "border-slate-800 bg-slate-800 text-white" : "border-[#E8E5DE] bg-white text-gray-900"
       }`}>
+      {/* Badge notificari ore extra — admin_limitat */}
+      {action.label.includes("Ore Extra") && unpaidOreCount > 0 && (
+        <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+          {unpaidOreCount > 9 ? "9+" : unpaidOreCount}
+        </span>
+      )}
+      {/* Badge notificari alimentare — admin_limitat */}
+      {action.label.includes("Alimentare") && pendingAlimentariCount > 0 && (
+        <span className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white">
+          {pendingAlimentariCount > 9 ? "9+" : pendingAlimentariCount}
+        </span>
+      )}
       <div className={`mb-4 flex h-14 w-14 items-center justify-center rounded-3xl ${getActionBg(action.label, action.dark)}`}>
         {renderActionIcon(action.label, action.dark)}
       </div>
