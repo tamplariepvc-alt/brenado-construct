@@ -887,6 +887,7 @@ function ProiectePageInner() {
               line_total: item.line_total != null ? String(item.line_total) : "",
             }))
           : [createEmptyItem()],
+      paymentType: null,
     });
   };
 
