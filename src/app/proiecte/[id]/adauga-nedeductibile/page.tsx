@@ -24,6 +24,7 @@ export default function AdaugaNedeductibilePage() {
   const [serviceName, setServiceName] = useState("");
   const [costRon, setCostRon] = useState("");
   const [notes, setNotes] = useState("");
+  const [paymentType, setPaymentType] = useState<"cash" | "card" | null>(null);
 
   useEffect(() => {
     const loadProject = async () => {
@@ -56,6 +57,7 @@ export default function AdaugaNedeductibilePage() {
         service_name: serviceName.trim(),
         cost_ron: Number(costRon),
         notes: notes.trim() || null,
+        payment_type: paymentType || null,
       })
       .select("id")
       .single();
@@ -128,6 +130,34 @@ export default function AdaugaNedeductibilePage() {
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-black"
                 placeholder="Optional" />
             </div>
+          </div>
+
+          {/* Cash / Card */}
+          <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+            <p className="mb-3 text-sm font-semibold text-gray-700">Modalitate de plată</p>
+            <div className="flex gap-4">
+              <label className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 transition ${paymentType === "cash" ? "border-green-500 bg-green-50" : "border-gray-200 bg-white"}`}>
+                <input type="checkbox" checked={paymentType === "cash"}
+                  onChange={() => setPaymentType(paymentType === "cash" ? null : "cash")}
+                  className="h-5 w-5 accent-green-600" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Cash</p>
+                  <p className="text-xs text-gray-400">Se scade din credit</p>
+                </div>
+              </label>
+              <label className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 transition ${paymentType === "card" ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white"}`}>
+                <input type="checkbox" checked={paymentType === "card"}
+                  onChange={() => setPaymentType(paymentType === "card" ? null : "card")}
+                  className="h-5 w-5 accent-blue-600" />
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Card</p>
+                  <p className="text-xs text-gray-400">Se scade din credit</p>
+                </div>
+              </label>
+            </div>
+            {paymentType === null && (
+              <p className="mt-2 text-xs text-gray-400">Nebifat — nu se scade din creditul alimentat.</p>
+            )}
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">

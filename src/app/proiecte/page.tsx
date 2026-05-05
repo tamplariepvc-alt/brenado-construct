@@ -44,6 +44,7 @@ type FiscalReceipt = {
   receipt_image_url: string | null;
   uploaded_by: string | null;
   created_at: string | null;
+  payment_type: string | null;
 };
 
 type ProjectInvoice = {
@@ -58,6 +59,7 @@ type ProjectInvoice = {
   invoice_image_url: string | null;
   uploaded_by: string | null;
   created_at: string | null;
+  payment_type: string | null;
 };
 
 type NondeductibleExpense = {
@@ -69,6 +71,7 @@ type NondeductibleExpense = {
   notes: string | null;
   added_by: string | null;
   created_at: string | null;
+  payment_type: string | null;
 };
 
 type FinancialDoc =
@@ -124,6 +127,7 @@ type InlineFormState = {
   totalWithVat: string;
   notes: string;
   items: InlineItem[];
+  paymentType: "cash" | "card" | null;
 };
 
 const getTodayDate = () => new Date().toISOString().split("T")[0];
@@ -143,6 +147,7 @@ const createEmptyForm = (): InlineFormState => ({
   totalWithVat: "",
   notes: "",
   items: [createEmptyItem()],
+  paymentType: null,
 });
 
 
@@ -669,17 +674,17 @@ function ProiectePageInner() {
       fundingsQuery,
       supabase
         .from("fiscal_receipts")
-        .select("id, project_id, supplier, document_number, receipt_date, total_with_vat, total_without_vat, notes, receipt_image_url, uploaded_by, created_at")
+        .select("id, project_id, supplier, document_number, receipt_date, total_with_vat, total_without_vat, notes, receipt_image_url, uploaded_by, created_at, payment_type")
         .in("project_id", projectIds)
         .order("receipt_date", { ascending: false }),
       supabase
         .from("project_invoices")
-        .select("id, project_id, supplier, document_number, invoice_date, total_with_vat, total_without_vat, notes, invoice_image_url, uploaded_by, created_at")
+        .select("id, project_id, supplier, document_number, invoice_date, total_with_vat, total_without_vat, notes, invoice_image_url, uploaded_by, created_at, payment_type")
         .in("project_id", projectIds)
         .order("invoice_date", { ascending: false }),
       supabase
         .from("project_nondeductible_expenses")
-        .select("id, project_id, service_name, expense_date, cost_ron, notes, added_by, created_at")
+        .select("id, project_id, service_name, expense_date, cost_ron, notes, added_by, created_at, payment_type")
         .in("project_id", projectIds)
         .order("expense_date", { ascending: false }),
       supabase.from("services").select("id, name, um, price_ron").eq("is_active", true).order("name"),
@@ -785,13 +790,13 @@ function ProiectePageInner() {
 
       const spent =
         receipts
-          .filter((r) => r.project_id === p.id && !isExcludedSupplier(r.supplier))
+          .filter((r) => r.project_id === p.id && !isExcludedSupplier(r.supplier) && (r.payment_type === "cash" || r.payment_type === "card"))
           .reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
         invoices
-          .filter((r) => r.project_id === p.id && !isExcludedSupplier(r.supplier))
+          .filter((r) => r.project_id === p.id && !isExcludedSupplier(r.supplier) && (r.payment_type === "cash" || r.payment_type === "card"))
           .reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
         nondeductibles
-          .filter((r) => r.project_id === p.id)
+          .filter((r) => r.project_id === p.id && (r.payment_type === "cash" || r.payment_type === "card"))
           .reduce((s, r) => s + Number(r.cost_ron || 0), 0);
 
       map.set(p.id, funded - spent);
@@ -1036,6 +1041,11 @@ function ProiectePageInner() {
       return;
     }
 
+    // Validare payment_type — nu ambele bifate (imposibil prin UI, dar safety check)
+    if (formState.paymentType === null && !isExcludedSupplier(formState.supplier)) {
+      // OK - nu se scade din credit
+    }
+
     const validItems = formState.items.filter((item) => item.item_name.trim() || Number(item.quantity || 0) > 0);
 
     if (validItems.length === 0) {
@@ -1060,6 +1070,7 @@ function ProiectePageInner() {
           total_without_vat: Number(formState.totalWithoutVat || 0),
           total_with_vat: Number(formState.totalWithVat || 0),
           notes: formState.notes.trim() || null,
+          payment_type: isExcludedSupplier(formState.supplier) ? null : (formState.paymentType || null),
         })
         .select("id")
         .single();
@@ -1094,6 +1105,7 @@ function ProiectePageInner() {
           total_without_vat: Number(formState.totalWithoutVat || 0),
           total_with_vat: Number(formState.totalWithVat || 0),
           notes: formState.notes.trim() || null,
+          payment_type: isExcludedSupplier(formState.supplier) ? null : (formState.paymentType || null),
         })
         .select("id")
         .single();
@@ -3464,6 +3476,46 @@ function ProiectePageInner() {
                             </p>
                           </div>
                         </div>
+
+                        {/* Cash / Card selector — nu apare pentru BRENADO FOR HOUSE */}
+                        {!isExcludedSupplier(formState.supplier) && (
+                          <div className="mt-4 rounded-2xl border border-gray-200 bg-[#F8F7F3] p-4">
+                            <p className="mb-3 text-sm font-semibold text-gray-700">Modalitate de plată</p>
+                            <div className="flex gap-4">
+                              <label className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 transition ${
+                                formState.paymentType === "cash" ? "border-green-500 bg-green-50" : "border-gray-200 bg-white hover:border-gray-300"
+                              }`}>
+                                <input
+                                  type="checkbox"
+                                  checked={formState.paymentType === "cash"}
+                                  onChange={() => setFormState((prev) => ({ ...prev, paymentType: prev.paymentType === "cash" ? null : "cash" }))}
+                                  className="h-5 w-5 accent-green-600"
+                                />
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">Cash</p>
+                                  <p className="text-xs text-gray-400">Se scade din credit</p>
+                                </div>
+                              </label>
+                              <label className={`flex flex-1 cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 transition ${
+                                formState.paymentType === "card" ? "border-blue-500 bg-blue-50" : "border-gray-200 bg-white hover:border-gray-300"
+                              }`}>
+                                <input
+                                  type="checkbox"
+                                  checked={formState.paymentType === "card"}
+                                  onChange={() => setFormState((prev) => ({ ...prev, paymentType: prev.paymentType === "card" ? null : "card" }))}
+                                  className="h-5 w-5 accent-blue-600"
+                                />
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">Card</p>
+                                  <p className="text-xs text-gray-400">Se scade din credit</p>
+                                </div>
+                              </label>
+                            </div>
+                            {formState.paymentType === null && (
+                              <p className="mt-2 text-xs text-gray-400">Nebifat — nu se scade din creditul alimentat.</p>
+                            )}
+                          </div>
+                        )}
 
                         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                           <button
