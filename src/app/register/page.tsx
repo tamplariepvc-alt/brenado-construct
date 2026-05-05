@@ -195,7 +195,7 @@ function RegisterInner() {
 
           <button type="submit" disabled={submitting}
             className="w-full rounded-2xl bg-[#0196ff] px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
-            {submitting ? "Se creează contul..." : "Creează cont"}
+            {submitting ? "Se creează contul..." : "Creează cont"} 
           </button>
         </form>
       </div>
