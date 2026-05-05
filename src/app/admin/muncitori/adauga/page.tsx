@@ -7,6 +7,8 @@ import { supabase } from "@/lib/supabase/client";
 
 type WorkerType = "executie" | "tesa";
 
+const EXECUTIE_ROLES = ["SEF DE ECHIPA", "PERSONAL DE EXECUTIE"];
+
 export default function AdaugaPersonalPage() {
   const router = useRouter();
 
@@ -25,6 +27,11 @@ export default function AdaugaPersonalPage() {
 
     if (!fullName.trim()) {
       alert("Completează numele.");
+      return;
+    }
+
+    if (workerType === "executie" && !jobTitle) {
+      alert("Selectează funcția.");
       return;
     }
 
@@ -115,7 +122,7 @@ export default function AdaugaPersonalPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setWorkerType("executie")}
+                onClick={() => { setWorkerType("executie"); setJobTitle(""); }}
                 className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                   workerType === "executie"
                     ? "border-gray-900 bg-gray-900 text-white"
@@ -126,7 +133,7 @@ export default function AdaugaPersonalPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setWorkerType("tesa")}
+                onClick={() => { setWorkerType("tesa"); setJobTitle(""); }}
                 className={`flex-1 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                   workerType === "tesa"
                     ? "border-[#0196ff] bg-[#0196ff] text-white"
@@ -155,23 +162,37 @@ export default function AdaugaPersonalPage() {
                 <input
                   type="text"
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Introdu numele complet"
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-gray-500"
+                  onChange={(e) => setFullName(e.target.value.toUpperCase())}
+                  autoCapitalize="characters"
+                  placeholder="INTRODU NUMELE COMPLET"
+                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm uppercase outline-none transition focus:border-gray-500"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Funcție
+                  Funcție {workerType === "executie" && <span className="text-red-500">*</span>}
                 </label>
-                <input
-                  type="text"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder={workerType === "tesa" ? "Ex: Inginer, Contabil" : "Ex: Montator, Finisor"}
-                  className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-gray-500"
-                />
+                {workerType === "executie" ? (
+                  <select
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500"
+                  >
+                    <option value="">Selectează funcția</option>
+                    {EXECUTIE_ROLES.map((role) => (
+                      <option key={role} value={role}>{role}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={jobTitle}
+                    onChange={(e) => setJobTitle(e.target.value)}
+                    placeholder="Ex: Inginer, Contabil"
+                    className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-gray-500"
+                  />
+                )}
               </div>
 
               <div className="md:col-span-2">
