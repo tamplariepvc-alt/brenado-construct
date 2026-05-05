@@ -3252,8 +3252,6 @@ function ProiectePageInner() {
                         </div>
                       )}
                     </div>
-
-                    </div>
                     )} {/* end expanded view */}
 
                     {/* FORMULAR BON / FACTURĂ */}
