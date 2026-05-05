@@ -737,6 +737,15 @@ function ProiectePageInner() {
     return map;
   }, [fundings]);
 
+  // Furnizori excluși din calculul creditului (intra-companie, fără impact pe cash flow)
+  const isExcludedSupplier = (supplier: string | null | undefined): boolean => {
+    if (!supplier) return false;
+    const normalized = supplier.trim().toUpperCase();
+    return normalized === "BRENADO FOR HOUSE SRL"
+      || normalized === "BRENADO FOR HOUSE"
+      || normalized.includes("BRENADO FOR HOUSE");
+  };
+
   const currentCreditByProject = useMemo(() => {
     const map = new Map<string, number>();
 
@@ -744,9 +753,15 @@ function ProiectePageInner() {
       const funded = fundingTotalsByProject.get(p.id) || 0;
 
       const spent =
-        receipts.filter((r) => r.project_id === p.id).reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
-        invoices.filter((r) => r.project_id === p.id).reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
-        nondeductibles.filter((r) => r.project_id === p.id).reduce((s, r) => s + Number(r.cost_ron || 0), 0);
+        receipts
+          .filter((r) => r.project_id === p.id && !isExcludedSupplier(r.supplier))
+          .reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
+        invoices
+          .filter((r) => r.project_id === p.id && !isExcludedSupplier(r.supplier))
+          .reduce((s, r) => s + Number(r.total_with_vat || 0), 0) +
+        nondeductibles
+          .filter((r) => r.project_id === p.id)
+          .reduce((s, r) => s + Number(r.cost_ron || 0), 0);
 
       map.set(p.id, funded - spent);
     });
@@ -1081,8 +1096,10 @@ function ProiectePageInner() {
       const docKind = activeInlineType === "bon" ? "bon" : "factura";
       const linkUrl = insertedDocId ? `/proiecte?openDoc=${docKind}:${insertedDocId}` : `/proiecte`;
       await createNotificationForMany(recipientIds, {
-        title: `${activeInlineType === "bon" ? "Bon fiscal" : "Factură"} încărcat/ă`,
-        message: `${uploaderName} a încărcat ${docLabel} în șantierul ${projectName}.`,
+        title: activeInlineType === "bon" ? "Bon fiscal încărcat" : "Factură încărcată",
+        message: activeInlineType === "bon"
+          ? `${uploaderName} a încărcat un bon fiscal în șantierul ${projectName}.`
+          : `${uploaderName} a încărcat o factură în șantierul ${projectName}.`,
         type: "info",
         link: linkUrl,
       });
