@@ -155,9 +155,11 @@ function RegisterInner() {
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">Nume complet *</label>
-            <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
-              placeholder="Ex: Ion Popescu"
-              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm outline-none transition focus:border-black"
+            <input type="text" value={fullName}
+              onChange={(e) => setFullName(e.target.value.toUpperCase().replace(/-/g, ""))}
+              autoCapitalize="characters"
+              placeholder="EX: ION POPESCU"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm uppercase outline-none transition focus:border-black"
               required />
           </div>
 
