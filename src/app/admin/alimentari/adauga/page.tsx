@@ -53,14 +53,14 @@ function AdaugaAlimentareInner() {
     if (!selectedProjectId) { alert("Selectează proiectul."); return; }
     if (!amountRon || Number(amountRon) <= 0) { alert("Introdu o sumă validă."); return; }
     if (!fundingDate) { alert("Selectează data alimentării."); return; }
-    if (!selectedLeadId) { alert("Selectează șeful de șantier."); return; }
+    if (isFromRequest && !selectedLeadId) { alert("Selectează șeful de șantier."); return; }
 
     setSaving(true);
 
     const { error } = await supabase.from("project_fundings").insert({
       project_id: selectedProjectId,
       added_by: user.id,
-      team_lead_user_id: selectedLeadId,
+      team_lead_user_id: selectedLeadId || null,
       amount_ron: Number(amountRon),
       funding_type: "card",
       funding_date: fundingDate,
@@ -84,14 +84,16 @@ function AdaugaAlimentareInner() {
         link: "/solicita-bani",
       });
     } else {
-      // Alimentare directa → notif "au fost adaugati bani"
-      await createNotification({
-        user_id: selectedLeadId,
-        title: "Alimentare card",
-        message: `Au fost adăugați ${amount} lei în contul tău pentru șantierul ${projectName}.`,
-        type: "success",
-        link: undefined,
-      });
+      // Alimentare directa → notif "au fost adaugati bani" (doar daca s-a selectat sef)
+      if (selectedLeadId) {
+        await createNotification({
+          user_id: selectedLeadId,
+          title: "Alimentare card",
+          message: `Au fost adăugați ${amount} lei în contul tău pentru șantierul ${projectName}.`,
+          type: "success",
+          link: undefined,
+        });
+      }
     }
 
     setSaving(false);
@@ -164,7 +166,7 @@ function AdaugaAlimentareInner() {
         <div className="mt-6 space-y-4">
           <section className="rounded-[22px] border border-[#E8E5DE] bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-3 px-1">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">Proiect & șef</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-gray-400">{isFromRequest ? "Proiect & șef" : "Proiect"}</p>
               <div className="h-px flex-1 bg-[#E8E5DE]" />
             </div>
             <div className="grid grid-cols-1 gap-4">
@@ -176,14 +178,16 @@ function AdaugaAlimentareInner() {
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.name}{p.beneficiary ? ` — ${p.beneficiary}` : ""}</option>)}
                 </select>
               </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">Șef de șantier <span className="text-red-500">*</span></label>
-                <select value={selectedLeadId} onChange={(e) => setSelectedLeadId(e.target.value)}
-                  className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500">
-                  <option value="">Selectează șeful de șantier</option>
-                  {teamLeads.map((lead) => <option key={lead.id} value={lead.id}>{lead.full_name}</option>)}
-                </select>
-              </div>
+              {isFromRequest && (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">Șef de șantier <span className="text-red-500">*</span></label>
+                  <select value={selectedLeadId} onChange={(e) => setSelectedLeadId(e.target.value)}
+                    className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-gray-500">
+                    <option value="">Selectează șeful de șantier</option>
+                    {teamLeads.map((lead) => <option key={lead.id} value={lead.id}>{lead.full_name}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
           </section>
 
