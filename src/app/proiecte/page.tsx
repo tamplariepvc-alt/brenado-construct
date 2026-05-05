@@ -354,6 +354,9 @@ function ProiectePageInner() {
 
   // NEW: modal pentru document financiar (admin)
   const [financialDocModal, setFinancialDocModal] = useState<FinancialDoc | null>(null);
+  const [deleteDocPassword, setDeleteDocPassword] = useState("");
+  const [deleteDocPasswordError, setDeleteDocPasswordError] = useState("");
+  const [deletingDoc, setDeletingDoc] = useState(false);
 
   const [lightboxPhotos, setLightboxPhotos] = useState<DailyPhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -389,6 +392,32 @@ function ProiectePageInner() {
     setDeleteProjectId(projectId);
     setDeleteProjectPassword("");
     setDeleteProjectPasswordError("");
+  };
+
+  const handleDeleteDoc = async () => {
+    if (deleteDocPassword !== "brenado") {
+      setDeleteDocPasswordError("Parolă incorectă. Încearcă din nou.");
+      return;
+    }
+    if (!financialDocModal) return;
+
+    setDeletingDoc(true);
+
+    if (financialDocModal.kind === "bon") {
+      await supabase.from("fiscal_receipt_items").delete().eq("receipt_id", financialDocModal.data.id);
+      await supabase.from("fiscal_receipts").delete().eq("id", financialDocModal.data.id);
+    } else if (financialDocModal.kind === "factura") {
+      await supabase.from("project_invoice_items").delete().eq("invoice_id", financialDocModal.data.id);
+      await supabase.from("project_invoices").delete().eq("id", financialDocModal.data.id);
+    } else if (financialDocModal.kind === "nedeductibila") {
+      await supabase.from("project_nondeductible_expenses").delete().eq("id", financialDocModal.data.id);
+    }
+
+    setDeletingDoc(false);
+    setFinancialDocModal(null);
+    setDeleteDocPassword("");
+    setDeleteDocPasswordError("");
+    await loadData();
   };
 
   const handleUpdateStatus = async () => {
@@ -1947,10 +1976,36 @@ function ProiectePageInner() {
               )}
             </div>
 
-            <div className="shrink-0 border-t border-gray-100 bg-[#FCFBF8] px-5 py-3">
+            <div className="shrink-0 border-t border-gray-100 bg-[#FCFBF8] px-5 py-4 space-y-3">
+              {/* Ștergere document cu parolă */}
+              <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3">
+                <p className="mb-2 text-xs font-semibold text-red-700">Șterge documentul</p>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={deleteDocPassword}
+                    onChange={(e) => { setDeleteDocPassword(e.target.value); setDeleteDocPasswordError(""); }}
+                    placeholder="Parolă"
+                    className={`flex-1 rounded-xl border px-3 py-2 text-sm outline-none ${
+                      deleteDocPasswordError ? "border-red-400 bg-red-50" : "border-gray-200 bg-white"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleDeleteDoc}
+                    disabled={deletingDoc || !deleteDocPassword}
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+                  >
+                    {deletingDoc ? "..." : "Șterge"}
+                  </button>
+                </div>
+                {deleteDocPasswordError && (
+                  <p className="mt-1.5 text-xs font-medium text-red-600">{deleteDocPasswordError}</p>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setFinancialDocModal(null)}
+                onClick={() => { setFinancialDocModal(null); setDeleteDocPassword(""); setDeleteDocPasswordError(""); }}
                 className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
               >
                 Închide
