@@ -27,6 +27,7 @@ type Project = {
   beneficiary: string | null;
   status: string | null;
   created_at: string;
+  execution_deadline?: string | null;
 };
 
 type ProjectFunding = { project_id: string; amount_ron: number | null };
@@ -370,6 +371,7 @@ function ProiectePageInner() {
   const [savingStatusId, setSavingStatusId] = useState<string | null>(null);
   const [statusModal, setStatusModal] = useState<{ projectId: string; currentStatus: string | null } | null>(null);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
 
   const isAdmin = ["administrator", "cont_tehnic", "project_manager"].includes(profile?.role || "");
   const isAdminLimitat = profile?.role === "admin_limitat";
@@ -601,7 +603,7 @@ function ProiectePageInner() {
     if (["administrator", "cont_tehnic", "project_manager", "admin_limitat"].includes(profileData.role)) {
       const { data } = await supabase
         .from("projects")
-        .select("id, name, beneficiary, status, created_at")
+        .select("id, name, beneficiary, status, created_at, execution_deadline")
         .order("created_at", { ascending: true });
 
       visibleProjects = (data as Project[]) || [];
@@ -616,7 +618,7 @@ function ProiectePageInner() {
       if (ids.length > 0) {
         const { data } = await supabase
           .from("projects")
-          .select("id, name, beneficiary, status, created_at")
+          .select("id, name, beneficiary, status, created_at, execution_deadline")
           .in("id", ids)
           .eq("status", "in_lucru")
           .order("created_at", { ascending: true });
@@ -2231,7 +2233,75 @@ function ProiectePageInner() {
 
                 return (
                   <div key={project.id} className="overflow-hidden rounded-[22px] border border-[#E8E5DE] bg-white shadow-sm">
+                    {/* COLLAPSED VIEW — pentru non-sef_echipa */}
+                    {profile?.role !== "sef_echipa" && expandedProjectId !== project.id && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedProjectId(project.id)}
+                        className="w-full p-4 text-left transition hover:bg-[#FCFBF8] sm:p-5"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
+                              {renderProjectIcon()}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[15px] font-bold text-gray-900">{project.name}</p>
+                              <p className="text-xs text-gray-400">{project.beneficiary || "-"}</p>
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${getStatusClasses(project.status)}`}>
+                              {getStatusLabel(project.status)}
+                            </span>
+                            <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4 text-gray-400" stroke="currentColor" strokeWidth="2">
+                              <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-3 gap-2">
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.1em] text-gray-400">Alimentat</p>
+                            <p className="mt-0.5 text-sm font-bold text-blue-700">
+                              {(fundingTotalsByProject.get(project.id) || 0).toFixed(0)} lei
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.1em] text-gray-400">Curent</p>
+                            <p className={`mt-0.5 text-sm font-bold ${(currentCreditByProject.get(project.id) || 0) >= 0 ? "text-green-700" : "text-red-700"}`}>
+                              {(currentCreditByProject.get(project.id) || 0).toFixed(0)} lei
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] uppercase tracking-[0.1em] text-gray-400">Termen</p>
+                            <p className="mt-0.5 text-xs font-semibold text-gray-600">
+                              {project.execution_deadline
+                                ? new Date(project.execution_deadline).toLocaleDateString("ro-RO", { day: "numeric", month: "short" })
+                                : new Date(project.created_at).toLocaleDateString("ro-RO", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+
+                    {/* EXPANDED VIEW */}
+                    {(profile?.role === "sef_echipa" || expandedProjectId === project.id) && (
                     <div className="p-4 sm:p-5">
+                      {/* Buton collapse — doar pentru non-sef_echipa */}
+                      {profile?.role !== "sef_echipa" && (
+                        <div className="mb-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedProjectId(null)}
+                            className="flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-500 transition hover:bg-gray-100"
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" className="h-3.5 w-3.5" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 15l-6-6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            Restrânge
+                          </button>
+                        </div>
+                      )}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                           <div className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-3xl bg-blue-50">
@@ -3183,8 +3253,11 @@ function ProiectePageInner() {
                       )}
                     </div>
 
+                    </div>
+                    )} {/* end expanded view */}
+
                     {/* FORMULAR BON / FACTURĂ */}
-                    {(profile?.role === "sef_echipa" || profile?.role === "project_manager" || profile?.role === "admin_limitat") && activeInlineProjectId === project.id && projectTab === "financiar" && (
+                    {(profile?.role === "sef_echipa" || profile?.role === "project_manager" || profile?.role === "admin_limitat") && activeInlineProjectId === project.id && projectTab === "financiar" && (expandedProjectId === project.id || profile?.role === "sef_echipa") && (
                       <div className="border-t border-[#E8E5DE] bg-[#FCFBF8] p-4 sm:p-5">
                         <div className="mb-4">
                           <p className="text-base font-semibold text-gray-900">
